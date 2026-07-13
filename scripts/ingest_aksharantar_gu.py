@@ -3,7 +3,8 @@
 
 - Never overrides Apple lexicon keys/weights in rime/gu_lexicon_blob.json
 - Soft-fills missing roman→native with low weight
-- Adds native forms to unigram floor / attested set via rebuild helper
+- Boosts native forms into unigram floor only (does NOT expand attested.json;
+  quality attested comes from scripts/build_gu_word_freq.py)
 
 Dataset: https://huggingface.co/datasets/ai4bharat/Aksharantar (guj.zip)
 Packaging of mined data: CC0 (see HF card). We do not redistribute the full zip;
@@ -155,10 +156,9 @@ def merge_soft_lexicon(best: dict[str, tuple[str, int]]) -> int:
 
 
 def merge_into_lm(natives: set[str]) -> None:
-    """Boost natives into unigram + attested (floor), without full rebuild."""
+    """Boost natives into unigram floor only — do NOT expand attested (quality policy)."""
     lm = ROOT / "rime" / "js" / "lm"
     uni_path = lm / "unigram.tsv"
-    att_path = lm / "attested.json"
     if not uni_path.exists():
         print("WARN: unigram missing; run scripts/build_gu_word_freq.py first")
         return
@@ -177,20 +177,7 @@ def merge_into_lm(natives: set[str]) -> None:
     lines = [f"{w}\t{c}" for w, c in sorted(counts.items(), key=lambda x: (-x[1], x[0]))]
     uni_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     (ROOT / "rime" / "lm" / "unigram.tsv").write_text(uni_path.read_text(encoding="utf-8"), encoding="utf-8")
-
-    attested: set[str] = set()
-    floor = ATTESTED_FLOOR
-    if att_path.exists():
-        data = json.loads(att_path.read_text(encoding="utf-8"))
-        attested = set(data.get("words") or [])
-        floor = int(data.get("floor") or ATTESTED_FLOOR)
-    before = len(attested)
-    attested |= natives
-    payload = {"words": sorted(attested), "floor": floor}
-    text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-    att_path.write_text(text, encoding="utf-8")
-    (ROOT / "rime" / "lm" / "attested.json").write_text(text, encoding="utf-8")
-    print(f"attested {before} → {len(attested)} (+{len(attested) - before})")
+    print(f"unigram boosted with {len(natives)} aksharantar natives (floor={ATTESTED_FLOOR}); attested untouched")
 
 
 def main() -> None:
@@ -209,7 +196,7 @@ def main() -> None:
     added = merge_soft_lexicon(best)
     print(f"soft-filled lexicon keys={added} (weight={SOFT_WEIGHT}, cap={MAX_SOFT_KEYS})")
     merge_into_lm(natives)
-    print("done — run ./scripts/sync_rime.sh and python3 eval/rank_offline.py")
+    print("done — run scripts/build_gu_word_freq.py to refresh attested; then sync_rime + eval")
 
 
 if __name__ == "__main__":

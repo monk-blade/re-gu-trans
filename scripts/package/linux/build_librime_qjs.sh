@@ -6,6 +6,10 @@
 #   LIBRIME_TAG      default 1.16.1
 #   BUILD_DIR        default $PACKAGE_ROOT/dist/librime-build
 #   OUT_SO           default $PACKAGE_ROOT/dist/plugins/librime-qjs.so
+#
+# Ubuntu 22.04 / GCC patches applied after clone:
+#   - __FILE_NAME__ → __FILE__ (Clang-only macro used by librime-qjs)
+#   - glog IsGoogleLoggingInitialized shim (not public on distro libglog)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,6 +29,47 @@ echo "Cloning librime @ $LIBRIME_TAG ..."
 git clone --depth 1 --branch "$LIBRIME_TAG" https://github.com/rime/librime.git
 cd librime
 
+# --- patch: Ubuntu 22.04 libglog lacks public google::IsGoogleLoggingInitialized ---
+SETUP_CC="src/rime/setup.cc"
+if [[ -f "$SETUP_CC" ]] && grep -q 'IsGoogleLoggingInitialized' "$SETUP_CC"; then
+  echo "Patching $SETUP_CC for older libglog ..."
+  python3 - "$SETUP_CC" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+old = """  if (google::IsGoogleLoggingInitialized()) {
+    LOG(WARNING) << "Glog is already initialized.";
+  } else {
+    google::InitGoogleLogging(app_name);
+  }"""
+new = """  // re-gu-trans: distro libglog (Ubuntu 22.04) often lacks public
+  // google::IsGoogleLoggingInitialized(); use a process-local guard.
+  static bool glog_initialized = false;
+  if (glog_initialized) {
+    LOG(WARNING) << "Glog is already initialized.";
+  } else {
+    google::InitGoogleLogging(app_name);
+    glog_initialized = true;
+  }"""
+if old not in text:
+    # tolerant whitespace match
+    import re
+    pat = re.compile(
+        r"if\s*\(\s*google::IsGoogleLoggingInitialized\s*\(\s*\)\s*\)\s*\{.*?"
+        r"google::InitGoogleLogging\s*\(\s*app_name\s*\)\s*;\s*\}",
+        re.S,
+    )
+    text2, n = pat.subn(new.strip(), text, count=1)
+    if n != 1:
+        raise SystemExit(f"failed to patch {path}: IsGoogleLoggingInitialized block not found")
+    path.write_text(text2, encoding="utf-8")
+else:
+    path.write_text(text.replace(old, new), encoding="utf-8")
+print(f"patched {path}")
+PY
+fi
+
 mkdir -p plugins
 echo "Cloning librime-qjs @ $LIBRIME_QJS_TAG into plugins/qjs ..."
 git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
@@ -35,6 +80,11 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
   cd plugins/qjs
   git submodule update --init --recursive
 )
+
+# --- patch: __FILE_NAME__ is Clang-only; GCC needs __FILE__ ---
+echo "Patching librime-qjs __FILE_NAME__ → __FILE__ for GCC ..."
+find plugins/qjs -type f \( -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) \
+  -print0 | xargs -0 sed -i 's/__FILE_NAME__/__FILE__/g'
 
 # librime Makefile drives cmake + plugins (see HuangJian doc/build-linux.md)
 export CMAKE_BUILD_PARALLEL_LEVEL="$JOBS"

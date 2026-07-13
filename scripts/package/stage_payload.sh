@@ -29,6 +29,7 @@ require_file "$RIME_SRC/commit_on_punct_processor.js"
 require_file "$RIME_SRC/gu_lexicon_blob.json"
 require_file "$RIME_SRC/js/lm/unigram.tsv"
 require_file "$RIME_SRC/js/lm/stems.json"
+require_file "$RIME_SRC/js/lm/attested.json"
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR/rime/js/lm"
@@ -47,6 +48,8 @@ cp -f "$RIME_SRC/gu_lexicon_blob.json" "$OUT_DIR/rime/"
 
 cp -f "$RIME_SRC/js/lm/unigram.tsv" "$OUT_DIR/rime/js/lm/"
 cp -f "$RIME_SRC/js/lm/stems.json" "$OUT_DIR/rime/js/lm/"
+cp -f "$RIME_SRC/js/lm/attested.json" "$OUT_DIR/rime/js/lm/"
+cp -f "$RIME_SRC/js/emoji_keywords.json" "$OUT_DIR/rime/js/" 2>/dev/null || true
 
 # Default onnx paths per OS (packages do not ship the ranker; paths are harmless)
 case "$OS" in

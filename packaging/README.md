@@ -23,6 +23,11 @@ Push a tag `vX.Y.Z` → `.github/workflows/release-packages.yml` publishes GitHu
 
 Linux jobs install `libunwind-dev` **before** `libgoogle-glog-dev` (Ubuntu 22.04 packaging quirk).
 
+`scripts/package/linux/build_librime_qjs.sh` applies two Ubuntu/GCC patches after clone (verified against librime `1.16.1` / librime-qjs `v1.3.0`):
+
+1. **`__FILE_NAME__` → `__FILE__`** in librime-qjs sources (Clang-only macro; GCC fails otherwise).
+2. **glog init guard** in `src/rime/setup.cc`: replace `google::IsGoogleLoggingInitialized()` with a process-local `static bool` (not public on distro libglog).
+
 ```bash
 git tag v2.6.0
 git push origin v2.6.0

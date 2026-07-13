@@ -1594,7 +1594,59 @@ function transliterate(input) {
   return transliterateTokens(tokens)
 }
 
-/** All phonetic script forms to consider for one roman string (base + nasal -u). */
+/**
+ * Apple/Google-style diphthong splits: roman `ai`/`ay` often mean અઈ/ાઈ/ાય,
+ * not only matra ૈ — and never bare ી (that comes from mistaken gai→gaee).
+ * Constructs independent-vowel forms the matra transliterator cannot emit.
+ */
+function diphthongAlternateForms(roman) {
+  const out = []
+  if (!roman) return out
+  const s = String(roman).toLowerCase()
+  const digraphs = ['ai', 'ay']
+  for (const digraph of digraphs) {
+    let idx = 0
+    let added = 0
+    while (idx <= s.length - digraph.length && added < 3) {
+      const at = s.indexOf(digraph, idx)
+      if (at < 0) break
+      const prefix = s.slice(0, at)
+      const suffix = s.slice(at + digraph.length)
+      // Avoid splitting inside longer vowel runs (e.g. aai already has aa+i path).
+      if (at > 0 && s[at - 1] === 'a' && digraph === 'ai') {
+        idx = at + 1
+        continue
+      }
+      const prefixGu = prefix ? transliterate(prefix) : ''
+      const suffixGu = suffix ? transliterate(suffix) : ''
+      const nuclei = []
+      if (digraph === 'ai') {
+        if (!prefixGu) {
+          nuclei.push('ઐ', 'અઈ', 'અઇ', 'આઈ', 'આઇ')
+        } else if (endsWithConsonantWithImplicitA(prefixGu)) {
+          // gai→ગઈ/ગઇ; also aa-colored ગાઈ/ગાઇ (Apple shows both)
+          nuclei.push(prefixGu + 'ઈ', prefixGu + 'ઇ')
+          const withAa = prefixGu.slice(0, -1) + prefixGu.slice(-1) + VOWEL_MATRAS.aa
+          nuclei.push(withAa + 'ઈ', withAa + 'ઇ')
+        }
+      } else if (digraph === 'ay') {
+        if (!prefixGu) {
+          nuclei.push('અય', 'આય')
+        } else if (endsWithConsonantWithImplicitA(prefixGu)) {
+          nuclei.push(prefixGu + 'ય')
+          const withAa = prefixGu.slice(0, -1) + prefixGu.slice(-1) + VOWEL_MATRAS.aa
+          nuclei.push(withAa + 'ય')
+        }
+      }
+      for (const n of nuclei) out.push(n + suffixGu)
+      if (nuclei.length) added += 1
+      idx = at + 1
+    }
+  }
+  return out
+}
+
+/** All phonetic script forms to consider for one roman string (base + nasal -u + diphthongs). */
 function phoneticFormsForRoman(roman) {
   const out = []
   const seen = new Set()
@@ -1606,6 +1658,10 @@ function phoneticFormsForRoman(roman) {
   const base = transliterate(roman)
   add(base)
   add(withNasalFinalU(base))
+  for (const g of diphthongAlternateForms(roman)) {
+    add(g)
+    add(withNasalFinalU(g))
+  }
   return out
 }
 
@@ -1651,12 +1707,23 @@ const ENDING_VARIANTS = {
   'aa': ['a'],
 }
 
+/** True when roman `i`/`ii`/`ee` at `iPos` is the second half of ai/oi/ui/ei (not ketli-style). */
+function isDiphthongI(s, iPos) {
+  if (!s || iPos <= 0) return false
+  const prev = s[iPos - 1]
+  return prev === 'a' || prev === 'e' || prev === 'o' || prev === 'u'
+}
+
 /** Extra roman queries for lexicon lookup (poshatu ↔ poshatun, ketli ↔ keTlii). */
 function withEndingVariants(s) {
   const out = new Set([s])
   for (const [from, tos] of Object.entries(ENDING_VARIANTS)) {
     if (s.length <= from.length) continue
     if (!s.endsWith(from)) continue
+    // gai→gaee/gaii would invent ગી and outrank attested ગઈ; keep i↔ii for consonant+i only.
+    if ((from === 'i' || from === 'ii' || from === 'ee') && isDiphthongI(s, s.length - from.length)) {
+      continue
+    }
     const stem = s.slice(0, -from.length)
     for (const to of tos) out.add(stem + to)
   }
@@ -1681,6 +1748,11 @@ function withMidVowelVariants(s) {
       if (at < 0) break
       // Prefer interior / non-trivial positions; still allow endings
       if (at > 0) {
+        // Skip ai→aii (and oi/ui/ei); diphthongs use split phonetics instead.
+        if ((from === 'i' || from === 'ii') && isDiphthongI(s, at)) {
+          idx = at + 1
+          continue
+        }
         out.add(s.slice(0, at) + to + s.slice(at + from.length))
         added += 1
       }

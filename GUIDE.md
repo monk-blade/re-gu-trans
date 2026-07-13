@@ -167,28 +167,44 @@ Native-script rescoring merges into one **unique-quality** set (NFC, Gujarati-on
 
 | Tier | Source | Role |
 |------|--------|------|
-| T0 | Apple distill | roman lexicon + strong frequency floor |
-| T1 | [aspell-gu / gu-wordlist](https://github.com/kartikm/gu-wordlist) (GPL-2+), [hunspell gu_IN](https://github.com/elastic/hunspell/tree/master/dicts/gu_IN) (GPL+) | attested spellings (floor 50) |
-| T2 | [kartikm wikipedia-wordlist](https://github.com/kartikm/gu-wordlist), [open-dict-data wikidict GU](https://github.com/open-dict-data/wikidict-wordlist) | wiki-attested (floor 40) |
-| T3 | [Google i18n GU wordcounts](http://www.gstatic.com/i18n/corpora/wordcounts/gu.txt), [Indic Keyboard gu wordfreq](https://github.com/jishnu7/dictionaries) | corpus frequency |
-| T4 | [Aksharantar guj](https://huggingface.co/datasets/ai4bharat/Aksharantar) | native floor 50; soft roman→native weight 75 **only if roman ∉ Apple** |
+| T0 | Apple distill + local Marisa/probe natives | strong frequency floor **+ attested** |
+| T0b | Google Input Tools GU dict (**local extract only**) | attested floor 80 |
+| T1 | [aspell-gu](https://github.com/kartikm/gu-wordlist), [hunspell gu_IN](https://github.com/elastic/hunspell/tree/master/dicts/gu_IN), [Dakshina GU](https://github.com/google-research-datasets/dakshina), [Indic-Glossaries](https://github.com/AI4Bharat/Indic-Glossaries) | attested floor 50 |
+| T2 | [kartikm wikipedia-wordlist](https://github.com/kartikm/gu-wordlist), [wikidict GU](https://github.com/open-dict-data/wikidict-wordlist), [wipfli GU wiki/wikidata](https://github.com/wipfli/word-corpus) | wiki-attested floor 40 |
+| T3 | [Google i18n wordcounts](http://www.gstatic.com/i18n/corpora/wordcounts/gu.txt), [Indic Keyboard](https://github.com/jishnu7/dictionaries), [IndicCorp v2](https://huggingface.co/datasets/ai4bharat/IndicCorpV2) unigrams | corpus frequency |
+| T4 | [Aksharantar guj](https://huggingface.co/datasets/ai4bharat/Aksharantar) | **unigram floor only** (not attested); soft roman→native weight 75 if roman ∉ Apple |
 
-Artifacts: `data/quality/unique_gu_stats.json` (committed summary), `data/quality/unique_gu_words.tsv` (regenerable provenance TSV).
+Artifacts: `data/quality/unique_gu_stats.json` (committed summary), `data/quality/unique_gu_words.tsv` (regenerable).
 
 ```bash
-python3 scripts/build_gu_word_freq.py   # unigram + attested + unique-quality
-python3 scripts/ingest_aksharantar_gu.py  # soft-fill OOV romans; never overrides Apple
+python3 scripts/extract_proprietary_gu_natives.py  # optional local Apple / Google IME
+python3 scripts/build_gu_word_freq.py              # unigram + attested + unique-quality
+python3 scripts/ingest_aksharantar_gu.py           # soft-fill OOV; does not expand attested
 ```
+
+### Local proprietary extracts (do not commit binaries)
+
+| Asset | Path / env | Output (gitignored) |
+|-------|------------|---------------------|
+| Apple Marisa / probe / lexicon | `gu_unified_marisa_keys.txt`, `data/apple_probe.tsv`, blob | `data/external/apple_native_words.txt` |
+| Google Input Tools GU dump | `GOOGLE_IME_GU_DICT` or `data/external/google_ime_gu.*` | `data/external/google_ime_native_words.txt` |
+| Dakshina (optional full) | `FETCH_DAKSHINA=1` or place `dakshina_gu_natives.txt` | `data/external/dakshina_gu_natives.txt` |
+| IndicCorp v2 sample | `FETCH_INDICCORP=1` (capped stream) | `data/external/gu_indiccorp_v2_unigrams.tsv` |
+| Indic-Glossaries zips | place under `data/external/glossary-dataset-*.zip` if S3 is blocked | `data/external/indic_glossary_gu_natives.txt` |
+
+**Never commit or redistribute** Apple private frameworks, full Marisa dumps, or Google Input Tools binaries.
 
 → `rime/js/lm/{unigram.tsv,stems.json,attested.json}`.
 
 ### Emoji suggestions
 
-Keyword emoji for English and Gujarati-roman input (e.g. `smile` → 🙂, `prem` → 😍) appear **below** script candidates. Data: `rime/js/emoji_keywords.json` (from `data/gujarati_emoji.dict.yaml`).
+Keyword emoji for English and Gujarati-roman input (e.g. `smile` → 🙂, `prem` → 😍) appear **below** script candidates. Built into `rime/js/emoji_keywords.json` by:
 
 ```bash
 python3 scripts/build_emoji_keywords.py
 ```
+
+Sources (merged; ASCII codes only): curated `data/gujarati_emoji.dict.yaml`, extra GU-roman `data/emoji_gu_roman_extra.tsv`, [muan/emojilib](https://github.com/muan/emojilib) EN keywords, Unicode CLDR en annotations. (CLDR Gujarati is native-script, not typeable here.)
 
 Toggle: `translator/emoji_enable` / `translator/max_emoji` in schema or `gujarati.custom.yaml`.
 

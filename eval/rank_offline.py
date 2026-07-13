@@ -50,6 +50,13 @@ ENDING_VARIANTS = {
     "a": ["aa"],
     "aa": ["a"],
 }
+
+
+def is_diphthong_i(s: str, i_pos: int) -> bool:
+    """True when roman i/ii/ee at i_pos is the second half of ai/oi/ui/ei."""
+    if not s or i_pos <= 0:
+        return False
+    return s[i_pos - 1] in ("a", "e", "o", "u")
 GU_SUFFIXES = [
     "વાળાઓ", "વાળીઓ", "વાળું", "વાળી", "વાળા", "વાળો",
     "ીઓ", "ાઓ", "ોને", "ાને", "ીને", "ુંને",
@@ -90,6 +97,7 @@ SMOKE = [
     ("ketli", "કેટલી"),
     ("mne", "મને"),
     ("parkhavyu", "પરખાવ્યું"),
+    ("gai", "ગઈ"),
 ]
 
 
@@ -122,6 +130,8 @@ def with_ending(s: str) -> set[str]:
     out = {s}
     for frm, tos in ENDING_VARIANTS.items():
         if s.endswith(frm) and len(s) > len(frm):
+            if frm in ("i", "ii", "ee") and is_diphthong_i(s, len(s) - len(frm)):
+                continue
             stem = s[: -len(frm)]
             for to in tos:
                 out.add(stem + to)
@@ -139,6 +149,9 @@ def with_mid_vowel(s: str) -> set[str]:
             if at < 0:
                 break
             if at > 0:
+                if frm in ("i", "ii") and is_diphthong_i(s, at):
+                    idx = at + 1
+                    continue
                 out.add(s[:at] + to + s[at + len(frm) :])
                 added += 1
             idx = at + 1
@@ -336,17 +349,70 @@ def with_nasal_final_u(gu: str) -> str | None:
     return None
 
 
+def _ends_with_gu_cons(s: str) -> bool:
+    if not s:
+        return False
+    return _is_gu_cons_char(s[-1])
+
+
+def diphthong_alternate_forms(roman: str) -> list[str]:
+    """Mirror JS: ai/ay → અઈ/ાઈ/ાય splits the matra transliterator cannot emit."""
+    out: list[str] = []
+    if not roman:
+        return out
+    s = roman.lower()
+    for digraph in ("ai", "ay"):
+        idx = 0
+        added = 0
+        while idx <= len(s) - len(digraph) and added < 3:
+            at = s.find(digraph, idx)
+            if at < 0:
+                break
+            if at > 0 and s[at - 1] == "a" and digraph == "ai":
+                idx = at + 1
+                continue
+            prefix, suffix = s[:at], s[at + len(digraph) :]
+            prefix_gu = transliterate(prefix) if prefix else ""
+            suffix_gu = transliterate(suffix) if suffix else ""
+            nuclei: list[str] = []
+            if digraph == "ai":
+                if not prefix_gu:
+                    nuclei.extend(["ઐ", "અઈ", "અઇ", "આઈ", "આઇ"])
+                elif _ends_with_gu_cons(prefix_gu):
+                    nuclei.extend([prefix_gu + "ઈ", prefix_gu + "ઇ"])
+                    with_aa = prefix_gu[:-1] + prefix_gu[-1] + VOW_MAT["aa"]
+                    nuclei.extend([with_aa + "ઈ", with_aa + "ઇ"])
+            elif digraph == "ay":
+                if not prefix_gu:
+                    nuclei.extend(["અય", "આય"])
+                elif _ends_with_gu_cons(prefix_gu):
+                    nuclei.append(prefix_gu + "ય")
+                    with_aa = prefix_gu[:-1] + prefix_gu[-1] + VOW_MAT["aa"]
+                    nuclei.append(with_aa + "ય")
+            for n in nuclei:
+                out.append(n + suffix_gu)
+            if nuclei:
+                added += 1
+            idx = at + 1
+    return out
+
+
 def phonetic_forms(roman: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
-    for g in (transliterate(roman),):
-        if g and g != roman and g not in seen:
-            seen.add(g)
-            out.append(g)
-        n = with_nasal_final_u(g) if g else None
-        if n and n not in seen:
-            seen.add(n)
-            out.append(n)
+
+    def add(g: str | None) -> None:
+        if not g or g == roman or g in seen:
+            return
+        seen.add(g)
+        out.append(g)
+
+    base = transliterate(roman)
+    add(base)
+    add(with_nasal_final_u(base) if base else None)
+    for g in diphthong_alternate_forms(roman):
+        add(g)
+        add(with_nasal_final_u(g))
     return out
 
 
@@ -423,7 +489,10 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
     exact_count = sum(1 for c in cands if c["tier"] == TIER_EXACT)
 
     phon_forms = []
-    for form in [input_s, *list(queries)[:40]]:
+    # Prefer near-length fuzzy queries (parkhaavyu before paaaarkhavyu); mirrors JS
+    # iterating altForms while avoiding hash-order flakes in Python sets.
+    ordered_q = sorted(queries, key=lambda q: (abs(len(q) - len(lower)), q != lower, q))
+    for form in [input_s, *[q for q in ordered_q if q != input_s][:60]]:
         for g in phonetic_forms(form):
             if g not in phon_forms:
                 phon_forms.append(g)

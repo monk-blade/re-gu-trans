@@ -1,22 +1,30 @@
 {
-  "union": 1258157,
-  "wiki_only": 23780,
-  "wiki_union": 39471,
+  "union": 1888022,
+  "wiki_only": 623593,
+  "wiki_union": 983293,
   "sources": {
-    "apple": 135875,
+    "apple": 135962,
+    "google_ime": 0,
     "aspell": 82146,
     "hunspell": 168952,
+    "dakshina": 0,
+    "glossaries": 0,
     "wiki_kartikm": 20817,
     "wiki_dict": 19007,
+    "wipfli_wiki": 947774,
+    "wipfli_wikidata": 62764,
     "google": 21829,
     "indic": 97392,
-    "aksharantar": 1068990
+    "indiccorp": 120673,
+    "aksharantar": 1068987
   },
   "floors": {
     "spell": 50,
     "wiki": 40,
-    "aksharantar": 50
+    "aksharantar": 50,
+    "google_ime": 80
   },
-  "unigram": 1258157,
-  "attested": 1221863
+  "unigram": 1888022,
+  "attested": 1106447,
+  "attested_excludes_aksharantar": true
 }

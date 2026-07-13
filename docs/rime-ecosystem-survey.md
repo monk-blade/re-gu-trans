@@ -23,13 +23,14 @@ There is **no mature upstream Gujarati Rime schema** in [rime/plum](https://gith
 ## Non-negotiables (unchanged)
 
 - No per-word hand-baked roman→script exceptions for ranking fixes
-- No proprietary Google Input Tools binary dictionary dumps
+- Proprietary Google Input Tools / Apple assets: **local distill only** — never commit or redistribute binaries / full Marisa dumps
 - Apple lexicon weights win over soft-fill when both exist
 - `table_translator` must not outrank qjs for common words (see historical `jamin` bug)
+- Aksharantar natives boost **unigram** only; they do **not** auto-join `attested` (spell/wiki/IME quality floors)
 
 ## Related in-repo
 
 - Recipe: [`recipes/re-gu-trans.recipe.yaml`](../recipes/re-gu-trans.recipe.yaml) + [`scripts/install_recipe.sh`](../scripts/install_recipe.sh)
 - Sample patch: [`rime/gujarati.custom.yaml.sample`](../rime/gujarati.custom.yaml.sample)
-- Unique-quality native set (Wikipedia + spell + corpus + Apple + Aksharantar): [`data/quality/unique_gu_stats.json`](../data/quality/unique_gu_stats.json) — rebuild via [`scripts/build_gu_word_freq.py`](../scripts/build_gu_word_freq.py)
+- Unique-quality set: [`data/quality/unique_gu_stats.json`](../data/quality/unique_gu_stats.json) — [`scripts/build_gu_word_freq.py`](../scripts/build_gu_word_freq.py) + [`scripts/extract_proprietary_gu_natives.py`](../scripts/extract_proprietary_gu_natives.py)
 - Aksharantar soft-fill (OOV only): [`scripts/ingest_aksharantar_gu.py`](../scripts/ingest_aksharantar_gu.py)
