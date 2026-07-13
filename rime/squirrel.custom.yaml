@@ -1,0 +1,29 @@
+# Squirrel (Rime for macOS) custom settings
+# encoding: utf-8
+
+patch:
+  # Global settings
+  show_notifications_when: appropriate
+  
+  # Appearance
+  style:
+    color_scheme: native
+    horizontal: true
+    inline_preedit: true  # Show input code inline with text
+    inline_candidate: false  # Show candidate preview inline (like modern transliteration engines)
+    corner_radius: 5
+    border_height: 0
+    border_width: 0
+    font_face: "Hind Vadodara, Arial"
+    font_point: 18
+    label_font_face: "Arial"
+    label_font_point: 14
+    comment_font_point: 12  # Smaller font for phonetic preview
+    candidate_format: "[label]. [candidate] [comment]"  # Show: number. gujarati_text phonetic_input
+    
+  # App specific settings (optional)
+  app_options:
+    com.apple.Xcode:
+      ascii_mode: true
+    com.microsoft.VSCode:
+      ascii_mode: true

@@ -1,0 +1,3 @@
+RIME_PLUGINS=HuangJian/librime-qjs@main
+librime de4700e
+HuangJian/librime-qjs@main fa3894b

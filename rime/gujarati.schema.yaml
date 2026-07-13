@@ -1,0 +1,85 @@
+# Rime schema for Gujarati Transliteration (JS + ONNX via librime-qjs)
+# encoding: utf-8
+
+schema:
+  schema_id: gujarati
+  name: Gujarati Transliteration
+  version: '2.5'
+  author:
+    - OpenCode
+    - re-gu-trans
+  description: |
+    Gujarati transliteration with Apple lexicon + native word-frequency
+    dictionary rescoring. Space and punctuation commit the selected candidate.
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    # Commit selected candidate on Space / .,;:' etc. (before punctuator eats keys)
+    - qjs_processor@commit_on_punct_processor
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - qjs_translator@gujarati_translator
+    # table_translator disabled: it was interleaving dict hits and beating
+    # lexicon ranking for words like jamin → જમીન. Re-enable only as fallback.
+
+speller:
+  alphabet: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+"
+  delimiter: " '"
+  max_code_length: 0
+
+menu:
+  page_size: 9
+
+translator:
+  dictionary: gujarati
+  enable_completion: true
+  enable_sentence: false
+  enable_user_dict: true
+  enable_encoder: false
+  encode_commit_history: false
+  initial_quality: 0.5
+  contextual_suggestions: false
+  # qjs / ONNX knobs
+  enable_user_lm: true
+  # Prefer attested lexicon; drop unknown phonetic inventions when exact hits exist
+  lexicon_hard_gate: true
+  include_latin: true
+  max_prefix: 6
+  max_phonetic: 5
+  onnx_enable: true
+  onnx_weight: 1.2
+  onnx_timeout_ms: 3
+  onnx_socket: "~/Library/Rime/run/gu_ranker.sock"
+  onnx_helper: "~/Library/Rime/run/gu_ranker_client"
+  lm_unigram_weight: 0.6
+  lm_bigram_weight: 0.9
+  lm_user_weight: 0.6
+  lm_trigram_weight: 1.1
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ ગુજરાતી, ASCII ]
+
+punctuator:
+  import_preset: default
+
+key_binder:
+  import_preset: default
+
+recognizer:
+  import_preset: default

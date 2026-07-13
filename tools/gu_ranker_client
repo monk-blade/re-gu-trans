@@ -1,0 +1,7 @@
+#!/bin/bash
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Prefer native client; fall back to python
+if [[ -x "$ROOT/tools/gu_ranker_client_fast" ]]; then
+  exec "$ROOT/tools/gu_ranker_client_fast" "$@"
+fi
+exec "$ROOT/.venv/bin/python" "$ROOT/runtime/onnx_ranker/client.py" "$@"

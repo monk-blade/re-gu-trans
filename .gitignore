@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.egg-info/
+.pytest_cache/
+
+# Large / regenerable Apple extracts
+gu_unified_marisa_keys.txt
+data/apple_probe.tsv
+data/probe_wordlist.txt
+eval/results.json
+
+# Local scratch
+test.txt
+*.sock
+*.log
+
+# Optional local copies
+vendor/librime-qjs/*.dylib
+vendor/librime-qjs/qjs
