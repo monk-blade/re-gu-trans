@@ -30,6 +30,8 @@ rescoring (same idea as IndicXlit `rescore=True`).
 2. Download the matching asset from [Releases](https://github.com/monk-blade/re-gu-trans/releases) (`.pkg` / `.zip` / `.deb` / `.rpm`).
 3. Install, then select **Gujarati**. On Linux run `re-gu-trans-enable` once.
 
+Schema **2.7** rescores with aspell-gu + hunspell attested words (plus Google/Indic freqs).
+
 Try: `jamin`, `favshe`, `poshatu`, `ketli`. **Space** / **`.` `,` `;` `'`** commit the selection.
 
 Full steps: **[GUIDE.md](./GUIDE.md)**.

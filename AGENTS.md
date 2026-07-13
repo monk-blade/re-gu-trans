@@ -66,6 +66,13 @@ Install / Linux walkthrough: **[GUIDE.md](./GUIDE.md)**.
 
 Schema processor order is critical for `.` commit: `commit_on_punct` must run **before** `key_binder` (default maps `period` → `Page_Down` when `has_menu`).
 
+Ranking regression check (no Rime required):
+
+```bash
+python3 scripts/build_gu_word_freq.py   # aspell-gu + hunspell + Google/Indic
+python3 eval/rank_offline.py            # smoke: jamin/favshe/poshatu/ketli
+```
+
 Verify in `$TMPDIR/rime.squirrel/rime.squirrel.INFO`:
 
 ```text

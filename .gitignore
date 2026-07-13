@@ -10,6 +10,7 @@ gu_unified_marisa_keys.txt
 data/apple_probe.tsv
 data/probe_wordlist.txt
 eval/results.json
+eval/rank_results.json
 
 # Local scratch
 test.txt
@@ -22,3 +23,6 @@ vendor/librime-qjs/qjs
 
 # Package build output
 dist/
+
+# Regenerable external wordlist caches (rebuild via build_gu_word_freq.py)
+data/external/

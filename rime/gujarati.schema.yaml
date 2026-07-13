@@ -4,12 +4,12 @@
 schema:
   schema_id: gujarati
   name: Gujarati Transliteration
-  version: '2.6'
+  version: '2.7'
   author:
     - OpenCode
     - re-gu-trans
   description: |
-    Gujarati transliteration with Apple lexicon + native word-frequency
+    Gujarati transliteration with Apple lexicon + aspell/hunspell attested
     dictionary rescoring. Space and punctuation (incl. .) commit the selection.
 
 engine:
@@ -57,6 +57,9 @@ translator:
   enable_user_lm: true
   # Prefer attested lexicon; drop unknown phonetic inventions when exact hits exist
   lexicon_hard_gate: true
+  # When only fuzzy/near-exact lexicon hits exist (low weight), still allow
+  # high-validity / spell-dict phonetics into the menu.
+  fuzzy_exact_soft: true
   include_latin: true
   max_prefix: 6
   max_phonetic: 5

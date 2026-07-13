@@ -1119,27 +1119,40 @@ let USER_LM_DIRTY = false
 let USER_LM_PENDING_WRITES = 0
 const SCORE_CACHE = new Map()
 
+// Keep in sync with scripts/build_gu_word_freq.py SUFFIXES
 const GU_SUFFIXES = [
-  'માંથી', 'વાળું', 'વાળી', 'વાળા', 'વાળો', 'વું', 'વા',
-  'માં', 'થી', 'ની', 'નો', 'ના', 'ને', 'નું', 'નાં',
-  'શે', 'શો', 'શું', 'તું', 'તો', 'તા', 'તી', 'તાં',
+  'વાળાઓ', 'વાળીઓ', 'વાળું', 'વાળી', 'વાળા', 'વાળો',
+  'ીઓ', 'ાઓ', 'ોને', 'ાને', 'ીને', 'ુંને',
+  'માંથી', 'માં', 'થી', 'ની', 'નો', 'ના', 'ને', 'નું', 'નાં',
+  'શે', 'શો', 'શું', 'ીશ', 'ીશું',
+  '્યો', '્યા', '્યું',
+  'તો', 'તા', 'તી', 'તું', 'તાં',
+  'વું', 'વા', 'વાનું', 'વાની', 'વાના',
   'ે', 'ો', 'ા', 'ી', 'ું', 'ાં',
 ]
+
+const ATTESTED = new Set()
+let ATTESTED_FLOOR = 50
 
 function loadLanguageModels(env) {
   if (LM_LOADED) return
   LM_LOADED = true
   const uniPaths = []
   const stemPaths = []
+  const attestedPaths = []
   if (env && env.userDataDir) {
     uniPaths.push(env.userDataDir + '/js/lm/unigram.tsv')
     uniPaths.push(env.userDataDir + '/lm/unigram.tsv')
     stemPaths.push(env.userDataDir + '/js/lm/stems.json')
     stemPaths.push(env.userDataDir + '/lm/stems.json')
+    attestedPaths.push(env.userDataDir + '/js/lm/attested.json')
+    attestedPaths.push(env.userDataDir + '/lm/attested.json')
   }
   uniPaths.push(resolveUserPath('~/Library/Rime/js/lm/unigram.tsv'))
   uniPaths.push(resolveUserPath('~/Library/Rime/lm/unigram.tsv'))
   stemPaths.push(resolveUserPath('~/Library/Rime/js/lm/stems.json'))
+  attestedPaths.push(resolveUserPath('~/Library/Rime/js/lm/attested.json'))
+  attestedPaths.push(resolveUserPath('~/Library/Rime/lm/attested.json'))
 
   let uniText = null
   for (const p of uniPaths) {
@@ -1173,6 +1186,32 @@ function loadLanguageModels(env) {
       console.error('$qjs$ stems parse error:', e.message)
     }
   }
+
+  let attestedText = null
+  for (const p of attestedPaths) {
+    attestedText = loadTextViaEnv(env, p)
+    if (attestedText) break
+  }
+  if (attestedText) {
+    try {
+      const data = JSON.parse(attestedText)
+      ATTESTED.clear()
+      const words = data.words || data || []
+      if (Array.isArray(words)) {
+        for (const w of words) {
+          if (w) ATTESTED.add(String(w))
+        }
+      } else if (words && typeof words === 'object') {
+        for (const w of Object.keys(words)) ATTESTED.add(w)
+      }
+      if (Number.isFinite(Number(data.floor))) ATTESTED_FLOOR = Number(data.floor)
+      console.log('$qjs$ attested loaded entries=' + ATTESTED.size + ' floor=' + ATTESTED_FLOOR)
+    } catch (e) {
+      console.error('$qjs$ attested parse error:', e.message)
+    }
+  } else {
+    console.log('$qjs$ attested missing')
+  }
 }
 
 function loadUnigramLMFromText(text) {
@@ -1193,30 +1232,40 @@ function loadUnigramLMFromText(text) {
   return { map, max }
 }
 
-/** Native-dict / stem validity score — the scalable macOS/IndicXlit rescoring signal. */
+/** Native-dict / stem / spell-dict validity — IndicXlit-style rescoring signal. */
 function dictionaryValidity(text) {
-  if (!text) return { score: 0, attested: false, evidence: 0 }
+  if (!text) return { score: 0, attested: false, evidence: 0, spellOk: false }
   const uni = UNIGRAM_LM.map.get(text) || 0
+  const spellOk = ATTESTED.has(text)
+  let spellHit = spellOk ? ATTESTED_FLOOR : 0
   let stemHit = STEM_FREQ.get(text) || 0
+  if (ATTESTED.has(text)) stemHit = Math.max(stemHit, ATTESTED_FLOOR)
   for (const suf of GU_SUFFIXES) {
     if (text.length <= suf.length + 1) continue
     if (!text.endsWith(suf)) continue
     const stem = text.slice(0, -suf.length)
     if (!stem) continue
     stemHit = Math.max(stemHit, STEM_FREQ.get(stem) || 0)
+    if (ATTESTED.has(stem)) stemHit = Math.max(stemHit, ATTESTED_FLOOR)
     // attested conjugations of the same stem (ફાવે / ફાવો / ફાવવું)
-    for (const ext of ['ે', 'ો', 'ા', 'ી', 'ું', 'વું', 'તું', 'વા']) {
+    for (const ext of ['ે', 'ો', 'ા', 'ી', 'ું', 'વું', 'તું', 'વા', 'શે', 'શો']) {
       const form = stem + ext
       stemHit = Math.max(stemHit, UNIGRAM_LM.map.get(form) || 0, STEM_FREQ.get(form) || 0)
+      if (ATTESTED.has(form)) stemHit = Math.max(stemHit, ATTESTED_FLOOR)
     }
   }
-  const evidence = Math.max(uni, stemHit)
+  const evidence = Math.max(uni, stemHit, spellHit)
   // Penalize awkward virama clusters for pure inventions
   let virama = 0
   for (const ch of text) if (ch === '\u0ACD') virama += 1
   const viramaPenalty = virama * 0.25
   const score = Math.log1p(evidence) - viramaPenalty
-  return { score: Math.max(0, score), attested: evidence > 0, evidence }
+  return {
+    score: Math.max(0, score),
+    attested: evidence > 0 || spellOk,
+    evidence,
+    spellOk,
+  }
 }
 
 function normalizedScore(count, max) {
@@ -1436,11 +1485,11 @@ function transliterate(input) {
 // nmste → namste → namaste for dictionary lookup.
 // ---------------------------------------------------------------------------
 
-const MAX_ALT_FORMS = 64
+const MAX_ALT_FORMS = 96
 const MAX_ALT_INSERTIONS = 2
 
 // Phonetic confusions users actually type (macOS fuzzy mapping).
-// sh↔Sh covers પોશ vs પોષ; t↔T covers કેત vs કેટ; endings cover િ vs ી, u vs ું.
+// sh↔Sh covers પોશ vs પોષ; t↔T covers કેત vs કેટ; f↔ph; endings cover િ vs ી, u vs ું.
 const CONFUSION_MAP = {
   'ch': ['chh'],
   'chh': ['ch'],
@@ -1455,6 +1504,8 @@ const CONFUSION_MAP = {
   'N': ['n'],
   'l': ['L'],
   'L': ['l'],
+  'f': ['ph'],
+  'ph': ['f'],
 }
 
 const ENDING_VARIANTS = {
@@ -1481,6 +1532,33 @@ function withEndingVariants(s) {
   return out
 }
 
+/** Mid-string vowel length variants (bounded) — i↔ii, a↔aa. */
+function withMidVowelVariants(s) {
+  const out = new Set([s])
+  if (!s || s.length < 3) return out
+  const pairs = [
+    ['i', 'ii'],
+    ['ii', 'i'],
+    ['a', 'aa'],
+    ['aa', 'a'],
+  ]
+  for (const [from, to] of pairs) {
+    let idx = 0
+    let added = 0
+    while (idx <= s.length - from.length && added < 4) {
+      const at = s.indexOf(from, idx)
+      if (at < 0) break
+      // Prefer interior / non-trivial positions; still allow endings
+      if (at > 0) {
+        out.add(s.slice(0, at) + to + s.slice(at + from.length))
+        added += 1
+      }
+      idx = at + 1
+    }
+  }
+  return out
+}
+
 /** Replace every occurrence position of digraph/char confusion (not only first). */
 function applyConfusionOnce(s, from, to) {
   const out = []
@@ -1498,8 +1576,26 @@ function generateAlternateForms(input) {
   const forms = new Set()
   forms.add(input)
 
+  // Prioritize seed ending + mid-vowel + one-step confusions before deep recursion
+  for (const ended of withEndingVariants(input)) forms.add(ended)
+  for (const mid of withMidVowelVariants(input)) forms.add(mid)
+  const keysFirst = Object.keys(CONFUSION_MAP).sort((a, b) => b.length - a.length)
+  for (const from of keysFirst) {
+    for (const to of CONFUSION_MAP[from]) {
+      for (const replaced of applyConfusionOnce(input, from, to)) {
+        forms.add(replaced)
+        for (const ended of withEndingVariants(replaced)) forms.add(ended)
+        for (const mid of withMidVowelVariants(replaced)) forms.add(mid)
+        if (forms.size >= MAX_ALT_FORMS) break
+      }
+      if (forms.size >= MAX_ALT_FORMS) break
+    }
+    if (forms.size >= MAX_ALT_FORMS) break
+  }
+
   function expand(s, depth) {
     if (depth >= MAX_ALT_INSERTIONS) return
+    if (forms.size >= MAX_ALT_FORMS) return
     for (let i = 0; i < s.length - 1; i++) {
       const pair = s.substring(i, i + 2)
       if ((s[i] in CONSONANTS) && (s[i + 1] in CONSONANTS) && !TOKEN_SET.has(pair)) {
@@ -1521,7 +1617,6 @@ function generateAlternateForms(input) {
       }
     }
 
-    // Prefer longer confusion keys first (chh before ch, sh before s)
     const keys = Object.keys(CONFUSION_MAP).sort((a, b) => b.length - a.length)
     for (const from of keys) {
       const tos = CONFUSION_MAP[from]
@@ -1541,11 +1636,16 @@ function generateAlternateForms(input) {
         if (ended !== s) expand(ended, depth + 1)
       }
     }
+    for (const mid of withMidVowelVariants(s)) {
+      if (forms.size < MAX_ALT_FORMS && !forms.has(mid)) {
+        forms.add(mid)
+      }
+    }
   }
 
   expand(input, 0)
-  // Always attach ending variants of the seed even if expand hit the cap early
   for (const ended of withEndingVariants(input)) forms.add(ended)
+  for (const mid of withMidVowelVariants(input)) forms.add(mid)
   return forms
 }
 
@@ -1660,6 +1760,56 @@ function recordUserChoice(path, word, prevWord, enableUserLm) {
     USER_LM_DIRTY = false
     USER_LM_PENDING_WRITES = 0
   }
+}
+
+/**
+ * Learn user LM only on actual commit (called from commit_on_punct_processor).
+ * Flushes immediately so personalization survives process restarts.
+ * @param {Environment} env
+ * @param {string} word
+ */
+export function learnCommittedChoice(env, word) {
+  try {
+    if (!word) return
+    const enableUserLm = getEnvBool(env, 'translator/enable_user_lm', true)
+    if (!enableUserLm) return
+    loadLanguageModels(env)
+    const prevWords = getContextPrevWords(env)
+    // After commit, prev may already include the word; use penultimate when possible
+    let prevWord = ''
+    if (prevWords.length >= 2 && prevWords[prevWords.length - 1] === word) {
+      prevWord = prevWords[prevWords.length - 2]
+    } else if (prevWords.length >= 1 && prevWords[prevWords.length - 1] !== word) {
+      prevWord = prevWords[prevWords.length - 1]
+    }
+    recordUserChoice(USER_LM_DEFAULT_PATH, word, prevWord, true)
+    if (USER_LM_DIRTY) {
+      writeUserLM(resolveUserPath(USER_LM_DEFAULT_PATH), USER_LM.wordCounts, USER_LM.bigramCounts)
+      USER_LM_DIRTY = false
+      USER_LM_PENDING_WRITES = 0
+    }
+  } catch (e) {
+    console.error('$qjs$ learnCommittedChoice error:', e && e.message)
+  }
+}
+
+/** Cheap roman distance for soft-gate ranking (prefer closer fuzzy hits). */
+function romanCloseness(a, b) {
+  if (!a || !b) return 0
+  if (a === b) return 100
+  const x = String(a).toLowerCase()
+  const y = String(b).toLowerCase()
+  if (x === y) return 100
+  if (y.startsWith(x) || x.startsWith(y)) {
+    return 80 - Math.min(40, Math.abs(x.length - y.length) * 8)
+  }
+  let shared = 0
+  const n = Math.min(x.length, y.length)
+  for (let i = 0; i < n; i++) {
+    if (x[i] === y[i]) shared += 1
+    else break
+  }
+  return Math.max(0, shared * 6 - Math.abs(x.length - y.length) * 4)
 }
 
 
@@ -1797,6 +1947,7 @@ export class GujaratiTranslator {
 
       const enableUserLm = getEnvBool(env, 'translator/enable_user_lm', true)
       const hardGate = getEnvBool(env, 'translator/lexicon_hard_gate', true)
+      const fuzzyExactSoft = getEnvBool(env, 'translator/fuzzy_exact_soft', true)
       const includeLatin = getEnvBool(env, 'translator/include_latin', true)
       const maxPrefix = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_prefix', 6)))
       const maxPhonetic = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_phonetic', 5)))
@@ -1810,7 +1961,7 @@ export class GujaratiTranslator {
       const seen = new Set()
       const items = []
 
-      function pushCand(text, comment, quality, tier, isPhonetic, romanKey) {
+      function pushCand(text, comment, quality, tier, isPhonetic, romanKey, exactSource) {
         if (!text || seen.has(text)) return false
         seen.add(text)
         const cand = new Candidate('gujarati', segment.start, segment.end, text, comment || '', quality)
@@ -1821,6 +1972,8 @@ export class GujaratiTranslator {
           isPhonetic: !!isPhonetic,
           romanKey: romanKey || lower,
           weight: lexiconWeight(romanKey || lower),
+          exactSource: exactSource || null,
+          closeness: romanCloseness(lower, romanKey || lower),
         })
         return true
       }
@@ -1832,19 +1985,33 @@ export class GujaratiTranslator {
 
       const exc = APPLE_EXCEPTIONS.get(lower) || APPLE_EXCEPTIONS.get(input)
       if (exc) {
-        pushCand(exc, input, 999, TIER_EXACT, false, lower)
+        pushCand(exc, input, 999, TIER_EXACT, false, lower, 'strict')
       }
 
       const exactHits = []
       for (const q of romanQueries) {
         const word = APPLE_LEXICON.get(q) || DICT_TRIE.findExact(q)
         if (!word) continue
-        exactHits.push({ roman: q, word, weight: Math.max(lexiconWeight(q), q === lower ? 1 : 0) })
+        const source = q === lower || q === input ? 'strict' : 'fuzzy'
+        exactHits.push({
+          roman: q,
+          word,
+          weight: Math.max(lexiconWeight(q), q === lower ? 1 : 0),
+          source,
+        })
       }
       exactHits.sort((a, b) => b.weight - a.weight || a.roman.length - b.roman.length)
       for (const hit of exactHits) {
         const q = hit.roman === lower ? 950 : 880
-        pushCand(hit.word, hit.roman === lower ? input : hit.roman, q + Math.min(40, Math.log1p(hit.weight) * 5), TIER_EXACT, false, hit.roman)
+        pushCand(
+          hit.word,
+          hit.roman === lower ? input : hit.roman,
+          q + Math.min(40, Math.log1p(hit.weight) * 5),
+          TIER_EXACT,
+          false,
+          hit.roman,
+          hit.source
+        )
       }
 
       // Near-exact lexicon: typed roman is a prefix of a lexicon key by only n/m/… (poshatu→poshatun)
@@ -1856,19 +2023,25 @@ export class GujaratiTranslator {
           const suf = entry.key.slice(seed.length)
           if (!isNearExactRomanSuffix(suf)) continue
           const w = lexiconWeight(entry.key)
-          pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), TIER_EXACT, false, entry.key)
+          pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), TIER_EXACT, false, entry.key, 'near_exact')
         }
       }
 
-      const exactCount = items.filter((x) => x.tier === TIER_EXACT).length
+      const exactItems = items.filter((x) => x.tier === TIER_EXACT)
+      const exactCount = exactItems.length
+      const hasStrictExact = exactItems.some((x) => x.exactSource === 'strict')
+      const softExactOnly =
+        fuzzyExactSoft &&
+        exactCount > 0 &&
+        !hasStrictExact &&
+        exactItems.every((x) => (x.weight || 0) < 400)
 
       // Latin only after we know exact/dict tiers will sort above it
       if (includeLatin) {
-        pushCand(input, '', 400, TIER_LATIN, false, lower)
+        pushCand(input, '', 400, TIER_LATIN, false, lower, null)
       }
 
-      // Generate phonetics, then RESCORE with native wordlist/stems (IndicXlit-style).
-      // This is what makes favshe → ફાવશે win without baking that pair.
+      // Generate phonetics, then RESCORE with native wordlist/stems/spell-dicts.
       const phoneticForms = []
       const gujarati = transliterate(input)
       if (gujarati && gujarati !== input) phoneticForms.push(gujarati)
@@ -1882,11 +2055,23 @@ export class GujaratiTranslator {
       for (const text of phoneticForms) {
         if (seen.has(text)) continue
         const known = KNOWN_WORDS.has(text)
-        if (hardGate && exactCount > 0 && !known) continue
         const validity = dictionaryValidity(text)
+        // Hard-gate: with a strict lexicon exact, drop invented phonetics (classic).
+        // Soft: fuzzy/near-exact-only (low weight) still allows attested / spell-dict forms.
+        if (hardGate && exactCount > 0 && !known) {
+          if (hasStrictExact) {
+            continue
+          }
+          if (softExactOnly) {
+            if (!validity.attested && !validity.spellOk) continue
+          } else {
+            continue
+          }
+        }
         phonScored.push({ text, known, validity })
       }
       phonScored.sort((a, b) => {
+        if (a.validity.spellOk !== b.validity.spellOk) return a.validity.spellOk ? -1 : 1
         if (a.validity.attested !== b.validity.attested) return a.validity.attested ? -1 : 1
         if (b.validity.score !== a.validity.score) return b.validity.score - a.validity.score
         return 0
@@ -1899,16 +2084,15 @@ export class GujaratiTranslator {
         const q = item.validity.attested
           ? 700 + Math.min(99, item.validity.score * 12)
           : (item.known ? 300 : 200)
-        if (pushCand(item.text, input, q, tier, true, lower)) phoneticAdded += 1
+        if (pushCand(item.text, input, q, tier, true, lower, null)) phoneticAdded += 1
       }
 
       if (exactCount === 0 && phoneticAdded === 0 && gujarati && gujarati !== input) {
         const v = dictionaryValidity(gujarati)
-        pushCand(gujarati, input, v.attested ? 720 : 250, v.attested ? TIER_DICT : TIER_PHONETIC, true, lower)
+        pushCand(gujarati, input, v.attested ? 720 : 250, v.attested ? TIER_DICT : TIER_PHONETIC, true, lower, null)
       }
 
       if (input.length >= 2 && maxPrefix > 0) {
-        // Also probe fuzzy roman prefixes (poShatu… / poshatu…)
         const prefixSeeds = new Set([lower])
         for (const q of romanQueries) {
           if (q.length >= 2) prefixSeeds.add(q)
@@ -1925,24 +2109,21 @@ export class GujaratiTranslator {
           if (prefixAdded >= maxPrefix) break
           if (!entry || !entry.value) continue
           if (seen.has(entry.value)) continue
-          // Find how this entry relates to the typed input
           let suffix = ''
           if (entry.key.startsWith(lower)) suffix = entry.key.slice(lower.length)
           else {
-            // fuzzy seed longer/shorter — treat as near-exact if edit is tiny
             suffix = entry.key.length > lower.length ? entry.key.slice(lower.length) : ''
           }
           const w = lexiconWeight(entry.key)
-          // poshatu + n → પોષતું should rank as dictionary hit, not buried ~n prefix
           if (entry.key.startsWith(lower) && isNearExactRomanSuffix(suffix)) {
-            if (pushCand(entry.value, input, 860 + Math.min(40, Math.log1p(w) * 5), TIER_EXACT, false, entry.key)) {
+            if (pushCand(entry.value, input, 860 + Math.min(40, Math.log1p(w) * 5), TIER_EXACT, false, entry.key, 'near_exact')) {
               prefixAdded += 1
             }
             continue
           }
           if (entry.key === lower) continue
           const comment = suffix ? ('~' + suffix) : input
-          if (pushCand(entry.value, comment, 80 + Math.min(40, Math.log1p(w) * 5), TIER_PREFIX, false, entry.key)) {
+          if (pushCand(entry.value, comment, 80 + Math.min(40, Math.log1p(w) * 5), TIER_PREFIX, false, entry.key, null)) {
             prefixAdded += 1
           }
         }
@@ -1955,7 +2136,9 @@ export class GujaratiTranslator {
         const freq = Math.log1p(item.weight || 0) * 0.35
         const validity = dictionaryValidity(item.candidate.text)
         const dictBoost = validity.attested ? validity.score * 1.4 : 0
-        return { ...item, score: lm + freq + dictBoost, validity, index }
+        const spellBoost = validity.spellOk ? 0.35 : 0
+        const closeBoost = (item.closeness || 0) * 0.01
+        return { ...item, score: lm + freq + dictBoost + spellBoost + closeBoost, validity, index }
       })
 
       const topForOnnx = scored
@@ -1978,20 +2161,19 @@ export class GujaratiTranslator {
       scored.sort((a, b) => {
         if (a.tier !== b.tier) return a.tier - b.tier
         if (b.score !== a.score) return b.score - a.score
+        if ((b.closeness || 0) !== (a.closeness || 0)) return (b.closeness || 0) - (a.closeness || 0)
         if ((b.weight || 0) !== (a.weight || 0)) return (b.weight || 0) - (a.weight || 0)
         return a.index - b.index
       })
+
+      // User LM is learned on commit only (see learnCommittedChoice / commit_on_punct).
+      void enableUserLm
 
       const sortedCandidates = scored.map((item, rank) => {
         const c = item.candidate
         c.quality = (4 - item.tier) * 200 + Math.max(0, 180 - rank)
         return c
       })
-
-      if (sortedCandidates.length > 0) {
-        const learn = sortedCandidates.find((c) => c.text !== input) || sortedCandidates[0]
-        recordUserChoice(USER_LM_DEFAULT_PATH, learn.text, prevWord, enableUserLm)
-      }
 
       return sortedCandidates
     } catch (e) {

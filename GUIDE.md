@@ -152,6 +152,20 @@ python3 scripts/build_gu_word_freq.py   # if needed
 
 ---
 
+## Dictionary sources (ranking)
+
+Native-script rescoring merges:
+
+| Source | Role |
+|--------|------|
+| Apple distill | roman lexicon + frequency |
+| [Google i18n GU wordcounts](http://www.gstatic.com/i18n/corpora/wordcounts/gu.txt) | corpus frequency |
+| [Indic Keyboard gu wordfreq](https://github.com/jishnu7/dictionaries) | keyboard priorities |
+| [aspell-gu / gu-wordlist](https://github.com/kartikm/gu-wordlist) (GPL-2+) | attested spellings |
+| [hunspell gu_IN](https://github.com/elastic/hunspell/tree/master/dicts/gu_IN) (GPL+) | attested spellings |
+
+Rebuild: `python3 scripts/build_gu_word_freq.py` → `rime/js/lm/{unigram.tsv,stems.json,attested.json}`.
+
 ## Optional ONNX ranker
 
 ```bash
