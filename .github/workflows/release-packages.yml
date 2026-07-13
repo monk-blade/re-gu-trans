@@ -95,6 +95,7 @@ jobs:
       - name: Build pkg + zip
         env:
           VERSION: ${{ needs.stage.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x scripts/package/macos/*.sh scripts/package/*.sh
           chmod +x scripts/package/macos/postinstall

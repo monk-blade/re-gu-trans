@@ -33,9 +33,13 @@ API="https://api.github.com/repos/HuangJian/librime-qjs/releases/tags/${LIBRIME_
 echo "Resolving librime-qjs asset for ${LIBRIME_QJS_TAG} ..."
 ASSET_URL="$(
   python3 - <<PY
-import json, urllib.request
+import json, os, urllib.request
 url = "$API"
-req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "re-gu-trans"})
+headers = {"Accept": "application/vnd.github+json", "User-Agent": "re-gu-trans"}
+token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+if token:
+    headers["Authorization"] = "token " + token
+req = urllib.request.Request(url, headers=headers)
 data = json.load(urllib.request.urlopen(req))
 for a in data.get("assets", []):
     name = a.get("name", "")
