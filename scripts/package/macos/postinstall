@@ -1,0 +1,75 @@
+#!/bin/bash
+# pkg postinstall — install plugin into Squirrel + sync user Rime data
+set -euo pipefail
+
+SHARE="/usr/local/share/re-gu-trans/rime"
+PLUGIN_STAGED="/usr/local/share/re-gu-trans/plugin/librime-qjs.dylib"
+PLUGIN_DIR="/Library/Input Methods/Squirrel.app/Contents/Frameworks/rime-plugins"
+SQUIRREL="/Library/Input Methods/Squirrel.app"
+
+if [[ ! -d "$SQUIRREL" ]]; then
+  echo "WARNING: Squirrel not found at $SQUIRREL" >&2
+  echo "Install Squirrel first, then reinstall this package or run the zip install.sh." >&2
+else
+  if [[ -f "$PLUGIN_STAGED" ]]; then
+    mkdir -p "$PLUGIN_DIR"
+    cp -f "$PLUGIN_STAGED" "$PLUGIN_DIR/librime-qjs.dylib"
+    chmod 755 "$PLUGIN_DIR/librime-qjs.dylib" || true
+    codesign --force --sign - "$PLUGIN_DIR/librime-qjs.dylib" 2>/dev/null || true
+    echo "Installed librime-qjs.dylib into Squirrel rime-plugins."
+  fi
+fi
+
+USER_NAME="${USER:-}"
+if [[ -z "$USER_NAME" || "$USER_NAME" == root ]]; then
+  USER_NAME="$(stat -f '%Su' /dev/console 2>/dev/null || true)"
+fi
+if [[ -z "$USER_NAME" || "$USER_NAME" == root ]]; then
+  USER_NAME="$(logname 2>/dev/null || true)"
+fi
+
+sync_for_user() {
+  local u="$1"
+  local home
+  home="$(dscl . -read "/Users/$u" NFSHomeDirectory 2>/dev/null | awk '{print $2}')"
+  [[ -n "$home" && -d "$home" ]] || return 0
+  local rime="$home/Library/Rime"
+  mkdir -p "$rime/js/lm" "$rime/run"
+  if [[ -d "$SHARE" ]]; then
+    cp -f "$SHARE/gujarati.schema.yaml" "$rime/" 2>/dev/null || true
+    cp -f "$SHARE/gujarati.dict.yaml" "$rime/" 2>/dev/null || true
+    cp -f "$SHARE/gujarati_apple.dict.yaml" "$rime/" 2>/dev/null || true
+    cp -f "$SHARE/"*.js "$rime/" 2>/dev/null || true
+    cp -f "$SHARE/gu_lexicon_blob.json" "$rime/" 2>/dev/null || true
+    cp -f "$SHARE/js/"*.js "$rime/js/" 2>/dev/null || true
+    cp -f "$SHARE/js/gu_lexicon_blob.json" "$rime/js/" 2>/dev/null || true
+    cp -f "$SHARE/js/lm/"* "$rime/js/lm/" 2>/dev/null || true
+  fi
+  local custom="$rime/default.custom.yaml"
+  if [[ ! -f "$custom" ]]; then
+    cat > "$custom" <<'EOF'
+patch:
+  schema_list:
+    - schema: gujarati
+EOF
+  elif ! grep -q 'schema: gujarati' "$custom" 2>/dev/null; then
+    printf '\n# re-gu-trans\n' >> "$custom"
+    cat >> "$custom" <<'EOF'
+patch:
+  schema_list:
+    - schema: gujarati
+EOF
+  fi
+  chown -R "$u" "$rime" 2>/dev/null || true
+}
+
+if [[ -n "$USER_NAME" && "$USER_NAME" != root ]]; then
+  sync_for_user "$USER_NAME"
+fi
+
+if [[ -x "$SQUIRREL/Contents/MacOS/Squirrel" ]]; then
+  "$SQUIRREL/Contents/MacOS/Squirrel" --reload 2>/dev/null || true
+fi
+
+echo "re-gu-trans installed. Enable Squirrel → Gujarati in Keyboard settings."
+exit 0

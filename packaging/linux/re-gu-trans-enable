@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Enable gujarati schema in the current user's Rime dir (Fcitx5 or IBus).
+set -euo pipefail
+
+detect_rime_dir() {
+  if [[ -n "${RIME_USER_DIR:-}" ]]; then
+    echo "$RIME_USER_DIR"
+    return
+  fi
+  if [[ -d "${HOME}/.local/share/fcitx5/rime" ]] || command -v fcitx5 >/dev/null 2>&1; then
+    echo "${HOME}/.local/share/fcitx5/rime"
+  elif [[ -d "${HOME}/.config/ibus/rime" ]] || command -v ibus >/dev/null 2>&1; then
+    echo "${HOME}/.config/ibus/rime"
+  else
+    echo "${HOME}/.local/share/fcitx5/rime"
+  fi
+}
+
+SHARE="${RE_GU_TRANS_SHARE:-/usr/share/re-gu-trans/rime}"
+SNIPPET="${RE_GU_TRANS_SNIPPET:-/usr/share/re-gu-trans/snippets/default.custom.yaml}"
+RIME="$(detect_rime_dir)"
+
+mkdir -p "$RIME/js/lm" "$RIME/run"
+
+# Prefer shared data; also copy into user dir so Deploy always sees files
+if [[ -d "$SHARE" ]]; then
+  cp -f "$SHARE/gujarati.schema.yaml" "$RIME/" 2>/dev/null || true
+  cp -f "$SHARE/gujarati.dict.yaml" "$RIME/" 2>/dev/null || true
+  cp -f "$SHARE/gujarati_apple.dict.yaml" "$RIME/" 2>/dev/null || true
+  cp -f "$SHARE/js/"*.js "$RIME/js/" 2>/dev/null || true
+  cp -f "$SHARE/js/gu_lexicon_blob.json" "$RIME/js/" 2>/dev/null || true
+  cp -f "$SHARE/js/gu_lexicon_blob.json" "$RIME/" 2>/dev/null || true
+  cp -f "$SHARE/js/lm/"* "$RIME/js/lm/" 2>/dev/null || true
+  cp -f "$SHARE/"*.js "$RIME/" 2>/dev/null || true
+fi
+
+CUSTOM="$RIME/default.custom.yaml"
+if [[ ! -f "$CUSTOM" ]]; then
+  cp -f "$SNIPPET" "$CUSTOM"
+elif ! grep -q 'schema: gujarati' "$CUSTOM" 2>/dev/null; then
+  echo "" >> "$CUSTOM"
+  echo "# --- re-gu-trans ---" >> "$CUSTOM"
+  cat "$SNIPPET" >> "$CUSTOM"
+  echo "Appended gujarati to $CUSTOM (review merge if you use other schemas)."
+fi
+
+if command -v fcitx5-remote >/dev/null 2>&1; then
+  fcitx5-remote -r || true
+elif command -v ibus >/dev/null 2>&1; then
+  ibus restart || true
+fi
+
+echo "Enabled Gujarati in $RIME"
+echo "Select Rime → Gujarati Transliteration, then Deploy if needed."

@@ -19,3 +19,6 @@ test.txt
 # Optional local copies
 vendor/librime-qjs/*.dylib
 vendor/librime-qjs/qjs
+
+# Package build output
+dist/

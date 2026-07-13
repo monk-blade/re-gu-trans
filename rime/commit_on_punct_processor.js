@@ -1,14 +1,15 @@
 // commit_on_punct_processor.js
 // When a candidate menu is open, Space and common punctuation commit the
 // selected candidate (macOS TransliterationIM-style), then insert the mark.
+//
+// NOTE: This processor must be listed BEFORE key_binder in the schema.
+// Default Rime bindings remap period → Page_Down when has_menu.
 
 /**
  * @implements {Processor}
  */
 export class CommitOnPunctProcessor {
-  constructor(env) {
-    // no-op
-  }
+  constructor(_env) {}
 
   finalizer() {}
 
@@ -21,35 +22,19 @@ export class CommitOnPunctProcessor {
     try {
       if (!keyEvent || keyEvent.release) return 'kNoop'
 
-      const repr = String(keyEvent.repr || '')
-      const punct = punctForKey(repr, keyEvent)
+      const punct = punctForKey(String(keyEvent.repr || ''))
       if (punct === null) return 'kNoop'
 
       const engine = env && env.engine
       const ctx = engine && engine.context
-      if (!ctx) return 'kNoop'
-
-      // Only intercept when composing with a candidate menu
-      const composing =
-        (typeof ctx.isComposing === 'function' && ctx.isComposing()) ||
-        (typeof ctx.hasMenu === 'function' && ctx.hasMenu()) ||
-        (ctx.input && String(ctx.input).length > 0)
-      if (!composing) return 'kNoop'
-      if (typeof ctx.hasMenu === 'function' && !ctx.hasMenu()) {
-        // Still composing but no menu — let default editors handle
+      if (!ctx || typeof ctx.hasMenu !== 'function' || !ctx.hasMenu()) {
         return 'kNoop'
       }
 
-      const cand =
-        (ctx.lastSegment && ctx.lastSegment.selectedCandidate) ||
-        (typeof ctx.getSelectedCandidate === 'function' && ctx.getSelectedCandidate()) ||
-        null
-      // Commit composition (selected candidate or raw input)
       if (typeof ctx.commit === 'function') {
         ctx.commit()
       }
 
-      // Append the punctuation / space after the committed word
       if (punct !== '' && engine && typeof engine.commitText === 'function') {
         engine.commitText(punct)
       }
@@ -66,27 +51,36 @@ export class CommitOnPunctProcessor {
 }
 
 /**
- * Map key representation → text to insert after commit.
- * Returns null if this key should not trigger commit-on-punct.
- * Returns '' for keys that commit without appending (none currently).
+ * @param {string} repr
+ * @returns {string|null}
  */
-function punctForKey(repr, keyEvent) {
-  const r = repr
+function punctForKey(repr) {
+  const r = String(repr || '')
   const lower = r.toLowerCase()
 
-  // Space commits and inserts a space
-  if (lower === 'space' || r === ' ') return ' '
+  // Strip optional Release/Shift- prefixes some frontends include
+  const bare = lower
+    .replace(/^release\+/i, '')
+    .replace(/^shift\+/i, '')
+    .replace(/^control\+/i, '')
+    .replace(/^alt\+/i, '')
+    .replace(/^super\+/i, '')
 
-  // Named keysyms (Rime / X11 style)
+  if (bare === 'space' || r === ' ') return ' '
+
   const named = {
     period: '.',
+    kp_decimal: '.',
+    kp_period: '.',
     comma: ',',
+    kp_separator: ',',
     semicolon: ';',
     apostrophe: "'",
     quotedbl: '"',
     slash: '/',
     backslash: '\\',
     minus: '-',
+    kp_subtract: '-',
     equal: '=',
     grave: '`',
     bracketleft: '[',
@@ -97,18 +91,15 @@ function punctForKey(repr, keyEvent) {
     parenleft: '(',
     parenright: ')',
   }
-  if (Object.prototype.hasOwnProperty.call(named, lower)) {
-    return named[lower]
+  if (Object.prototype.hasOwnProperty.call(named, bare)) {
+    return named[bare]
   }
 
-  // Literal single-character punctuation (some frontends report these)
   if (r.length === 1 && /[.,;:'"!?\/\\\-_=`[\]()]/.test(r)) {
     return r
   }
-
-  // Shift+digit punctuation on US layout sometimes arrives as the symbol
-  if (r.length === 1 && /[!@#$%^&*]/.test(r)) {
-    return r
+  if (bare.length === 1 && /[.,;:'"!?\/\\\-_=`[\]()]/.test(bare)) {
+    return bare
   }
 
   return null

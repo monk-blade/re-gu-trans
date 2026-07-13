@@ -4,21 +4,21 @@
 schema:
   schema_id: gujarati
   name: Gujarati Transliteration
-  version: '2.5'
+  version: '2.6'
   author:
     - OpenCode
     - re-gu-trans
   description: |
     Gujarati transliteration with Apple lexicon + native word-frequency
-    dictionary rescoring. Space and punctuation commit the selected candidate.
+    dictionary rescoring. Space and punctuation (incl. .) commit the selection.
 
 engine:
   processors:
     - ascii_composer
     - recognizer
-    - key_binder
-    # Commit selected candidate on Space / .,;:' etc. (before punctuator eats keys)
+    # BEFORE key_binder: default preset maps period→Page_Down when has_menu
     - qjs_processor@commit_on_punct_processor
+    - key_binder
     - speller
     - punctuator
     - selector
@@ -80,6 +80,12 @@ punctuator:
 
 key_binder:
   import_preset: default
+  bindings:
+    # Undo default paging on . / , so commit_on_punct can commit the candidate
+    - { accept: period, send: period, when: has_menu }
+    - { accept: comma, send: comma, when: has_menu }
+    - { accept: period, send: period, when: paging }
+    - { accept: comma, send: comma, when: paging }
 
 recognizer:
   import_preset: default

@@ -1,0 +1,47 @@
+# nfpm config — version placeholder __VERSION__ replaced at build time
+name: re-gu-trans
+arch: amd64
+platform: linux
+version: __VERSION__
+section: utils
+priority: optional
+maintainer: re-gu-trans <noreply@users.noreply.github.com>
+description: |
+  Gujarati roman→script transliteration for Rime (lexicon + QuickJS).
+  Installs schema/data into /usr/share/rime-data and librime-qjs plugin.
+  Requires a Rime frontend (fcitx5-rime or ibus-rime). Run re-gu-trans-enable once.
+vendor: re-gu-trans
+homepage: https://github.com/monk-blade/re-gu-trans
+license: MIT
+contents:
+  - src: dist/linux-root/usr/lib/rime-plugins/librime-qjs.so
+    dst: /usr/lib/rime-plugins/librime-qjs.so
+    file_info:
+      mode: 0755
+  - src: dist/linux-root/usr/lib/x86_64-linux-gnu/rime-plugins/librime-qjs.so
+    dst: /usr/lib/x86_64-linux-gnu/rime-plugins/librime-qjs.so
+    file_info:
+      mode: 0755
+  - src: dist/linux-root/usr/share/rime-data/
+    dst: /usr/share/rime-data/
+    type: tree
+  - src: dist/linux-root/usr/share/re-gu-trans/
+    dst: /usr/share/re-gu-trans/
+    type: tree
+  - src: dist/linux-root/usr/bin/re-gu-trans-enable
+    dst: /usr/bin/re-gu-trans-enable
+    file_info:
+      mode: 0755
+scripts:
+  postinstall: packaging/linux/postinst.sh
+overrides:
+  deb:
+    depends:
+      - librime1 | librime
+    recommends:
+      - fcitx5-rime | ibus-rime
+  rpm:
+    depends:
+      - librime
+    recommends:
+      - fcitx5-rime

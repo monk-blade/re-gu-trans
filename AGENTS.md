@@ -31,7 +31,11 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 | `rime/gu_lexicon_blob.json` | `{exceptions,lexicon,weights}` for qjs |
 | `rime/js/lm/unigram.tsv` | Native word frequencies |
 | `rime/js/lm/stems.json` | Stem → frequency for morphology |
-| `scripts/sync_rime.sh` | Copy assets → `~/Library/Rime` + reload Squirrel |
+| `scripts/sync_rime.sh` | Copy assets → Rime user dir (macOS / Linux) + reload |
+| `scripts/package/` | Stage payload; build macOS pkg/zip, Windows zip, Linux deb/rpm |
+| `packaging/` | nfpm config + `re-gu-trans-enable` |
+| `GUIDE.md` | Install walkthrough (Releases + from-source) |
+| `.github/workflows/release-packages.yml` | Tag `v*` → publish packages |
 | `scripts/build_gu_word_freq.py` | Rebuild unigram/stems from Apple+Google+Indic |
 | `scripts/distill_apple_lexicon.py` | Rebuild lexicon blob / dict from probe extracts |
 | `scripts/install_librime_qjs.sh` | Install `librime-qjs.dylib` into Squirrel |
@@ -54,15 +58,13 @@ Always assign `candidate.quality` after sorting — Rime **ignores array order**
 ## Day-to-day commands
 
 ```bash
-# Rebuild frequency dictionaries (uses data/external caches when present)
 python3 scripts/build_gu_word_freq.py
-
-# Deploy to Squirrel user data + reload
-./scripts/sync_rime.sh
-
-# One-time plugin install (admin)
-./scripts/install_librime_qjs.sh
+./scripts/sync_rime.sh          # macOS ~/Library/Rime or Linux fcitx5/ibus dir
 ```
+
+Install / Linux walkthrough: **[GUIDE.md](./GUIDE.md)**.
+
+Schema processor order is critical for `.` commit: `commit_on_punct` must run **before** `key_binder` (default maps `period` → `Page_Down` when `has_menu`).
 
 Verify in `$TMPDIR/rime.squirrel/rime.squirrel.INFO`:
 

@@ -1,0 +1,200 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (without v). Empty = schema version-dev'
+        required: false
+        default: ''
+      publish:
+        description: 'Upload GitHub Release (tags always publish)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  LIBRIME_QJS_TAG: v1.3.0
+  LIBRIME_TAG: '1.16.1'
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          elif [[ -n "${{ inputs.version }}" ]]; then
+            V="${{ inputs.version }}"
+          else
+            # shellcheck source=/dev/null
+            source scripts/package/common.sh
+            V="$(resolve_version)"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Resolved version=$V"
+      - name: Verify LM assets
+        run: |
+          test -f rime/js/lm/unigram.tsv
+          test -f rime/js/lm/stems.json
+          test -f rime/gu_lexicon_blob.json
+          test -f rime/gujarati_translator.js
+          test -f rime/commit_on_punct_processor.js
+
+  linux:
+    needs: stage
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build git curl zip unzip \
+            libboost-dev libboost-system-dev libboost-filesystem-dev \
+            libgoogle-glog-dev libgtest-dev libyaml-cpp-dev \
+            libleveldb-dev libmarisa-dev libopencc-dev \
+            libcapnp-dev capnproto \
+            p7zip-full rpm
+      - name: Install nfpm
+        run: |
+          curl -sL "https://github.com/goreleaser/nfpm/releases/download/v2.41.3/nfpm_2.41.3_Linux_x86_64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin nfpm
+          nfpm --version
+      - name: Build packages
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+        run: |
+          chmod +x scripts/package/**/*.sh packaging/linux/* || true
+          chmod +x scripts/package/linux/*.sh scripts/package/*.sh
+          chmod +x packaging/linux/re-gu-trans-enable packaging/linux/postinst.sh
+          ./scripts/package/linux/build_packages.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-linux
+          path: |
+            dist/packages/*.deb
+            dist/packages/*.rpm
+
+  macos:
+    needs: stage
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pkg + zip
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+        run: |
+          chmod +x scripts/package/macos/*.sh scripts/package/*.sh
+          chmod +x scripts/package/macos/postinstall
+          ./scripts/package/macos/build_pkg.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-macos
+          path: |
+            dist/packages/*macos-arm64.pkg
+            dist/packages/*macos-arm64.zip
+
+  windows:
+    needs: stage
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install 7zip + zip tools
+        shell: bash
+        run: |
+          choco install 7zip -y --no-progress || true
+          echo "$PROGRAMFILES/7-Zip" >> "$GITHUB_PATH"
+      - name: Build zip
+        shell: bash
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+        run: |
+          chmod +x scripts/package/windows/*.sh scripts/package/*.sh
+          export PATH="/c/Program Files/7-Zip:$PATH"
+          ./scripts/package/windows/build_zip.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-windows
+          path: dist/packages/*windows-x64.zip
+
+  publish:
+    needs: [stage, linux, macos, windows]
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag' || inputs.publish == true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect assets
+        id: assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.zip' \) \
+            -exec cp -f {} release-assets/ \;
+          ls -la release-assets
+          echo "count=$(find release-assets -type f | wc -l)" >> "$GITHUB_OUTPUT"
+      - name: Write release notes
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+          QJS_TAG: ${{ env.LIBRIME_QJS_TAG }}
+          RIME_TAG: ${{ env.LIBRIME_TAG }}
+        run: |
+          cat > release-notes.md <<EOF
+          ## re-gu-trans ${VERSION}
+
+          Plugin + schema packages (requires a Rime frontend on each OS).
+          Pinned **librime-qjs ${QJS_TAG}** / librime **${RIME_TAG}**.
+
+          ### Assets
+
+          | Platform | File | Frontend |
+          |----------|------|----------|
+          | macOS arm64 | \`re-gu-trans-${VERSION}-macos-arm64.pkg\` / \`.zip\` | [Squirrel](https://github.com/rime/squirrel/releases) |
+          | Windows x64 | \`re-gu-trans-${VERSION}-windows-x64.zip\` | [Weasel](https://github.com/rime/weasel/releases) |
+          | Linux amd64 | \`re-gu-trans_${VERSION}_amd64.deb\` / \`.rpm\` | fcitx5-rime or ibus-rime |
+
+          ### Quick install
+
+          **macOS:** install Squirrel, then open the \`.pkg\` (or \`sudo ./install.sh\` from the zip).
+
+          **Windows:** install Weasel, exit tray icon, run \`install.bat\` as Administrator, Deploy.
+
+          **Linux (Debian/Ubuntu):**
+          \`\`\`bash
+          sudo apt install ./re-gu-trans_${VERSION}_amd64.deb
+          re-gu-trans-enable
+          \`\`\`
+
+          **Linux (Fedora/RHEL):**
+          \`\`\`bash
+          sudo dnf install ./re-gu-trans-${VERSION}*.rpm
+          re-gu-trans-enable
+          \`\`\`
+
+          Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md)
+          EOF
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', needs.stage.outputs.version) }}
+          name: re-gu-trans ${{ needs.stage.outputs.version }}
+          body_path: release-notes.md
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ contains(needs.stage.outputs.version, '-') }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
