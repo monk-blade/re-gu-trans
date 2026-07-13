@@ -840,8 +840,8 @@ let LEXICON_LOADED = false
 // exact lexicon → latin echo → phonetic → prefix completions.
 const TIER_EXACT = 0
 const TIER_DICT = 1   // phonetic form attested via native wordlist / stem (macOS-like)
-const TIER_LATIN = 2
-const TIER_PHONETIC = 3
+const TIER_PHONETIC = 2
+const TIER_LATIN = 3  // echo latin below script phonetics (Google/Apple-like)
 const TIER_PREFIX = 4
 const TIER_EMOJI = 5  // keyword emoji; always below script candidates
 
