@@ -60,9 +60,13 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update
+          # Ubuntu 22.04: install libunwind-dev before libgoogle-glog-dev
+          # https://bugs.launchpad.net/ubuntu/+source/google-glog/+bug/1991919
+          sudo apt-get install -y --no-install-recommends libunwind-dev ninja-build
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build git curl zip unzip \
+            build-essential cmake git curl zip unzip \
             libboost-dev libboost-system-dev libboost-filesystem-dev \
+            libboost-locale-dev libboost-regex-dev \
             libgoogle-glog-dev libgtest-dev libyaml-cpp-dev \
             libleveldb-dev libmarisa-dev libopencc-dev \
             libcapnp-dev capnproto \
@@ -75,6 +79,7 @@ jobs:
       - name: Build packages
         env:
           VERSION: ${{ needs.stage.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x scripts/package/**/*.sh packaging/linux/* || true
           chmod +x scripts/package/linux/*.sh scripts/package/*.sh
@@ -95,6 +100,7 @@ jobs:
       - name: Build pkg + zip
         env:
           VERSION: ${{ needs.stage.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x scripts/package/macos/*.sh scripts/package/*.sh
           chmod +x scripts/package/macos/postinstall
@@ -111,15 +117,17 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install 7zip + zip tools
+      - name: Install 7zip
         shell: bash
         run: |
           choco install 7zip -y --no-progress || true
           echo "$PROGRAMFILES/7-Zip" >> "$GITHUB_PATH"
+          echo "/c/Program Files/7-Zip" >> "$GITHUB_PATH"
       - name: Build zip
         shell: bash
         env:
           VERSION: ${{ needs.stage.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x scripts/package/windows/*.sh scripts/package/*.sh
           export PATH="/c/Program Files/7-Zip:$PATH"

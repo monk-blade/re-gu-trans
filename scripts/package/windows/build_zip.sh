@@ -19,27 +19,10 @@ mkdir -p "$OUT_DIR" "$QJS_CACHE"
 
 "$SCRIPT_DIR/../stage_payload.sh" "$PAYLOAD" windows
 
-API="https://api.github.com/repos/HuangJian/librime-qjs/releases/tags/${LIBRIME_QJS_TAG}"
-echo "Resolving librime-qjs Windows asset for ${LIBRIME_QJS_TAG} ..."
-ASSET_URL="$(
-  python3 - <<PY
-import json, urllib.request
-url = "$API"
-req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "re-gu-trans"})
-data = json.load(urllib.request.urlopen(req))
-for a in data.get("assets", []):
-    name = a.get("name", "")
-    if "Windows" in name and ("x64" in name or "X64" in name):
-        print(a["browser_download_url"])
-        break
-else:
-    raise SystemExit("no Windows-x64 asset found")
-PY
-)"
+ASSET_URL="$(resolve_qjs_asset_url windows-x64)"
+echo "Using librime-qjs asset: $ASSET_URL"
 ARCHIVE="$QJS_CACHE/$(basename "$ASSET_URL")"
-if [[ ! -f "$ARCHIVE" ]]; then
-  curl -fL -o "$ARCHIVE" "$ASSET_URL"
-fi
+download_file "$ASSET_URL" "$ARCHIVE"
 
 EXTRACT="$QJS_CACHE/extract"
 rm -rf "$EXTRACT"
@@ -89,17 +72,7 @@ Pinned librime-qjs / rime.dll: ${LIBRIME_QJS_TAG} (librime ${LIBRIME_TAG})
 4. Select Gujarati Transliteration.
 EOF
 
-(
-  cd "$ZIP_DIR"
-  if command -v zip >/dev/null 2>&1; then
-    zip -r "$OUT_DIR/re-gu-trans-${VERSION}-windows-x64.zip" .
-  else
-    python3 - <<PY
-import shutil
-shutil.make_archive("$OUT_DIR/re-gu-trans-${VERSION}-windows-x64", "zip", "$ZIP_DIR")
-PY
-  fi
-)
+zip_dir_contents "$ZIP_DIR" "$OUT_DIR/re-gu-trans-${VERSION}-windows-x64.zip"
 
 echo "Windows package:"
 ls -la "$OUT_DIR"/re-gu-trans-"${VERSION}"-windows-x64.zip

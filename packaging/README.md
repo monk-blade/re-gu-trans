@@ -15,10 +15,13 @@ Cross-platform package definitions for **re-gu-trans** (schema + librime-qjs plu
 
 - `LIBRIME_QJS_TAG=v1.3.0`
 - `LIBRIME_TAG=1.16.1`
+- Direct asset URLs in `scripts/package/common.sh` (`QJS_MACOS_ARM64_URL`, `QJS_WINDOWS_X64_URL`) — update these when bumping the qjs tag (avoids GitHub API rate limits in CI).
 
 ## CI
 
 Push a tag `vX.Y.Z` → `.github/workflows/release-packages.yml` publishes GitHub Release assets.
+
+Linux jobs install `libunwind-dev` **before** `libgoogle-glog-dev` (Ubuntu 22.04 packaging quirk).
 
 ```bash
 git tag v2.6.0

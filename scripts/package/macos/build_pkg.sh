@@ -28,28 +28,11 @@ export COPYFILE_DISABLE=1
 
 "$SCRIPT_DIR/../stage_payload.sh" "$PAYLOAD" macos
 
-# --- download librime-qjs ---
-API="https://api.github.com/repos/HuangJian/librime-qjs/releases/tags/${LIBRIME_QJS_TAG}"
-echo "Resolving librime-qjs asset for ${LIBRIME_QJS_TAG} ..."
-ASSET_URL="$(
-  python3 - <<PY
-import json, urllib.request
-url = "$API"
-req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "re-gu-trans"})
-data = json.load(urllib.request.urlopen(req))
-for a in data.get("assets", []):
-    name = a.get("name", "")
-    if "macOS-ARM64" in name and name.endswith((".tar.bz2", ".tar.gz", ".tgz")):
-        print(a["browser_download_url"])
-        break
-else:
-    raise SystemExit("no macOS-ARM64 asset found")
-PY
-)"
+# --- download librime-qjs (pinned URL; no GitHub API) ---
+ASSET_URL="$(resolve_qjs_asset_url macos-arm64)"
+echo "Using librime-qjs asset: $ASSET_URL"
 ARCHIVE="$QJS_CACHE/$(basename "$ASSET_URL")"
-if [[ ! -f "$ARCHIVE" ]]; then
-  curl -fL -o "$ARCHIVE" "$ASSET_URL"
-fi
+download_file "$ASSET_URL" "$ARCHIVE"
 EXTRACT="$QJS_CACHE/extract"
 rm -rf "$EXTRACT"
 mkdir -p "$EXTRACT"
@@ -73,10 +56,7 @@ re-gu-trans ${VERSION} (macOS arm64)
 Requires Apple Silicon. Intel Macs: build librime-qjs yourself (no official Intel release).
 Pinned librime-qjs: ${LIBRIME_QJS_TAG}
 EOF
-(
-  cd "$ZIP_DIR"
-  zip -r "$OUT_DIR/re-gu-trans-${VERSION}-macos-arm64.zip" .
-)
+zip_dir_contents "$ZIP_DIR" "$OUT_DIR/re-gu-trans-${VERSION}-macos-arm64.zip"
 
 # --- pkg (files only under /usr/local/share/re-gu-trans) ---
 rm -rf "$PKG_ROOT" "$SCRIPTS_DIR"

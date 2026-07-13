@@ -1719,10 +1719,54 @@ function generateAlternateForms(input) {
   return forms
 }
 
-/** Suffixes that are spelling noise, not real extra morphology (poshatu + n). */
+/** Suffixes that are spelling noise, not real extra morphology (poshatu + n).
+ * Keep nasal/visarga-like only — single vowels are too permissive (mane+i → manei). */
 function isNearExactRomanSuffix(suf) {
   if (!suf) return false
-  return /^(n|m|ng|a|aa|i|ii|u|uu|un|um|e|o|h)$/i.test(suf)
+  return /^(n|m|ng|un|um|h)$/i.test(suf)
+}
+
+/** Soft-fill / weak lexicon weights must not outrank attested phonetics (Aksharantar=75). */
+const LEXICON_STRONG_WEIGHT = 100
+
+/**
+ * True when `key` is `typed` with only ephemeral 'a' vowels inserted between letters.
+ * mne→mane is weak evidence; do not treat as TIER_EXACT.
+ */
+function isAInsertionOnly(typed, key) {
+  if (!typed || !key || key === typed) return false
+  if (key.length <= typed.length) return false
+  let i = 0
+  let j = 0
+  while (i < typed.length && j < key.length) {
+    if (typed[i] === key[j]) {
+      i += 1
+      j += 1
+      continue
+    }
+    if (key[j] === 'a') {
+      j += 1
+      continue
+    }
+    return false
+  }
+  if (i !== typed.length) return false
+  while (j < key.length) {
+    if (key[j] !== 'a') return false
+    j += 1
+  }
+  return true
+}
+
+/** Map lexicon hit → tier. Soft / a-insertion fuzzy never get TIER_EXACT. */
+function lexiconHitTier(source, weight, typedRoman, hitRoman) {
+  const w = Number(weight) || 0
+  const soft = w > 0 && w < LEXICON_STRONG_WEIGHT
+  if (source === 'strict' && !soft) return TIER_EXACT
+  if (soft) return TIER_DICT
+  if (source === 'fuzzy' && isAInsertionOnly(typedRoman, hitRoman)) return TIER_DICT
+  if (source === 'near_exact' || source === 'fuzzy' || source === 'strict') return TIER_EXACT
+  return TIER_DICT
 }
 
 /**
@@ -2078,11 +2122,12 @@ export class GujaratiTranslator {
       exactHits.sort((a, b) => b.weight - a.weight || a.roman.length - b.roman.length)
       for (const hit of exactHits) {
         const q = hit.roman === lower ? 950 : 880
+        const tier = lexiconHitTier(hit.source, hit.weight, lower, hit.roman)
         pushCand(
           hit.word,
           hit.roman === lower ? input : hit.roman,
           q + Math.min(40, Math.log1p(hit.weight) * 5),
-          TIER_EXACT,
+          tier,
           false,
           hit.roman,
           hit.source
@@ -2098,18 +2143,20 @@ export class GujaratiTranslator {
           const suf = entry.key.slice(seed.length)
           if (!isNearExactRomanSuffix(suf)) continue
           const w = lexiconWeight(entry.key)
-          pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), TIER_EXACT, false, entry.key, 'near_exact')
+          const tier = lexiconHitTier('near_exact', w, lower, entry.key)
+          pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), tier, false, entry.key, 'near_exact')
         }
       }
 
       const exactItems = items.filter((x) => x.tier === TIER_EXACT)
       const exactCount = exactItems.length
       const hasStrictExact = exactItems.some((x) => x.exactSource === 'strict')
+      // Weak fuzzy EXACT only (rare after soft demotion): still allow attested phonetics.
       const softExactOnly =
         fuzzyExactSoft &&
         exactCount > 0 &&
         !hasStrictExact &&
-        exactItems.every((x) => (x.weight || 0) < 400)
+        exactItems.every((x) => (x.weight || 0) < LEXICON_STRONG_WEIGHT)
 
       // Latin only after we know exact/dict tiers will sort above it
       if (includeLatin) {
@@ -2133,6 +2180,8 @@ export class GujaratiTranslator {
         const validity = dictionaryValidity(text)
         // Hard-gate: with a strict lexicon exact, drop invented phonetics (classic).
         // Soft: fuzzy/near-exact-only (low weight) still allows attested / spell-dict forms.
+        // Soft-fill / a-insertion hits are TIER_DICT (not EXACT), so exactCount stays 0 and
+        // high-frequency phonetics can outrank them (mne → મને over soft mane→માને).
         if (hardGate && exactCount > 0 && !known) {
           if (hasStrictExact) {
             continue
@@ -2191,7 +2240,8 @@ export class GujaratiTranslator {
           }
           const w = lexiconWeight(entry.key)
           if (entry.key.startsWith(lower) && isNearExactRomanSuffix(suffix)) {
-            if (pushCand(entry.value, input, 860 + Math.min(40, Math.log1p(w) * 5), TIER_EXACT, false, entry.key, 'near_exact')) {
+            const tier = lexiconHitTier('near_exact', w, lower, entry.key)
+            if (pushCand(entry.value, input, 860 + Math.min(40, Math.log1p(w) * 5), tier, false, entry.key, 'near_exact')) {
               prefixAdded += 1
             }
             continue

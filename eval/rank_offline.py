@@ -88,6 +88,7 @@ SMOKE = [
     ("favshe", "ફાવશે"),
     ("poshatu", "પોષતું"),
     ("ketli", "કેટલી"),
+    ("mne", "મને"),
 ]
 
 
@@ -212,6 +213,43 @@ def expand_roman(input_s: str) -> set[str]:
 
 
 def near_exact_suffix(suf: str) -> bool:
+    if not suf:
+        return False
+    return bool(re.fullmatch(r"(n|m|ng|un|um|h)", suf, flags=re.I))
+
+
+LEXICON_STRONG_WEIGHT = 100
+
+
+def is_a_insertion_only(typed: str, key: str) -> bool:
+    if not typed or not key or key == typed or len(key) <= len(typed):
+        return False
+    i = j = 0
+    while i < len(typed) and j < len(key):
+        if typed[i] == key[j]:
+            i += 1
+            j += 1
+            continue
+        if key[j] == "a":
+            j += 1
+            continue
+        return False
+    if i != len(typed):
+        return False
+    return all(c == "a" for c in key[j:])
+
+
+def lexicon_hit_tier(source: str | None, weight: float, typed: str, hit_roman: str) -> int:
+    soft = 0 < weight < LEXICON_STRONG_WEIGHT
+    if source == "strict" and not soft:
+        return TIER_EXACT
+    if soft:
+        return TIER_DICT
+    if source == "fuzzy" and is_a_insertion_only(typed, hit_roman):
+        return TIER_DICT
+    if source in ("near_exact", "fuzzy", "strict"):
+        return TIER_EXACT
+    return TIER_DICT
     return bool(re.match(r"^(n|m|ng|a|aa|i|ii|u|uu|un|um|e|o|h)$", suf or "", re.I))
 
 
@@ -329,7 +367,8 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
 
     exact_hits.sort(key=lambda x: (-x[2], len(x[0])))
     for roman, word, w, src in exact_hits:
-        push(word, TIER_EXACT, w, src, roman)
+        tier = lexicon_hit_tier(src, w, lower, roman)
+        push(word, tier, w, src, roman)
 
     has_strict = any(c["source"] == "strict" for c in cands if c["tier"] == TIER_EXACT)
     exact_count = sum(1 for c in cands if c["tier"] == TIER_EXACT)
