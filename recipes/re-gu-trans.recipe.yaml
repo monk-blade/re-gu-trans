@@ -1,0 +1,29 @@
+# re-gu-trans recipe (plum-compatible)
+# Usage with plum (if installed):
+#   bash rime-install monk-blade/re-gu-trans:recipes/re-gu-trans
+# Or without plum:
+#   ./scripts/install_recipe.sh
+#
+# Prerequisite: librime-qjs plugin on the frontend (see GUIDE.md / Release packages).
+
+recipe:
+  Rx: re-gu-trans
+  description: >-
+    Gujarati roman→script transliteration (Apple lexicon + attested dict rescoring)
+    via librime-qjs. Does not install Squirrel/Weasel/Fcitx themselves.
+  author: re-gu-trans
+  version: '2.8'
+  args:
+
+install_files: >-
+  rime/gujarati.schema.yaml
+  rime/gujarati.dict.yaml
+  rime/gujarati_apple.dict.yaml
+  rime/gujarati_translator.js
+  rime/commit_on_punct_processor.js
+  rime/gu_lexicon_blob.json
+  rime/gujarati.custom.yaml.sample
+  rime/js/emoji_keywords.json
+  rime/js/lm/unigram.tsv
+  rime/js/lm/stems.json
+  rime/js/lm/attested.json

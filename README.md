@@ -69,4 +69,5 @@ $qjs$ unigram loaded entries=...
 ```
 
 See **[GUIDE.md](./GUIDE.md)** for macOS / Windows / Linux install.
+See **[docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md)** for Rime/Indic neighbor projects.
 See **AGENTS.md** for contributor/agent conventions.

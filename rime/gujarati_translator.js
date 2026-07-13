@@ -843,6 +843,7 @@ const TIER_DICT = 1   // phonetic form attested via native wordlist / stem (macO
 const TIER_LATIN = 2
 const TIER_PHONETIC = 3
 const TIER_PREFIX = 4
+const TIER_EMOJI = 5  // keyword emoji; always below script candidates
 
 function rememberKnownWord(word) {
   if (word) KNOWN_WORDS.add(word)
@@ -1133,6 +1134,75 @@ const GU_SUFFIXES = [
 
 const ATTESTED = new Set()
 let ATTESTED_FLOOR = 50
+
+// roman keyword / native GU word → [{e, w}, ...]
+const EMOJI_BY_ROMAN = new Map()
+const EMOJI_BY_NATIVE = new Map()
+let EMOJI_LOADED = false
+
+function rememberEmoji(map, key, emoji, weight) {
+  if (!key || !emoji) return
+  let list = map.get(key)
+  if (!list) {
+    list = []
+    map.set(key, list)
+  }
+  for (const it of list) {
+    if (it.e === emoji) {
+      if (weight > it.w) it.w = weight
+      return
+    }
+  }
+  list.push({ e: emoji, w: weight })
+  list.sort((a, b) => b.w - a.w)
+}
+
+function loadEmojiKeywords(env) {
+  if (EMOJI_LOADED) return
+  EMOJI_LOADED = true
+  const paths = []
+  if (env && env.userDataDir) {
+    paths.push(env.userDataDir + '/js/emoji_keywords.json')
+    paths.push(env.userDataDir + '/emoji_keywords.json')
+  }
+  paths.push(resolveUserPath('~/Library/Rime/js/emoji_keywords.json'))
+  paths.push(resolveUserPath('~/Library/Rime/emoji_keywords.json'))
+
+  let text = null
+  for (const p of paths) {
+    text = loadTextViaEnv(env, p)
+    if (text) break
+  }
+  if (!text) {
+    console.log('$qjs$ emoji keywords missing')
+    return
+  }
+  try {
+    const data = JSON.parse(text)
+    EMOJI_BY_ROMAN.clear()
+    EMOJI_BY_NATIVE.clear()
+    for (const [code, items] of Object.entries(data || {})) {
+      const roman = String(code || '').toLowerCase()
+      if (!roman || !Array.isArray(items)) continue
+      for (const it of items) {
+        const emoji = it && (it.e || it.emoji || it[0])
+        const weight = Number((it && (it.w || it.weight || it[1])) || 100)
+        if (!emoji) continue
+        rememberEmoji(EMOJI_BY_ROMAN, roman, String(emoji), Number.isFinite(weight) ? weight : 100)
+        // Reverse-index via Apple lexicon so native candidates also surface emoji
+        const native = APPLE_LEXICON.get(roman)
+        if (native) {
+          rememberEmoji(EMOJI_BY_NATIVE, native, String(emoji), Number.isFinite(weight) ? weight : 100)
+        }
+      }
+    }
+    console.log(
+      '$qjs$ emoji loaded romans=' + EMOJI_BY_ROMAN.size + ' natives=' + EMOJI_BY_NATIVE.size
+    )
+  } catch (e) {
+    console.error('$qjs$ emoji parse error:', e.message)
+  }
+}
 
 function loadLanguageModels(env) {
   if (LM_LOADED) return
@@ -1924,6 +1994,7 @@ export class GujaratiTranslator {
     console.log('$qjs$ gujarati translator init')
     loadLexiconBlob(env)
     loadLanguageModels(env)
+    loadEmojiKeywords(env)
   }
 
   finalizer() {
@@ -1944,13 +2015,16 @@ export class GujaratiTranslator {
 
       loadLexiconBlob(env)
       loadLanguageModels(env)
+      loadEmojiKeywords(env)
 
       const enableUserLm = getEnvBool(env, 'translator/enable_user_lm', true)
       const hardGate = getEnvBool(env, 'translator/lexicon_hard_gate', true)
       const fuzzyExactSoft = getEnvBool(env, 'translator/fuzzy_exact_soft', true)
       const includeLatin = getEnvBool(env, 'translator/include_latin', true)
+      const emojiEnable = getEnvBool(env, 'translator/emoji_enable', true)
       const maxPrefix = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_prefix', 6)))
       const maxPhonetic = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_phonetic', 5)))
+      const maxEmoji = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_emoji', 3)))
       LM_WEIGHTS.unigram = getEnvNumber(env, 'translator/lm_unigram_weight', LM_WEIGHTS.unigram)
       LM_WEIGHTS.bigram = getEnvNumber(env, 'translator/lm_bigram_weight', LM_WEIGHTS.bigram)
       LM_WEIGHTS.user = getEnvNumber(env, 'translator/lm_user_weight', LM_WEIGHTS.user)
@@ -1964,14 +2038,15 @@ export class GujaratiTranslator {
       function pushCand(text, comment, quality, tier, isPhonetic, romanKey, exactSource) {
         if (!text || seen.has(text)) return false
         seen.add(text)
-        const cand = new Candidate('gujarati', segment.start, segment.end, text, comment || '', quality)
+        const kind = tier === TIER_EMOJI ? 'emoji' : 'gujarati'
+        const cand = new Candidate(kind, segment.start, segment.end, text, comment || '', quality)
         cand.quality = quality
         items.push({
           candidate: cand,
           tier,
           isPhonetic: !!isPhonetic,
           romanKey: romanKey || lower,
-          weight: lexiconWeight(romanKey || lower),
+          weight: tier === TIER_EMOJI ? quality : lexiconWeight(romanKey || lower),
           exactSource: exactSource || null,
           closeness: romanCloseness(lower, romanKey || lower),
         })
@@ -2129,12 +2204,48 @@ export class GujaratiTranslator {
         }
       }
 
+      // Emoji suggestions from English / Gujarati-roman keywords (never beat script tiers).
+      if (emojiEnable && maxEmoji > 0 && EMOJI_BY_ROMAN.size > 0) {
+        const emojiHits = []
+        const seenEmoji = new Set()
+        function queueEmoji(list, via) {
+          if (!list) return
+          for (const it of list) {
+            if (!it || !it.e || seenEmoji.has(it.e) || seen.has(it.e)) continue
+            seenEmoji.add(it.e)
+            emojiHits.push({ emoji: it.e, weight: it.w || 100, via })
+          }
+        }
+        queueEmoji(EMOJI_BY_ROMAN.get(lower), lower)
+        for (const q of romanQueries) {
+          if (q !== lower) queueEmoji(EMOJI_BY_ROMAN.get(q), q)
+        }
+        // Native forms already in the menu (e.g. પ્રેમ from prem)
+        for (const item of items) {
+          if (item.tier === TIER_EMOJI) continue
+          queueEmoji(EMOJI_BY_NATIVE.get(item.candidate.text), item.candidate.text)
+          if (item.romanKey) queueEmoji(EMOJI_BY_ROMAN.get(item.romanKey), item.romanKey)
+        }
+        emojiHits.sort((a, b) => b.weight - a.weight)
+        let emojiAdded = 0
+        for (const hit of emojiHits) {
+          if (emojiAdded >= maxEmoji) break
+          if (pushCand(hit.emoji, 'emoji', 50 + Math.min(40, Math.log1p(hit.weight) * 4), TIER_EMOJI, false, lower, null)) {
+            emojiAdded += 1
+          }
+        }
+      }
+
       if (items.length === 0) return []
 
       const scored = items.map((item, index) => {
-        const lm = scoreCandidateWithContext(item.candidate.text, prevWords, item.isPhonetic)
+        const lm = item.tier === TIER_EMOJI
+          ? Math.log1p(item.weight || 0) * 0.2
+          : scoreCandidateWithContext(item.candidate.text, prevWords, item.isPhonetic)
         const freq = Math.log1p(item.weight || 0) * 0.35
-        const validity = dictionaryValidity(item.candidate.text)
+        const validity = item.tier === TIER_EMOJI
+          ? { score: 0, attested: false, evidence: 0, spellOk: false }
+          : dictionaryValidity(item.candidate.text)
         const dictBoost = validity.attested ? validity.score * 1.4 : 0
         const spellBoost = validity.spellOk ? 0.35 : 0
         const closeBoost = (item.closeness || 0) * 0.01
@@ -2142,6 +2253,7 @@ export class GujaratiTranslator {
       })
 
       const topForOnnx = scored
+        .filter((x) => x.tier !== TIER_EMOJI)
         .slice()
         .sort((a, b) => (a.tier !== b.tier ? a.tier - b.tier : b.score - a.score))
         .slice(0, 8)
@@ -2171,7 +2283,8 @@ export class GujaratiTranslator {
 
       const sortedCandidates = scored.map((item, rank) => {
         const c = item.candidate
-        c.quality = (4 - item.tier) * 200 + Math.max(0, 180 - rank)
+        // TIER_EMOJI=5 → base 0 so script candidates always outrank emoji in Rime quality.
+        c.quality = (5 - item.tier) * 200 + Math.max(0, 180 - rank)
         return c
       })
 

@@ -36,8 +36,10 @@ cp -f "$ROOT/rime/gujarati_apple.dict.yaml" "$RIME/"
 cp -f "$ROOT/rime/gujarati_translator.js" "$RIME/" 2>/dev/null || true
 cp -f "$ROOT/rime/gujarati_translator.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$ROOT/rime/commit_on_punct_processor.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$ROOT/rime/gujarati.custom.yaml.sample" "$RIME/" 2>/dev/null || true
 cp -f "$ROOT/rime/gu_lexicon_blob.json" "$RIME/" 2>/dev/null || true
 cp -f "$ROOT/rime/gu_lexicon_blob.json" "$RIME/js/" 2>/dev/null || true
+cp -f "$ROOT/rime/js/emoji_keywords.json" "$RIME/js/" 2>/dev/null || true
 
 if [[ -d "$ROOT/rime/js/lm" ]]; then
   cp -f "$ROOT/rime/js/lm/"*.tsv "$RIME/js/lm/" 2>/dev/null || true
@@ -91,6 +93,6 @@ elif command -v ibus >/dev/null 2>&1; then
 fi
 
 echo "Synced to $RIME"
-echo "Engine: exact → dict-phonetic → latin → phonetic → prefix"
+echo "Engine: exact → dict-phonetic → latin → phonetic → prefix → emoji"
 echo "Commit: Space and . , ; ' etc. (processor before key_binder)"
-echo "Try: jamin, favshe, poshatu, ketli — then Space or ."
+echo "Try: jamin, favshe, prem (😍 below પ્રેમ), smile — then Space or ."

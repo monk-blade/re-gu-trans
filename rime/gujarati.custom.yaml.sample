@@ -1,0 +1,18 @@
+# Sample user patch — copy to gujarati.custom.yaml in your Rime user dir.
+# rime-ice style: customize via patch files; do not edit gujarati.schema.yaml in place.
+#
+#   cp gujarati.custom.yaml.sample ~/Library/Rime/gujarati.custom.yaml   # macOS
+#   # or ~/.local/share/fcitx5/rime/gujarati.custom.yaml
+#
+# Then Deploy / restart the frontend.
+
+patch:
+  menu/page_size: 9
+  # Soft-gate: allow attested phonetics when only fuzzy/near-exact lexicon hits exist
+  "translator/fuzzy_exact_soft": true
+  "translator/lexicon_hard_gate": true
+  # Keyword emoji (English / Gujarati-roman); disable with emoji_enable: false
+  "translator/emoji_enable": true
+  "translator/max_emoji": 3
+  # Optional: slightly prefer dictionary-validated phonetics
+  # "translator/lm_unigram_weight": 0.7

@@ -74,15 +74,24 @@ Plugin lands in `/usr/lib/rime-plugins/` (and the Debian multiarch path). Shared
 
 ## From source (developers)
 
-### macOS (Squirrel)
-
 ```bash
 git clone https://github.com/monk-blade/re-gu-trans.git
 cd re-gu-trans
-./scripts/install_librime_qjs.sh   # admin password; installs librime-qjs.dylib
-python3 scripts/build_gu_word_freq.py   # if unigram/stems missing
-./scripts/sync_rime.sh
+./scripts/install_librime_qjs.sh   # macOS admin; or use Release packages
+python3 scripts/build_gu_word_freq.py
+python3 scripts/ingest_aksharantar_gu.py   # optional Aksharantar GU soft-fill
+./scripts/install_recipe.sh                # same as sync_rime.sh
 ```
+
+Plum users (optional):
+
+```bash
+bash rime-install monk-blade/re-gu-trans:recipes/re-gu-trans
+```
+
+Sample user overrides: copy `rime/gujarati.custom.yaml.sample` → `gujarati.custom.yaml` in your Rime user dir (do not edit the upstream schema in place).
+
+Neighbor projects / adopt-defer notes: **[docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md)**.
 
 ### Linux
 
@@ -154,17 +163,34 @@ python3 scripts/build_gu_word_freq.py   # if needed
 
 ## Dictionary sources (ranking)
 
-Native-script rescoring merges:
+Native-script rescoring merges into one **unique-quality** set (NFC, Gujarati-only, provenance tiers):
 
-| Source | Role |
-|--------|------|
-| Apple distill | roman lexicon + frequency |
-| [Google i18n GU wordcounts](http://www.gstatic.com/i18n/corpora/wordcounts/gu.txt) | corpus frequency |
-| [Indic Keyboard gu wordfreq](https://github.com/jishnu7/dictionaries) | keyboard priorities |
-| [aspell-gu / gu-wordlist](https://github.com/kartikm/gu-wordlist) (GPL-2+) | attested spellings |
-| [hunspell gu_IN](https://github.com/elastic/hunspell/tree/master/dicts/gu_IN) (GPL+) | attested spellings |
+| Tier | Source | Role |
+|------|--------|------|
+| T0 | Apple distill | roman lexicon + strong frequency floor |
+| T1 | [aspell-gu / gu-wordlist](https://github.com/kartikm/gu-wordlist) (GPL-2+), [hunspell gu_IN](https://github.com/elastic/hunspell/tree/master/dicts/gu_IN) (GPL+) | attested spellings (floor 50) |
+| T2 | [kartikm wikipedia-wordlist](https://github.com/kartikm/gu-wordlist), [open-dict-data wikidict GU](https://github.com/open-dict-data/wikidict-wordlist) | wiki-attested (floor 40) |
+| T3 | [Google i18n GU wordcounts](http://www.gstatic.com/i18n/corpora/wordcounts/gu.txt), [Indic Keyboard gu wordfreq](https://github.com/jishnu7/dictionaries) | corpus frequency |
+| T4 | [Aksharantar guj](https://huggingface.co/datasets/ai4bharat/Aksharantar) | native floor 50; soft roman→native weight 75 **only if roman ∉ Apple** |
 
-Rebuild: `python3 scripts/build_gu_word_freq.py` → `rime/js/lm/{unigram.tsv,stems.json,attested.json}`.
+Artifacts: `data/quality/unique_gu_stats.json` (committed summary), `data/quality/unique_gu_words.tsv` (regenerable provenance TSV).
+
+```bash
+python3 scripts/build_gu_word_freq.py   # unigram + attested + unique-quality
+python3 scripts/ingest_aksharantar_gu.py  # soft-fill OOV romans; never overrides Apple
+```
+
+→ `rime/js/lm/{unigram.tsv,stems.json,attested.json}`.
+
+### Emoji suggestions
+
+Keyword emoji for English and Gujarati-roman input (e.g. `smile` → 🙂, `prem` → 😍) appear **below** script candidates. Data: `rime/js/emoji_keywords.json` (from `data/gujarati_emoji.dict.yaml`).
+
+```bash
+python3 scripts/build_emoji_keywords.py
+```
+
+Toggle: `translator/emoji_enable` / `translator/max_emoji` in schema or `gujarati.custom.yaml`.
 
 ## Optional ONNX ranker
 
@@ -185,6 +211,7 @@ Logs should show:
 loaded plugin: qjs
 $qjs$ lexicon loaded entries=...
 $qjs$ unigram loaded entries=...
+$qjs$ emoji loaded romans=...
 ```
 
 Smoke tests:
@@ -195,6 +222,7 @@ Smoke tests:
 | `favshe` | ફાવશે |
 | `poshatu` | પોષતું |
 | `ketli` | કેટલી |
+| `smile` / `prem` | script first; emoji (🙂 / 😍) lower in the menu |
 
 Then press **Space** or **`.`** — should commit the highlighted candidate and insert the mark.
 

@@ -26,3 +26,6 @@ dist/
 
 # Regenerable external wordlist caches (rebuild via build_gu_word_freq.py)
 data/external/
+
+# Large regenerable unique-quality TSV (summary JSON is tracked)
+data/quality/unique_gu_words.tsv

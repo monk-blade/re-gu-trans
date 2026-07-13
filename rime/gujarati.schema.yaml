@@ -4,7 +4,7 @@
 schema:
   schema_id: gujarati
   name: Gujarati Transliteration
-  version: '2.7'
+  version: '2.8'
   author:
     - OpenCode
     - re-gu-trans
@@ -63,6 +63,9 @@ translator:
   include_latin: true
   max_prefix: 6
   max_phonetic: 5
+  # Keyword emoji suggestions (English + Gujarati-roman); always below script
+  emoji_enable: true
+  max_emoji: 3
   onnx_enable: true
   onnx_weight: 1.2
   onnx_timeout_ms: 3

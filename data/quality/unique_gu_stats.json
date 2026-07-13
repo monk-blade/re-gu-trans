@@ -1,0 +1,22 @@
+{
+  "union": 1258157,
+  "wiki_only": 23780,
+  "wiki_union": 39471,
+  "sources": {
+    "apple": 135875,
+    "aspell": 82146,
+    "hunspell": 168952,
+    "wiki_kartikm": 20817,
+    "wiki_dict": 19007,
+    "google": 21829,
+    "indic": 97392,
+    "aksharantar": 1068990
+  },
+  "floors": {
+    "spell": 50,
+    "wiki": 40,
+    "aksharantar": 50
+  },
+  "unigram": 1258157,
+  "attested": 1221863
+}
