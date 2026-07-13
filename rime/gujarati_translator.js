@@ -1442,6 +1442,38 @@ const TOKEN_SET = new Set([
 
 const MAX_TOKEN_LEN = 3
 
+/**
+ * Productive conjunct pairs (C1,C2) — Apple / Google Indic / MS phonetic style.
+ * Default between consonants is inherent schwa (no virama); only these form clusters.
+ * Explicit virama remains available via '+' in the roman input.
+ */
+const PRODUCTIVE_CONJUNCTS = new Set([
+  // ya-phala (વ્ય, ક્ય, …) — past participles, passives
+  'v|y', 'k|y', 'g|y', 'c|y', 'ch|y', 'j|y', 't|y', 'd|y', 'n|y', 'p|y', 'b|y',
+  'm|y', 'r|y', 'l|y', 's|y', 'sh|y', 'h|y', 'T|y', 'D|y',
+  // ra clusters
+  'p|r', 't|r', 'k|r', 'g|r', 'd|r', 'b|r', 's|r', 'sh|y', 'sh|r', 'f|r', 'ph|r',
+  // va clusters
+  'k|v', 't|v', 'd|v', 's|v', 'n|v', 'dh|v',
+  // misc common
+  't|n', 's|n', 's|t', 's|k',
+])
+
+function conjunctKey(a, b) {
+  return a + '|' + b
+}
+
+function shouldFormConjunct(leftTok, rightTok) {
+  if (!leftTok || !rightTok) return false
+  if (PRODUCTIVE_CONJUNCTS.has(conjunctKey(leftTok, rightTok))) return true
+  // already-atomic digraphs in CONSONANTS (ksh/gy/dv) are single tokens
+  return false
+}
+
+const ANUSVARA = '\u0A82'
+const U_MATRA = '\u0AC1'
+const UU_MATRA = '\u0AC2'
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -1521,9 +1553,15 @@ function transliterateTokens(tokens) {
       }
     } else if (CONSONANTS[token] !== undefined) {
       const consChar = CONSONANTS[token]
-      if (nextToken !== undefined && CONSONANTS[nextToken] !== undefined) {
+      // Indic IME grammar: default inherent schwa between consonants.
+      // Virama only for explicit '+' or productive conjuncts (vy, pr, tr, …).
+      if (nextToken === '+') {
         result += consChar + VIRAMA
-      } else if (nextToken === '+') {
+      } else if (
+        nextToken !== undefined &&
+        CONSONANTS[nextToken] !== undefined &&
+        shouldFormConjunct(token, nextToken)
+      ) {
         result += consChar + VIRAMA
       } else {
         result += consChar
@@ -1543,9 +1581,32 @@ function transliterateTokens(tokens) {
   return result
 }
 
+/** Past-participle / nasal final -u (પોષતું, પરખાવ્યું) — Google/Apple often omit 'n'/'m'. */
+function withNasalFinalU(gu) {
+  if (!gu) return null
+  if (gu.endsWith(U_MATRA + ANUSVARA) || gu.endsWith(UU_MATRA + ANUSVARA)) return null
+  if (gu.endsWith(U_MATRA)) return gu + ANUSVARA
+  return null
+}
+
 function transliterate(input) {
   const tokens = tokenize(input)
   return transliterateTokens(tokens)
+}
+
+/** All phonetic script forms to consider for one roman string (base + nasal -u). */
+function phoneticFormsForRoman(roman) {
+  const out = []
+  const seen = new Set()
+  function add(g) {
+    if (!g || g === roman || seen.has(g)) return
+    seen.add(g)
+    out.push(g)
+  }
+  const base = transliterate(roman)
+  add(base)
+  add(withNasalFinalU(base))
+  return out
 }
 
 // ---------------------------------------------------------------------------
@@ -2164,13 +2225,18 @@ export class GujaratiTranslator {
       }
 
       // Generate phonetics, then RESCORE with native wordlist/stems/spell-dicts.
+      // Indic IME grammar: schwa-default + productive conjuncts + nasal final -u.
       const phoneticForms = []
-      const gujarati = transliterate(input)
-      if (gujarati && gujarati !== input) phoneticForms.push(gujarati)
+      const seenPhon = new Set()
+      function addPhon(g) {
+        if (!g || g === input || g === lower || seenPhon.has(g) || seen.has(g)) return
+        seenPhon.add(g)
+        phoneticForms.push(g)
+      }
+      for (const g of phoneticFormsForRoman(input)) addPhon(g)
       for (const form of altForms) {
         if (form.toLowerCase() === lower) continue
-        const altGu = transliterate(form)
-        if (altGu && altGu !== form && altGu !== gujarati) phoneticForms.push(altGu)
+        for (const g of phoneticFormsForRoman(form)) addPhon(g)
       }
 
       const phonScored = []
@@ -2211,9 +2277,12 @@ export class GujaratiTranslator {
         if (pushCand(item.text, input, q, tier, true, lower, null)) phoneticAdded += 1
       }
 
-      if (exactCount === 0 && phoneticAdded === 0 && gujarati && gujarati !== input) {
-        const v = dictionaryValidity(gujarati)
-        pushCand(gujarati, input, v.attested ? 720 : 250, v.attested ? TIER_DICT : TIER_PHONETIC, true, lower, null)
+      if (exactCount === 0 && phoneticAdded === 0) {
+        const fallback = phoneticFormsForRoman(input)[0]
+        if (fallback && fallback !== input) {
+          const v = dictionaryValidity(fallback)
+          pushCand(fallback, input, v.attested ? 720 : 250, v.attested ? TIER_DICT : TIER_PHONETIC, true, lower, null)
+        }
       }
 
       if (input.length >= 2 && maxPrefix > 0) {

@@ -192,6 +192,16 @@ python3 scripts/build_emoji_keywords.py
 
 Toggle: `translator/emoji_enable` / `translator/max_emoji` in schema or `gujarati.custom.yaml`.
 
+### Phonetic grammar (Indic IME-style)
+
+Roman→script follows Apple / Google / Microsoft phonetic conventions (not Sanskrit-strict ITRANS):
+
+- **Inherent schwa by default** between consonants (`par` → પર, not પ્ર)
+- **Productive conjuncts only** (`vy`, `pr`, `tr`, …); explicit virama via `+`
+- **Final `-u` → optional `ું`** (past participles: `parkhavyu` → પરખાવ્યું)
+- Mid-vowel `a`↔`aa` + attested rescoring pick the dictionary form
+- Latin echo ranks **below** script phonetics
+
 ## Optional ONNX ranker
 
 ```bash

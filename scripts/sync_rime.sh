@@ -93,6 +93,6 @@ elif command -v ibus >/dev/null 2>&1; then
 fi
 
 echo "Synced to $RIME"
-echo "Engine: exact → dict-phonetic → latin → phonetic → prefix → emoji"
+echo "Engine: exact → dict → phonetic → latin → prefix → emoji"
 echo "Commit: Space and . , ; ' etc. (processor before key_binder)"
-echo "Try: jamin, favshe, prem (😍 below પ્રેમ), smile — then Space or ."
+echo "Try: jamin, favshe, parkhavyu, mne, prem — then Space or ."

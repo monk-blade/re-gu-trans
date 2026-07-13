@@ -20,7 +20,7 @@ STEMS = ROOT / "rime" / "js" / "lm" / "stems.json"
 ATTESTED = ROOT / "rime" / "js" / "lm" / "attested.json"
 OUT = ROOT / "eval" / "rank_results.json"
 
-TIER_EXACT, TIER_DICT, TIER_LATIN, TIER_PHONETIC, TIER_PREFIX = 0, 1, 2, 3, 4
+TIER_EXACT, TIER_DICT, TIER_PHONETIC, TIER_LATIN, TIER_PREFIX = 0, 1, 2, 3, 4
 
 CONFUSION_MAP = {
     "ch": ["chh"],
@@ -89,6 +89,7 @@ SMOKE = [
     ("poshatu", "પોષતું"),
     ("ketli", "કેટલી"),
     ("mne", "મને"),
+    ("parkhavyu", "પરખાવ્યું"),
 ]
 
 
@@ -250,55 +251,103 @@ def lexicon_hit_tier(source: str | None, weight: float, typed: str, hit_roman: s
     if source in ("near_exact", "fuzzy", "strict"):
         return TIER_EXACT
     return TIER_DICT
-    return bool(re.match(r"^(n|m|ng|a|aa|i|ii|u|uu|un|um|e|o|h)$", suf or "", re.I))
 
 
-def transliterate(s: str) -> str:
-    """Greedy longest-match phonetic (approximate; good enough for smoke)."""
+ANUSVARA = "\u0A82"
+U_MATRA = "\u0AC1"
+
+# Productive conjuncts (Indic IME style); default is inherent schwa.
+PRODUCTIVE_CONJUNCTS = {
+    ("v", "y"), ("k", "y"), ("g", "y"), ("c", "y"), ("ch", "y"), ("j", "y"),
+    ("t", "y"), ("d", "y"), ("n", "y"), ("p", "y"), ("b", "y"), ("m", "y"),
+    ("r", "y"), ("l", "y"), ("s", "y"), ("sh", "y"), ("h", "y"), ("T", "y"), ("D", "y"),
+    ("p", "r"), ("t", "r"), ("k", "r"), ("g", "r"), ("d", "r"), ("b", "r"), ("s", "r"),
+    ("sh", "r"), ("f", "r"), ("ph", "r"),
+    ("k", "v"), ("t", "v"), ("d", "v"), ("s", "v"), ("n", "v"), ("dh", "v"),
+    ("t", "n"), ("s", "n"), ("s", "t"), ("s", "k"),
+}
+
+
+def _tokenize_roman(s: str) -> list[str]:
+    keys = sorted(list(CONS.keys()) + list(VOW_IND.keys()), key=len, reverse=True)
     i = 0
-    out: list[str] = []
-    pending_cons = None
-    tokens = sorted(list(CONS.keys()) + list(VOW_IND.keys()), key=len, reverse=True)
-
-    def flush_cons(with_matra: str | None = None):
-        nonlocal pending_cons
-        if pending_cons is None:
-            return
-        out.append(pending_cons)
-        if with_matra:
-            out.append(with_matra)
-        pending_cons = None
-
+    toks: list[str] = []
     while i < len(s):
         matched = None
-        for t in tokens:
+        for t in keys:
             if s.startswith(t, i):
                 matched = t
                 break
-        if not matched:
-            flush_cons()
-            out.append(s[i])
-            i += 1
-            continue
-        if matched in CONS:
-            if pending_cons is not None:
-                out.append(pending_cons)
-                out.append(VIRAMA)
-            pending_cons = CONS[matched]
+        if matched:
+            toks.append(matched)
             i += len(matched)
-            continue
-        # vowel
-        if pending_cons is not None:
-            mat = VOW_MAT.get(matched)
-            if matched == "a":
-                flush_cons(None)  # inherent a
-            else:
-                flush_cons(mat or "")
         else:
-            out.append(VOW_IND.get(matched, matched))
-        i += len(matched)
-    flush_cons()
-    return "".join(out)
+            toks.append(s[i])
+            i += 1
+    return toks
+
+
+def _is_gu_cons_char(ch: str) -> bool:
+    if not ch:
+        return False
+    o = ord(ch[-1]) if len(ch) > 1 else ord(ch)
+    return 0x0A95 <= o <= 0x0AB9 and o not in (0x0AB1, 0x0AB4)
+
+
+def transliterate(s: str) -> str:
+    """Schwa-default phonetic (Apple/Google/MS Indic style) + productive conjuncts."""
+    toks = _tokenize_roman(s)
+    result = ""
+    for i, token in enumerate(toks):
+        nxt = toks[i + 1] if i + 1 < len(toks) else None
+        if token in VOW_IND:
+            if result and _is_gu_cons_char(result):
+                if token == "a":
+                    pass
+                else:
+                    mat = VOW_MAT.get(token)
+                    if mat is not None:
+                        result = result[:-1] + result[-1] + mat
+                    else:
+                        result += VOW_IND[token]
+            else:
+                result += VOW_IND[token]
+        elif token in CONS:
+            ch = CONS[token]
+            if nxt == "+":
+                result += ch + VIRAMA
+            elif nxt in CONS and (token, nxt) in PRODUCTIVE_CONJUNCTS:
+                result += ch + VIRAMA
+            else:
+                result += ch
+        elif token == "+":
+            if result and _is_gu_cons_char(result):
+                result += VIRAMA
+        else:
+            result += token
+    return result
+
+
+def with_nasal_final_u(gu: str) -> str | None:
+    if not gu or gu.endswith(U_MATRA + ANUSVARA):
+        return None
+    if gu.endswith(U_MATRA):
+        return gu + ANUSVARA
+    return None
+
+
+def phonetic_forms(roman: str) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for g in (transliterate(roman),):
+        if g and g != roman and g not in seen:
+            seen.add(g)
+            out.append(g)
+        n = with_nasal_final_u(g) if g else None
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
 
 
 def dictionary_validity(text: str, uni: dict[str, int], stems: dict[str, int], attested: set[str], floor: int) -> dict:
@@ -374,13 +423,10 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
     exact_count = sum(1 for c in cands if c["tier"] == TIER_EXACT)
 
     phon_forms = []
-    base = transliterate(input_s)
-    if base and base != input_s:
-        phon_forms.append(base)
-    for form in list(queries)[:40]:
-        g = transliterate(form)
-        if g and g != form and g not in phon_forms:
-            phon_forms.append(g)
+    for form in [input_s, *list(queries)[:40]]:
+        for g in phonetic_forms(form):
+            if g not in phon_forms:
+                phon_forms.append(g)
 
     phon_scored = []
     for text in phon_forms:
