@@ -676,8 +676,9 @@ def lexicon_hit_tier(source: str | None, weight: float, typed: str, hit_roman: s
     # Fuzzy aa-lengthening+inserts (ank→aanak/aanka) must not EXACT-steal.
     if source == "fuzzy" and hit_roman and typed and len(hit_roman) > len(typed) + 1:
         return TIER_DICT
+    # Productive stem expansion never hard-EXACT (padi: પદિ vs soft પડી).
     if source == "stem_matra" or source == "stem_postfix":
-        return TIER_EXACT if weight >= LEXICON_STRONG_WEIGHT else TIER_DICT
+        return TIER_DICT
     if source == "near_exact":
         # Caller skips when typed is already in lexicon; keep EXACT for poshatu→poshatun.
         return TIER_EXACT
@@ -1223,10 +1224,42 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
         # Length: avoid dropping vowels to short anusvara junk (banda↛બંડ)
         if len(c["text"]) < len(lower) * 0.7:
             score -= 2.0
-        scored.append((c["text"], scored_tier, score, c["weight"], i))
+        # Soft typed exact beats stem_matra only (padi: પડી > પદિ). Never over
+        # productive stem_postfix (gharma/mulyama must keep માં forms).
+        has_stem_matra = any(o.get("source") == "stem_matra" for o in cands)
+        has_stem_postfix = any(o.get("source") == "stem_postfix" for o in cands)
+        if (
+            is_lex
+            and c.get("roman") == lower
+            and 0 < typed_w < LEXICON_STRONG_WEIGHT
+            and c.get("source") in ("strict", "fuzzy")
+            and has_stem_matra
+            and not has_stem_postfix
+        ):
+            score += 5.5
+        if c.get("source") == "stem_matra" and 0 < typed_w < LEXICON_STRONG_WEIGHT:
+            score -= 2.0
+        # Prefer productive postfix from a strong/bare stem over soft/phonetic rivals.
+        if c.get("source") == "stem_postfix" and c.get("weight", 0) >= 100:
+            score += 4.5
+        scored.append((c["text"], scored_tier, score, c["weight"], i, c.get("source")))
 
     scored.sort(key=lambda x: (x[1], -x[2], -x[3], x[4]))
-    return [(t, tier, sc) for t, tier, sc, _w, _i in scored]
+    # macOS menu layout: GU #1 → Latin echo #2 → remaining GU / phonetic → prefix → emoji
+    latin_echo = (input_s, TIER_LATIN, 0.0)
+    gu = [(t, tier, sc) for t, tier, sc, _w, _i, _s in scored if tier < TIER_LATIN]
+    prefix = [(t, tier, sc) for t, tier, sc, _w, _i, _s in scored if tier == 4]
+    emoji = [(t, tier, sc) for t, tier, sc, _w, _i, _s in scored if tier > 4]
+    laid: list[tuple[str, int, float]] = []
+    if gu:
+        laid.append(gu[0])
+        laid.append(latin_echo)
+        laid.extend(gu[1:])
+    else:
+        laid.append(latin_echo)
+    laid.extend(prefix)
+    laid.extend(emoji)
+    return laid
 
 
 def build_prefix_index(lex: dict) -> dict[str, list[tuple[str, str]]]:

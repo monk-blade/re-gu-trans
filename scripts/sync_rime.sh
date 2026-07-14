@@ -38,24 +38,35 @@ require() { [[ -f "$1" ]] || { echo "ERROR: missing $1" >&2; exit 1; }; }
 require "$ROOT/rime/gujarati.schema.yaml"
 require "$JS/gujarati_translator.js"
 require "$JS/commit_on_punct_processor.js"
-require "$JS/gu_lexicon_blob.json"
+require "$JS/ranking_policy.json"
+if [[ ! -f "$JS/lexicon.trie.bin" && ! -f "$JS/gu_lexicon_blob.json" ]]; then
+  echo "ERROR: need lexicon.trie.bin or gu_lexicon_blob.json" >&2
+  exit 1
+fi
 
 cp -f "$ROOT/rime/gujarati.schema.yaml" "$RIME/"
 cp -f "$ROOT/rime/gujarati.custom.yaml.sample" "$RIME/" 2>/dev/null || true
 
-# Assets once under js/
-cp -f "$JS/gu_lexicon_blob.json" "$RIME/js/"
+# Modules + policy
+cp -f "$JS/gujarati_translator.js" "$RIME/js/"
+cp -f "$JS/commit_on_punct_processor.js" "$RIME/js/"
+cp -f "$JS/ranking.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/phonetic.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/storage.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/learning.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/ranking_policy.json" "$RIME/js/"
 cp -f "$JS/emoji_keywords.json" "$RIME/js/" 2>/dev/null || true
-cp -f "$JS/ranking_policy.json" "$RIME/js/" 2>/dev/null || true
-cp -f "$JS/"*.trie "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/exceptions.json" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/ltr_coefficients.json" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/"*.trie.bin "$RIME/js/" 2>/dev/null || true
+# Dev fallback blob + LM text
+cp -f "$JS/gu_lexicon_blob.json" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/lm/"*.tsv "$RIME/js/lm/" 2>/dev/null || true
 cp -f "$JS/lm/"*.json "$RIME/js/lm/" 2>/dev/null || true
 
 # qjs plugins: filename at user-dir root (schema @name) + mirror under js/
 cp -f "$JS/gujarati_translator.js" "$RIME/gujarati_translator.js"
 cp -f "$JS/commit_on_punct_processor.js" "$RIME/commit_on_punct_processor.js"
-cp -f "$JS/gujarati_translator.js" "$RIME/js/"
-cp -f "$JS/commit_on_punct_processor.js" "$RIME/js/"
 
 # Enable schema without appending a second patch: block (merge helper)
 DEFAULT_CUSTOM="$RIME/default.custom.yaml"

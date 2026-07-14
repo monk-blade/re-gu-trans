@@ -3,36 +3,29 @@
 Fast Gujarati roman→script IME for **Squirrel / Weasel / Fcitx5-Rime**, ranked like
 Apple TransliterationIM — without baking individual word pairs.
 
-## Architecture
+## Architecture (schema 2.9+)
 
 ```
 roman input
-   ├─ 1. Exact / near-exact lexicon (Apple-distilled ~96k + weights)
-   ├─ 2. Dict-validated phonetics (native unigram + stem morphology)
-   ├─ 3. Latin echo
-   ├─ 4. Raw phonetics (OOV fallback)
-   └─ 5. Prefix completions (~suffix), weight-sorted
+   ├─ linguistic rank
+   │    1. Strong exact / exceptions
+   │    2. Evidence pool (soft exact, fuzzy, stem_derived, attested phonetics)
+   │    3. Unattested raw phonetics
+   │    4. Prefix
+   │    5. Emoji
+   └─ display layout: GU #1 → Latin #2 → remaining GU → prefix → emoji
 ```
 
-Fuzzy roman expansion (`sh↔Sh`, `t↔T`, `i↔ii`, `u↔un`, …) plus dictionary
-rescoring (same idea as IndicXlit `rescore=True`).
-
-| Source | Role |
-|--------|------|
-| Apple `UnifiedTransliteration-gu` distill | roman→native + weights |
-| [Google i18n GU wordcounts](http://www.gstatic.com/i18n/corpora/wordcounts/gu.txt) | native frequency |
-| [jishnu7/dictionaries](https://github.com/jishnu7/dictionaries) | Indic Keyboard priorities |
-| Stem morphology | conjugations (e.g. ફાવ+શે) without listing every form |
+Runtime assets under `rime/js/`: ESM modules + **binary Tries** (`*.trie.bin`).
+Packages ship binaries + small JSON (exceptions/policy/emoji), not the multi‑MB lexicon blob.
 
 ## Quick start (packages)
 
 1. Install a Rime frontend: [Squirrel](https://github.com/rime/squirrel/releases) (macOS), [Weasel](https://github.com/rime/weasel/releases) (Windows), or `fcitx5-rime` / `ibus-rime` (Linux).
-2. Download the matching asset from [Releases](https://github.com/monk-blade/re-gu-trans/releases) (`.pkg` / `.zip` / `.deb` / `.rpm`).
+2. Download the matching asset from [Releases](https://github.com/monk-blade/re-gu-trans/releases).
 3. Install, then select **Gujarati**. On Linux run `re-gu-trans-enable` once.
 
-Schema **2.7** rescores with aspell-gu + hunspell attested words (plus Google/Indic freqs).
-
-Try: `jamin`, `favshe`, `poshatu`, `ketli`. **Space** / **`.` `,` `;` `'`** commit the selection.
+Try: `jamin`, `favshe`, `poshatu`, `ketli`, `padi`. **Space** / **`.` `,` `;` `'`** commit.
 
 Full steps: **[GUIDE.md](./GUIDE.md)**.
 
@@ -40,6 +33,7 @@ Full steps: **[GUIDE.md](./GUIDE.md)**.
 
 ```bash
 python3 scripts/build_gu_word_freq.py
+python3 scripts/build_qjs_tries.py --bin --exceptions
 ./scripts/install_librime_qjs.sh
 ./scripts/sync_rime.sh
 ```
@@ -48,26 +42,18 @@ python3 scripts/build_gu_word_freq.py
 
 | Path | Purpose |
 |------|---------|
-| `rime/gujarati_translator.js` | QuickJS translator |
-| `rime/commit_on_punct_processor.js` | Commit on Space / punctuation |
-| `rime/gujarati.schema.yaml` | Schema + engine wiring |
-| `rime/gu_lexicon_blob.json` | Lexicon + weights for qjs |
-| `rime/js/lm/` | `unigram.tsv` + `stems.json` + `attested.json` (qjs LM; sole packaged copy) |
-| `scripts/package/` | Cross-platform package builders |
-| `packaging/` | nfpm (deb/rpm) + Linux enable helper |
-| `.github/workflows/release-packages.yml` | Tag → GitHub Release assets |
-| `AGENTS.md` | Instructions for coding agents |
+| `rime/js/gujarati_translator.js` | Thin qjs translator (imports modules) |
+| `rime/js/{ranking,phonetic,storage,learning}.js` | Authoritative ranking / lattice / Tries / learning |
+| `rime/js/*.trie.bin` | Platform binary Tries (hot path) |
+| `rime/gujarati.schema.yaml` | Schema 2.9+ (`latin_position: 2`) |
+| `scripts/package/` | Stage payload + OS builders |
+| `AGENTS.md` | Agent conventions |
 
 ## Logs
 
-`$TMPDIR/rime.squirrel/rime.squirrel.INFO` should show:
-
 ```text
 loaded plugin: qjs
-$qjs$ lexicon loaded entries=...
-$qjs$ unigram loaded entries=...
+$qjs$ lexicon trie binary loaded
 ```
 
-See **[GUIDE.md](./GUIDE.md)** for macOS / Windows / Linux install.
-See **[docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md)** for Rime/Indic neighbor projects.
-See **AGENTS.md** for contributor/agent conventions.
+See **[GUIDE.md](./GUIDE.md)** and **[docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md)**.

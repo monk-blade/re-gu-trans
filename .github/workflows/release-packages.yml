@@ -23,7 +23,11 @@ env:
   LIBRIME_TAG: '1.16.1'
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   stage:
+    needs: ci
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.ver.outputs.version }}
@@ -44,15 +48,18 @@ jobs:
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "Resolved version=$V"
-      - name: Verify LM assets
+      - name: Verify runtime assets
         run: |
-          test -f rime/js/lm/unigram.tsv
-          test -f rime/js/lm/stems.json
-          test -f rime/js/gu_lexicon_blob.json
+          pip install marisa-trie
+          python3 scripts/build_qjs_tries.py --bin --exceptions
           test -f rime/js/gujarati_translator.js
           test -f rime/js/commit_on_punct_processor.js
+          test -f rime/js/ranking_policy.json
+          test -f rime/js/lexicon.trie.bin
           test -f rime/gujarati.schema.yaml
           ! grep -E '^\s*dictionary:\s*gujarati' rime/gujarati.schema.yaml
+          python3 scripts/check_lexicon_leakage.py
+          python3 scripts/check_version_sync.py
       - name: Clean deploy check
         run: |
           chmod +x scripts/package/clean_deploy_check.sh scripts/package/stage_payload.sh

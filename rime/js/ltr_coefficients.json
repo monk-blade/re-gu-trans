@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "bias": 0.0,
+  "weights": {
+    "soft": 0.4,
+    "strong": 1.2,
+    "stem_derived": -0.35,
+    "phonetic": -0.2,
+    "log_uni": 0.45,
+    "log_weight": 0.25,
+    "attested": 0.8,
+    "roman_len_ratio": 0.05
+  },
+  "features": [
+    "soft",
+    "strong",
+    "stem_derived",
+    "phonetic",
+    "log_uni",
+    "log_weight",
+    "attested",
+    "roman_len_ratio"
+  ],
+  "note": "Stub/global coefficients; retrain when data/apple_captures/menus.jsonl exists"
+}

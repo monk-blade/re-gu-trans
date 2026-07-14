@@ -8,7 +8,8 @@ End-to-end setup for the Gujarati Rime IME (lexicon ranking + QuickJS plugins).
 |-------|-----|
 | Rime frontend | **Squirrel** (macOS), **Weasel** (Windows), **fcitx5-rime** or **ibus-rime** (Linux) |
 | **librime-qjs** | Loads `js/*.js` translators/processors (bundled in Release packages) |
-| Schema + lexicon | Shipped in packages or synced from this repo |
+| Schema + assets | Schema **2.9+**; binary Tries under `rime/js/*.trie.bin` (packages) |
+
 
 Pinned plugin for Release packages: **librime-qjs v1.3.0** (librime **1.16.1**). Use a recent Squirrel / Weasel build.
 
@@ -266,9 +267,9 @@ GitHub Actions (`.github/workflows/release-packages.yml`) builds on tags `v*`:
 Local:
 
 ```bash
-VERSION=2.6.0 ./scripts/package/macos/build_pkg.sh      # macOS only
-VERSION=2.6.0 ./scripts/package/windows/build_zip.sh    # needs 7z
-VERSION=2.6.0 ./scripts/package/linux/build_packages.sh # needs build deps + nfpm
+VERSION=2.9.0 ./scripts/package/macos/build_pkg.sh      # macOS only
+VERSION=2.9.0 ./scripts/package/windows/build_zip.sh    # needs 7z
+VERSION=2.9.0 ./scripts/package/linux/build_packages.sh # needs build deps + nfpm
 ```
 
 See [packaging/README.md](./packaging/README.md).

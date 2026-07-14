@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install marisa-trie (binary Tries)
+        run: pip install marisa-trie
+      - name: Leakage gate
+        run: python3 scripts/check_lexicon_leakage.py
+      - name: Smoke
+        run: python3 eval/rank_offline.py
+      - name: Apple integrity
+        run: python3 eval/apple_integrity.py
+      - name: Held-out (clean)
+        run: python3 eval/held_out_agree.py
+      - name: Gold
+        run: python3 eval/gold_agree.py
+      - name: Budgets
+        run: |
+          python3 scripts/build_qjs_tries.py --bin --exceptions
+          python3 eval/check_budgets.py
+      - name: Clean deploy (file-level)
+        env:
+          REQUIRE_RIME_DEPLOYER: '0'
+        run: |
+          chmod +x scripts/package/clean_deploy_check.sh scripts/package/stage_payload.sh scripts/package/apply_qjs_writefile_atomic.sh
+          ./scripts/package/clean_deploy_check.sh
+      - name: Version sync
+        run: python3 scripts/check_version_sync.py
+      - name: LTR stub train
+        run: python3 train/ltr/train_coefficients.py
+      - name: Quality report
+        run: python3 eval/quality_report.py

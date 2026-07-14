@@ -53,6 +53,7 @@ translator:
   # high-validity / spell-dict phonetics into the menu.
   fuzzy_exact_soft: true
   include_latin: true
+  latin_position: 2
   # Hard cap returned candidates (page_size alone still pages extras).
   max_candidates: 6
   max_prefix: 3

@@ -1,25 +1,300 @@
-{"roman":"jamin","native":"જમીન","tags":["common"]}
-{"roman":"favshe","native":"ફાવશે","tags":["inflection"]}
-{"roman":"poshatu","native":"પોષતું","tags":["inflection","nasal_u"]}
-{"roman":"ketli","native":"કેટલી","tags":["common"]}
-{"roman":"parkhavyu","native":"પરખાવ્યું","tags":["inflection","vowel_length"]}
-{"roman":"kyare","native":"ક્યારે","tags":["spelling_variant"]}
-{"roman":"avo","native":"આવો","tags":["leading_a_aa"]}
-{"roman":"himmat","native":"હિમ્મત","tags":["geminate"]}
-{"roman":"swagat","native":"સ્વાગત","tags":["vowel_length"]}
-{"roman":"shanti","native":"શાંતિ","tags":["common"]}
-{"roman":"gujarat","native":"ગુજરાત","tags":["name"]}
-{"roman":"namaste","native":"નમસ્તે","tags":["loan"]}
-{"roman":"banda","native":"બાંદા","tags":["ambiguous","short"]}
-{"roman":"college","native":"કોલેજ","tags":["loan"]}
-{"roman":"doctor","native":"ડોક્ટર","tags":["loan"]}
-{"roman":"america","native":"અમેરિકા","tags":["name","loan"]}
-{"roman":"aachar","native":"આચાર","tags":["bare_stem"]}
-{"roman":"mulya","native":"મૂલ્ય","tags":["common"]}
-{"roman":"mulyama","native":"મૂલ્યમાં","tags":["postfix"]}
-{"roman":"vinash","native":"વિનાશ","tags":["digraph"]}
-{"roman":"zindabad","native":"ઝિંદાબાદ","tags":["z_j","fuzzy"]}
-{"roman":"nahya","native":"નાહ્યા","tags":["vowel_length"]}
-{"roman":"gharma","native":"ઘરમાં","tags":["postfix"]}
-{"roman":"wikas","native":"વિકાસ","tags":["v_w"]}
-{"roman":"aadas","native":"આડસ","tags":["aa_onset"]}
+{"roman": "jamin", "native": "જમીન", "accepted": ["જમીન"], "tags": ["common"]}
+{"roman": "favshe", "native": "ફાવશે", "accepted": ["ફાવશે"], "tags": ["inflection"]}
+{"roman": "poshatu", "native": "પોષતું", "accepted": ["પોષતું"], "tags": ["inflection", "nasal_u"]}
+{"roman": "ketli", "native": "કેટલી", "accepted": ["કેટલી"], "tags": ["common"]}
+{"roman": "parkhavyu", "native": "પરખાવ્યું", "accepted": ["પરખાવ્યું"], "tags": ["inflection", "vowel_length"]}
+{"roman": "kyare", "native": "ક્યારે", "accepted": ["ક્યારે"], "tags": ["spelling_variant"]}
+{"roman": "avo", "native": "આવો", "accepted": ["આવો"], "tags": ["leading_a_aa"]}
+{"roman": "himmat", "native": "હિમ્મત", "accepted": ["હિમ્મત"], "tags": ["geminate"]}
+{"roman": "swagat", "native": "સ્વાગત", "accepted": ["સ્વાગત"], "tags": ["vowel_length"]}
+{"roman": "shanti", "native": "શાંતિ", "accepted": ["શાંતિ"], "tags": ["common"]}
+{"roman": "gujarat", "native": "ગુજરાત", "accepted": ["ગુજરાત"], "tags": ["name"]}
+{"roman": "namaste", "native": "નમસ્તે", "accepted": ["નમસ્તે"], "tags": ["loan"]}
+{"roman": "banda", "native": "બાંદા", "accepted": ["બાંદા"], "tags": ["ambiguous", "short"]}
+{"roman": "college", "native": "કોલેજ", "accepted": ["કોલેજ", "કૉલેજ"], "tags": ["loan"]}
+{"roman": "doctor", "native": "ડોક્ટર", "accepted": ["ડોક્ટર", "ડૉક્ટર"], "tags": ["loan"]}
+{"roman": "america", "native": "અમેરિકા", "accepted": ["અમેરિકા"], "tags": ["name", "loan"]}
+{"roman": "aachar", "native": "આચાર", "accepted": ["આચાર"], "tags": ["bare_stem"]}
+{"roman": "mulya", "native": "મૂલ્ય", "accepted": ["મૂલ્ય"], "tags": ["common"]}
+{"roman": "mulyama", "native": "મૂલ્યમાં", "accepted": ["મૂલ્યમાં"], "tags": ["postfix"]}
+{"roman": "vinash", "native": "વિનાશ", "accepted": ["વિનાશ"], "tags": ["digraph"]}
+{"roman": "zindabad", "native": "ઝિંદાબાદ", "accepted": ["ઝિંદાબાદ"], "tags": ["z_j", "fuzzy"]}
+{"roman": "nahya", "native": "નાહ્યા", "accepted": ["નાહ્યા"], "tags": ["vowel_length"]}
+{"roman": "gharma", "native": "ઘરમાં", "accepted": ["ઘરમાં"], "tags": ["postfix"]}
+{"roman": "wikas", "native": "વિકાસ", "accepted": ["વિકાસ"], "tags": ["v_w"]}
+{"roman": "aadas", "native": "આડસ", "accepted": ["આડસ"], "tags": ["aa_onset"]}
+{"roman": "padi", "native": "પડી", "accepted": ["પડી"], "tags": ["soft_exact", "latin_slot2"]}
+{"roman": "pad", "native": "પદ", "accepted": ["પદ"], "tags": ["strong_exact"]}
+{"roman": "shabdo", "native": "શબ્દો", "accepted": ["શબ્દો"], "tags": ["morph"]}
+{"roman": "moolyama", "native": "મૂલ્યમાં", "accepted": ["મૂલ્યમાં"], "tags": ["stem_postfix"]}
+{"roman": "ativastv", "native": "અતિવાસ્તવ", "accepted": ["અતિવાસ્તવ"], "tags": ["apple_strong"]}
+{"roman": "ushnataman", "native": "ઉષ્ણતામાન", "accepted": ["ઉષ્ણતામાન"], "tags": ["apple_strong"]}
+{"roman": "dabava", "native": "દાબવા", "accepted": ["દાબવા"], "tags": ["apple_strong"]}
+{"roman": "murttikar", "native": "મૂર્ત્તિકાર", "accepted": ["મૂર્ત્તિકાર"], "tags": ["apple_strong"]}
+{"roman": "athiyo", "native": "અઠિયો", "accepted": ["અઠિયો"], "tags": ["apple_strong"]}
+{"roman": "notarelun", "native": "નોતરેલું", "accepted": ["નોતરેલું"], "tags": ["apple_strong"]}
+{"roman": "padapith", "native": "પાદપીઠ", "accepted": ["પાદપીઠ"], "tags": ["apple_strong"]}
+{"roman": "komyunist", "native": "કૉમ્યુનિસ્ટ", "accepted": ["કૉમ્યુનિસ્ટ"], "tags": ["apple_strong"]}
+{"roman": "ghodiyaghar", "native": "ઘોડિયાઘર", "accepted": ["ઘોડિયાઘર"], "tags": ["apple_strong"]}
+{"roman": "thandugar", "native": "ઠંડુગાર", "accepted": ["ઠંડુગાર"], "tags": ["apple_strong"]}
+{"roman": "kothinbadun", "native": "કોઠીંબડું", "accepted": ["કોઠીંબડું"], "tags": ["apple_strong"]}
+{"roman": "jild", "native": "જિલ્દ", "accepted": ["જિલ્દ"], "tags": ["apple_strong"]}
+{"roman": "jibhado", "native": "જીભડો", "accepted": ["જીભડો"], "tags": ["apple_strong"]}
+{"roman": "laf", "native": "લાફ", "accepted": ["લાફ"], "tags": ["apple_strong"]}
+{"roman": "abhyasakhand", "native": "અભ્યાસખંડ", "accepted": ["અભ્યાસખંડ"], "tags": ["apple_strong"]}
+{"roman": "santanapati", "native": "સંતાનપતિ", "accepted": ["સંતાનપતિ"], "tags": ["apple_strong"]}
+{"roman": "aasondh", "native": "આસોંધ", "accepted": ["આસોંધ"], "tags": ["apple_strong"]}
+{"roman": "dhranth", "native": "ધ્રાંઠ", "accepted": ["ધ્રાંઠ"], "tags": ["apple_strong"]}
+{"roman": "maharanbh", "native": "મહારંભ", "accepted": ["મહારંભ"], "tags": ["apple_strong"]}
+{"roman": "sannivrutt", "native": "સંનિવૃત્ત", "accepted": ["સંનિવૃત્ત"], "tags": ["apple_strong"]}
+{"roman": "deshaivago", "native": "દેશાઈવગો", "accepted": ["દેશાઈવગો"], "tags": ["apple_strong"]}
+{"roman": "kamarik", "native": "કમરીક", "accepted": ["કમરીક"], "tags": ["apple_strong"]}
+{"roman": "fenkafenka", "native": "ફેંકફેંકા", "accepted": ["ફેંકફેંકા"], "tags": ["apple_strong"]}
+{"roman": "bhasmang", "native": "ભસ્માંગ", "accepted": ["ભસ્માંગ"], "tags": ["apple_strong"]}
+{"roman": "ukelavun", "native": "ઉકેલવું", "accepted": ["ઉકેલવું"], "tags": ["apple_strong"]}
+{"roman": "haiyafat", "native": "હૈયાફાટ", "accepted": ["હૈયાફાટ"], "tags": ["apple_strong"]}
+{"roman": "aayani", "native": "આયાની", "accepted": ["આયાની"], "tags": ["apple_strong"]}
+{"roman": "chharikanta", "native": "છરીકાંટા", "accepted": ["છરીકાંટા"], "tags": ["apple_strong"]}
+{"roman": "vinavadan", "native": "વીણાવાદન", "accepted": ["વીણાવાદન"], "tags": ["apple_strong"]}
+{"roman": "dhabadavun", "native": "ધબડાવું", "accepted": ["ધબડાવું"], "tags": ["apple_strong"]}
+{"roman": "rimaindar", "native": "રિમાઇન્ડર", "accepted": ["રિમાઇન્ડર"], "tags": ["apple_strong"]}
+{"roman": "refrijaretar", "native": "રૅફ્રિજરેટર", "accepted": ["રૅફ્રિજરેટર"], "tags": ["apple_strong"]}
+{"roman": "dhundho", "native": "ઢૂંઢો", "accepted": ["ઢૂંઢો"], "tags": ["apple_strong"]}
+{"roman": "doshit", "native": "દોષિત", "accepted": ["દોષિત"], "tags": ["apple_strong"]}
+{"roman": "kavijan", "native": "કવિજન", "accepted": ["કવિજન"], "tags": ["apple_strong"]}
+{"roman": "arekar", "native": "અરેકાર", "accepted": ["અરેકાર"], "tags": ["apple_strong"]}
+{"roman": "kagamalo", "native": "કાગમાળો", "accepted": ["કાગમાળો"], "tags": ["apple_strong"]}
+{"roman": "yuddhnauaka", "native": "યુદ્ધનૌકા", "accepted": ["યુદ્ધનૌકા"], "tags": ["apple_strong"]}
+{"roman": "rokadiyo", "native": "રોકડિયો", "accepted": ["રોકડિયો"], "tags": ["apple_strong"]}
+{"roman": "matrumul", "native": "માતૃમૂલ", "accepted": ["માતૃમૂલ"], "tags": ["apple_strong"]}
+{"roman": "karmany", "native": "કર્મણ્ય", "accepted": ["કર્મણ્ય"], "tags": ["apple_strong"]}
+{"roman": "hapate", "native": "હપતે", "accepted": ["હપતે"], "tags": ["apple_strong"]}
+{"roman": "parimalit", "native": "પરિમલિત", "accepted": ["પરિમલિત"], "tags": ["apple_strong"]}
+{"roman": "chhillar", "native": "છિલ્લર", "accepted": ["છિલ્લર"], "tags": ["apple_strong"]}
+{"roman": "dardur", "native": "દર્દુર", "accepted": ["દર્દુર"], "tags": ["apple_strong"]}
+{"roman": "plavangam", "native": "પ્લવંગમ", "accepted": ["પ્લવંગમ"], "tags": ["apple_strong"]}
+{"roman": "hrudhy", "native": "હૃદ્ય", "accepted": ["હૃદ્ય"], "tags": ["apple_strong"]}
+{"roman": "narvas", "native": "નર્વસ", "accepted": ["નર્વસ"], "tags": ["apple_strong"]}
+{"roman": "mutrashay", "native": "મૂત્રાશાય", "accepted": ["મૂત્રાશાય"], "tags": ["apple_strong"]}
+{"roman": "bangalo", "native": "બંગલો", "accepted": ["બંગલો"], "tags": ["apple_strong"]}
+{"roman": "dhumralochan", "native": "ધૂમ્રલોચન", "accepted": ["ધૂમ્રલોચન"], "tags": ["apple_strong"]}
+{"roman": "shiyaro", "native": "શિયરો", "accepted": ["શિયરો"], "tags": ["apple_strong"]}
+{"roman": "khatakaram", "native": "ખટકરમ", "accepted": ["ખટકરમ"], "tags": ["apple_strong"]}
+{"roman": "takaravun", "native": "ટકરાવું", "accepted": ["ટકરાવું"], "tags": ["apple_strong"]}
+{"roman": "vaghar", "native": "વઘાર", "accepted": ["વઘાર"], "tags": ["apple_strong"]}
+{"roman": "naravar", "native": "નરવર", "accepted": ["નરવર"], "tags": ["apple_strong"]}
+{"roman": "bal", "native": "બાળ", "accepted": ["બાળ"], "tags": ["apple_strong"]}
+{"roman": "upajivak", "native": "ઉપજીવક", "accepted": ["ઉપજીવક"], "tags": ["apple_strong"]}
+{"roman": "atadai", "native": "અતડાઈ", "accepted": ["અતડાઈ"], "tags": ["apple_strong"]}
+{"roman": "fanaga", "native": "ફણગા", "accepted": ["ફણગા"], "tags": ["apple_strong"]}
+{"roman": "bayakarbonet", "native": "બાયકાર્બૉનેટ", "accepted": ["બાયકાર્બૉનેટ"], "tags": ["apple_strong"]}
+{"roman": "sabjektiv", "native": "સબ્જેક્ટિવ", "accepted": ["સબ્જેક્ટિવ"], "tags": ["apple_strong"]}
+{"roman": "rasonmatt", "native": "રસોન્મત્ત", "accepted": ["રસોન્મત્ત"], "tags": ["apple_strong"]}
+{"roman": "vijakarigar", "native": "વીજકારીગર", "accepted": ["વીજકારીગર"], "tags": ["apple_strong"]}
+{"roman": "karipari", "native": "કારીપારી", "accepted": ["કારીપારી"], "tags": ["apple_strong"]}
+{"roman": "sadagi", "native": "સાદગી", "accepted": ["સાદગી"], "tags": ["apple_strong"]}
+{"roman": "thapadun", "native": "થાપડું", "accepted": ["થાપડું"], "tags": ["apple_strong"]}
+{"roman": "bhins", "native": "ભીંસ", "accepted": ["ભીંસ"], "tags": ["apple_strong"]}
+{"roman": "mathaol", "native": "માથાઓળ", "accepted": ["માથાઓળ"], "tags": ["apple_strong"]}
+{"roman": "salagavava", "native": "સળગાવવા", "accepted": ["સળગાવવા"], "tags": ["apple_strong"]}
+{"roman": "prkaare", "native": "પ્રકારે", "accepted": ["પ્રકારે"], "tags": ["apple_strong"]}
+{"roman": "tajjany", "native": "તજ્જન્ય", "accepted": ["તજ્જન્ય"], "tags": ["apple_strong"]}
+{"roman": "guhyavidhya", "native": "ગુહ્યવિદ્યા", "accepted": ["ગુહ્યવિદ્યા"], "tags": ["apple_strong"]}
+{"roman": "sarvagamitv", "native": "સર્વગામિત્વ", "accepted": ["સર્વગામિત્વ"], "tags": ["apple_strong"]}
+{"roman": "kshubdhpnae", "native": "ક્ષુબ્ધપણે", "accepted": ["ક્ષુબ્ધપણે"], "tags": ["apple_strong"]}
+{"roman": "pashupankhi", "native": "પશુપંખી", "accepted": ["પશુપંખી"], "tags": ["apple_strong"]}
+{"roman": "proseshaaus", "native": "પ્રોસેસહાઉસ", "accepted": ["પ્રોસેસહાઉસ"], "tags": ["apple_strong"]}
+{"roman": "prkaashtv", "native": "પ્રકાશત્વ", "accepted": ["પ્રકાશત્વ"], "tags": ["apple_strong"]}
+{"roman": "isharat", "native": "ઇશારત", "accepted": ["ઇશારત"], "tags": ["apple_strong"]}
+{"roman": "usha", "native": "ઉષા", "accepted": ["ઉષા"], "tags": ["apple_strong"]}
+{"roman": "bhikhadavun", "native": "ભિખાડવું", "accepted": ["ભિખાડવું"], "tags": ["apple_strong"]}
+{"roman": "anchal", "native": "આંચળ", "accepted": ["આંચળ"], "tags": ["apple_strong"]}
+{"roman": "ashrumochn", "native": "અશ્રુમોચન", "accepted": ["અશ્રુમોચન"], "tags": ["apple_strong"]}
+{"roman": "hathadiyo", "native": "હાથડિયો", "accepted": ["હાથડિયો"], "tags": ["apple_strong"]}
+{"roman": "ukt", "native": "ઉક્ત", "accepted": ["ઉક્ત"], "tags": ["apple_strong"]}
+{"roman": "hirasatayayi", "native": "હિરાસતયાયી", "accepted": ["હિરાસતયાયી"], "tags": ["apple_strong"]}
+{"roman": "veludo", "native": "વેળુડો", "accepted": ["વેળુડો"], "tags": ["apple_strong"]}
+{"roman": "bhakabhak", "native": "ભકભક", "accepted": ["ભકભક"], "tags": ["apple_strong"]}
+{"roman": "aanantary", "native": "આનંતર્ય", "accepted": ["આનંતર્ય"], "tags": ["apple_strong"]}
+{"roman": "aatatrupti", "native": "આતતૃપ્તિ", "accepted": ["આતતૃપ્તિ"], "tags": ["apple_strong"]}
+{"roman": "suvardhaman", "native": "સુવર્ધમાન", "accepted": ["સુવર્ધમાન"], "tags": ["apple_strong"]}
+{"roman": "svynasafurit", "native": "સ્વયંસ્ફુરિત", "accepted": ["સ્વયંસ્ફુરિત"], "tags": ["apple_strong"]}
+{"roman": "namakkar", "native": "નામક્કર", "accepted": ["નામક્કર"], "tags": ["apple_strong"]}
+{"roman": "ghitavani", "native": "ઘીતાવણી", "accepted": ["ઘીતાવણી"], "tags": ["apple_strong"]}
+{"roman": "kasaratabaji", "native": "કસરતબાજી", "accepted": ["કસરતબાજી"], "tags": ["apple_strong"]}
+{"roman": "chamachori", "native": "ચામચોરી", "accepted": ["ચામચોરી"], "tags": ["apple_strong"]}
+{"roman": "uchcharavun", "native": "ઉચ્ચરવું", "accepted": ["ઉચ્ચરવું"], "tags": ["apple_strong"]}
+{"roman": "rangaberangi", "native": "રંગબેરંગી", "accepted": ["રંગબેરંગી"], "tags": ["apple_strong"]}
+{"roman": "jatu", "native": "જતું", "accepted": ["જતું"], "tags": ["apple_strong"]}
+{"roman": "aafurun", "native": "આફૂરું", "accepted": ["આફૂરું"], "tags": ["apple_strong"]}
+{"roman": "lakundarun", "native": "લકૂંદરું", "accepted": ["લકૂંદરું"], "tags": ["apple_strong"]}
+{"roman": "ugavun", "native": "ઊગવું", "accepted": ["ઊગવું"], "tags": ["apple_strong"]}
+{"roman": "avalamati", "native": "અવળમતિ", "accepted": ["અવળમતિ"], "tags": ["apple_strong"]}
+{"roman": "kavasar", "native": "કવાસાર", "accepted": ["કવાસાર"], "tags": ["apple_strong"]}
+{"roman": "andharavun", "native": "અંધરાવું", "accepted": ["અંધરાવું"], "tags": ["apple_strong"]}
+{"roman": "khurapi", "native": "ખૂરપી", "accepted": ["ખૂરપી"], "tags": ["apple_strong"]}
+{"roman": "majat", "native": "મજાત", "accepted": ["મજાત"], "tags": ["apple_strong"]}
+{"roman": "sovun", "native": "સોવું", "accepted": ["સોવું"], "tags": ["apple_strong"]}
+{"roman": "bahuvidhata", "native": "બહુવિધતા", "accepted": ["બહુવિધતા"], "tags": ["apple_strong"]}
+{"roman": "tiraskar", "native": "તિરસ્કાર", "accepted": ["તિરસ્કાર"], "tags": ["apple_strong"]}
+{"roman": "aapatkal", "native": "આપત્કાલ", "accepted": ["આપત્કાલ"], "tags": ["apple_strong"]}
+{"roman": "kanthavarodh", "native": "કંઠાવરોધ", "accepted": ["કંઠાવરોધ"], "tags": ["apple_strong"]}
+{"roman": "charasovis", "native": "ચારસોવીસ", "accepted": ["ચારસોવીસ"], "tags": ["apple_strong"]}
+{"roman": "prjaalvuan", "native": "પ્રજાળવું", "accepted": ["પ્રજાળવું"], "tags": ["apple_strong"]}
+{"roman": "elart", "native": "એલર્ટ", "accepted": ["એલર્ટ"], "tags": ["apple_strong"]}
+{"roman": "betakasir", "native": "બેતકસીર", "accepted": ["બેતકસીર"], "tags": ["apple_strong"]}
+{"roman": "adhiniyaman", "native": "અધિનિયમન", "accepted": ["અધિનિયમન"], "tags": ["apple_strong"]}
+{"roman": "takato", "native": "તકતો", "accepted": ["તકતો"], "tags": ["apple_strong"]}
+{"roman": "nirmiti", "native": "નિર્મિતિ", "accepted": ["નિર્મિતિ"], "tags": ["apple_strong"]}
+{"roman": "aacharavi", "native": "આચરવી", "accepted": ["આચરવી"], "tags": ["apple_strong"]}
+{"roman": "funkava", "native": "ફૂંકવા", "accepted": ["ફૂંકવા"], "tags": ["apple_strong"]}
+{"roman": "ghadai", "native": "ઘડાઈ", "accepted": ["ઘડાઈ"], "tags": ["apple_strong"]}
+{"roman": "titoli", "native": "ટિટોલી", "accepted": ["ટિટોલી"], "tags": ["apple_strong"]}
+{"roman": "chhajatun", "native": "છાજતું", "accepted": ["છાજતું"], "tags": ["apple_strong"]}
+{"roman": "epolo", "native": "ઍપોલો", "accepted": ["ઍપોલો"], "tags": ["apple_strong"]}
+{"roman": "nalikeri", "native": "નાલિકેરી", "accepted": ["નાલિકેરી"], "tags": ["apple_strong"]}
+{"roman": "rundhayo", "native": "રુંધાયો", "accepted": ["રુંધાયો"], "tags": ["apple_strong"]}
+{"roman": "sarvahitakar", "native": "સર્વહિતકર", "accepted": ["સર્વહિતકર"], "tags": ["apple_strong"]}
+{"roman": "afal", "native": "અફલ", "accepted": ["અફલ"], "tags": ["apple_strong"]}
+{"roman": "bhuki", "native": "ભૂકી", "accepted": ["ભૂકી"], "tags": ["apple_strong"]}
+{"roman": "alaingik", "native": "અલૈંગિક", "accepted": ["અલૈંગિક"], "tags": ["apple_strong"]}
+{"roman": "uluk", "native": "ઉલૂક", "accepted": ["ઉલૂક"], "tags": ["apple_strong"]}
+{"roman": "mutrviasrjn", "native": "મૂત્રવિસર્જન", "accepted": ["મૂત્રવિસર્જન"], "tags": ["apple_strong"]}
+{"roman": "kadalifal", "native": "કદલીફલ", "accepted": ["કદલીફલ"], "tags": ["apple_strong"]}
+{"roman": "bharavan", "native": "ભરવાં", "accepted": ["ભરવાં"], "tags": ["apple_strong"]}
+{"roman": "halukarmi", "native": "હળુકર્મી", "accepted": ["હળુકર્મી"], "tags": ["apple_strong"]}
+{"roman": "gherayela", "native": "ઘેરાયેલા", "accepted": ["ઘેરાયેલા"], "tags": ["apple_strong"]}
+{"roman": "fulavelo", "native": "ફુલાવેલો", "accepted": ["ફુલાવેલો"], "tags": ["apple_strong"]}
+{"roman": "kalamadast", "native": "કલમદસ્ત", "accepted": ["કલમદસ્ત"], "tags": ["apple_strong"]}
+{"roman": "karobari", "native": "કારોબારી", "accepted": ["કારોબારી"], "tags": ["apple_strong"]}
+{"roman": "bedakun", "native": "બેડકું", "accepted": ["બેડકું"], "tags": ["apple_strong"]}
+{"roman": "ekantabhiti", "native": "એકાંતભીતિ", "accepted": ["એકાંતભીતિ"], "tags": ["apple_strong"]}
+{"roman": "disavun", "native": "દીસવું", "accepted": ["દીસવું"], "tags": ["apple_strong"]}
+{"roman": "gunchavayela", "native": "ગૂંચવાયેલા", "accepted": ["ગૂંચવાયેલા"], "tags": ["apple_strong"]}
+{"roman": "mahamaya", "native": "મહામાયા", "accepted": ["મહામાયા"], "tags": ["apple_strong"]}
+{"roman": "suvrat", "native": "સુવ્રત", "accepted": ["સુવ્રત"], "tags": ["apple_strong"]}
+{"roman": "prjaajivn", "native": "પ્રજાજીવન", "accepted": ["પ્રજાજીવન"], "tags": ["apple_strong"]}
+{"roman": "yathakal", "native": "યથાકાલ", "accepted": ["યથાકાલ"], "tags": ["apple_strong"]}
+{"roman": "utpattivad", "native": "ઉત્પત્તિવાદ", "accepted": ["ઉત્પત્તિવાદ"], "tags": ["apple_strong"]}
+{"roman": "vivarn", "native": "વિવર્ણ", "accepted": ["વિવર્ણ"], "tags": ["apple_strong"]}
+{"roman": "prtiagnpti", "native": "પ્રતિજ્ઞપ્તિ", "accepted": ["પ્રતિજ્ઞપ્તિ"], "tags": ["apple_strong"]}
+{"roman": "bhalap", "native": "ભલપ", "accepted": ["ભલપ"], "tags": ["apple_strong"]}
+{"roman": "dazapo", "native": "દઝાપો", "accepted": ["દઝાપો"], "tags": ["apple_strong"]}
+{"roman": "kanpanamay", "native": "કંપનમય", "accepted": ["કંપનમય"], "tags": ["apple_strong"]}
+{"roman": "undi", "native": "ઊંડી", "accepted": ["ઊંડી"], "tags": ["apple_strong"]}
+{"roman": "samatolak", "native": "સમતોલક", "accepted": ["સમતોલક"], "tags": ["apple_strong"]}
+{"roman": "bahupad", "native": "બહુપદ", "accepted": ["બહુપદ"], "tags": ["apple_strong"]}
+{"roman": "chahyun", "native": "ચાહ્યું", "accepted": ["ચાહ્યું"], "tags": ["apple_strong"]}
+{"roman": "aparthak", "native": "અપાર્થક", "accepted": ["અપાર્થક"], "tags": ["apple_strong"]}
+{"roman": "khankhati", "native": "ખાંખતી", "accepted": ["ખાંખતી"], "tags": ["apple_strong"]}
+{"roman": "vishavavrutt", "native": "વિષવવૃત્ત", "accepted": ["વિષવવૃત્ત"], "tags": ["apple_strong"]}
+{"roman": "dhali", "native": "ઢળી", "accepted": ["ઢળી"], "tags": ["apple_strong"]}
+{"roman": "chhakay", "native": "છકાય", "accepted": ["છકાય"], "tags": ["apple_strong"]}
+{"roman": "chhantava", "native": "છાંટવા", "accepted": ["છાંટવા"], "tags": ["apple_strong"]}
+{"roman": "sutakes", "native": "સૂટકેસ", "accepted": ["સૂટકેસ"], "tags": ["apple_strong"]}
+{"roman": "rekhapath", "native": "રેખાપથ", "accepted": ["રેખાપથ"], "tags": ["apple_strong"]}
+{"roman": "akshrpad", "native": "અક્ષરપદ", "accepted": ["અક્ષરપદ"], "tags": ["apple_strong"]}
+{"roman": "subhat", "native": "સુભટ", "accepted": ["સુભટ"], "tags": ["apple_strong"]}
+{"roman": "shishtmaany", "native": "શિષ્ટમાન્ય", "accepted": ["શિષ્ટમાન્ય"], "tags": ["apple_strong"]}
+{"roman": "saheje", "native": "સહેજે", "accepted": ["સહેજે"], "tags": ["apple_strong"]}
+{"roman": "pipilikamarg", "native": "પિપીલિકામાર્ગ", "accepted": ["પિપીલિકામાર્ગ"], "tags": ["apple_strong"]}
+{"roman": "kamaya", "native": "કમાયા", "accepted": ["કમાયા"], "tags": ["apple_strong"]}
+{"roman": "bahirang", "native": "બહિરંગ", "accepted": ["બહિરંગ"], "tags": ["apple_strong"]}
+{"roman": "pahonchata", "native": "પહોંચતા", "accepted": ["પહોંચતા"], "tags": ["apple_strong"]}
+{"roman": "gatihras", "native": "ગતિહ્રાસ", "accepted": ["ગતિહ્રાસ"], "tags": ["apple_strong"]}
+{"roman": "digvyapi", "native": "દિગ્વ્યાપી", "accepted": ["દિગ્વ્યાપી"], "tags": ["apple_strong"]}
+{"roman": "mungi", "native": "મૂંગી", "accepted": ["મૂંગી"], "tags": ["apple_strong"]}
+{"roman": "bajarang", "native": "બજરંગ", "accepted": ["બજરંગ"], "tags": ["apple_strong"]}
+{"roman": "kalpanachitr", "native": "કલ્પનાચિત્ર", "accepted": ["કલ્પનાચિત્ર"], "tags": ["apple_strong"]}
+{"roman": "akshraankit", "native": "અક્ષરાંકિત", "accepted": ["અક્ષરાંકિત"], "tags": ["apple_strong"]}
+{"roman": "vimoh", "native": "વિમોહ", "accepted": ["વિમોહ"], "tags": ["apple_strong"]}
+{"roman": "dhvanitarang", "native": "ધ્વનિતરંગ", "accepted": ["ધ્વનિતરંગ"], "tags": ["apple_strong"]}
+{"roman": "chheki", "native": "છેકી", "accepted": ["છેકી"], "tags": ["apple_strong"]}
+{"roman": "kukhiyo", "native": "કૂખિયો", "accepted": ["કૂખિયો"], "tags": ["apple_strong"]}
+{"roman": "varaniyata", "native": "વરણીયતા", "accepted": ["વરણીયતા"], "tags": ["apple_strong"]}
+{"roman": "jamano", "native": "જમણો", "accepted": ["જમણો"], "tags": ["apple_strong"]}
+{"roman": "kaladarshak", "native": "કાલદર્શક", "accepted": ["કાલદર્શક"], "tags": ["apple_strong"]}
+{"roman": "oliyapati", "native": "ઓળિયાપટી", "accepted": ["ઓળિયાપટી"], "tags": ["apple_strong"]}
+{"roman": "apakvata", "native": "અપક્વતા", "accepted": ["અપક્વતા"], "tags": ["apple_strong"]}
+{"roman": "maliyun", "native": "માળિયું", "accepted": ["માળિયું"], "tags": ["apple_strong"]}
+{"roman": "bafeli", "native": "બાફેલી", "accepted": ["બાફેલી"], "tags": ["apple_strong"]}
+{"roman": "kharabo", "native": "ખરાબો", "accepted": ["ખરાબો"], "tags": ["apple_strong"]}
+{"roman": "asvsthtaa", "native": "અસ્વસ્થતા", "accepted": ["અસ્વસ્થતા"], "tags": ["apple_strong"]}
+{"roman": "yathagnan", "native": "યથાજ્ઞાન", "accepted": ["યથાજ્ઞાન"], "tags": ["apple_strong"]}
+{"roman": "lohichus", "native": "લોહીચૂસ", "accepted": ["લોહીચૂસ"], "tags": ["apple_strong"]}
+{"roman": "udvegkr", "native": "ઉદ્વેગકર", "accepted": ["ઉદ્વેગકર"], "tags": ["apple_strong"]}
+{"roman": "bhumikar", "native": "ભૂમિકર", "accepted": ["ભૂમિકર"], "tags": ["apple_strong"]}
+{"roman": "prtiavepari", "native": "પ્રતિવેપારી", "accepted": ["પ્રતિવેપારી"], "tags": ["apple_strong"]}
+{"roman": "fulakobij", "native": "ફૂલકોબીજ", "accepted": ["ફૂલકોબીજ"], "tags": ["apple_strong"]}
+{"roman": "apohy", "native": "અપોહ્ય", "accepted": ["અપોહ્ય"], "tags": ["apple_strong"]}
+{"roman": "gnandiapk", "native": "જ્ઞાનદીપક", "accepted": ["જ્ઞાનદીપક"], "tags": ["apple_strong"]}
+{"roman": "varigruh", "native": "વારિગૃહ", "accepted": ["વારિગૃહ"], "tags": ["apple_strong"]}
+{"roman": "kadhangun", "native": "કઢંગું", "accepted": ["કઢંગું"], "tags": ["apple_strong"]}
+{"roman": "pitza", "native": "પિત્ઝા", "accepted": ["પિત્ઝા"], "tags": ["apple_strong"]}
+{"roman": "anankush", "native": "અનંકુશ", "accepted": ["અનંકુશ"], "tags": ["apple_strong"]}
+{"roman": "avalogavalo", "native": "અવાળોગવાળો", "accepted": ["અવાળોગવાળો"], "tags": ["apple_strong"]}
+{"roman": "terarizam", "native": "ટૅરરિઝમ", "accepted": ["ટૅરરિઝમ"], "tags": ["apple_strong"]}
+{"roman": "aanelo", "native": "આણેલો", "accepted": ["આણેલો"], "tags": ["apple_strong"]}
+{"roman": "medha", "native": "મેધા", "accepted": ["મેધા"], "tags": ["apple_strong"]}
+{"roman": "aalijahan", "native": "આલીજહાં", "accepted": ["આલીજહાં"], "tags": ["apple_strong"]}
+{"roman": "thakedo", "native": "થાકેડો", "accepted": ["થાકેડો"], "tags": ["apple_strong"]}
+{"roman": "varnasagai", "native": "વર્ણસગાઈ", "accepted": ["વર્ણસગાઈ"], "tags": ["apple_strong"]}
+{"roman": "nighalavun", "native": "નીઘલવું", "accepted": ["નીઘલવું"], "tags": ["apple_strong"]}
+{"roman": "hospital", "native": "હૉસ્પિટલ", "accepted": ["હૉસ્પિટલ"], "tags": ["apple_strong"]}
+{"roman": "fisad", "native": "ફિસાદ", "accepted": ["ફિસાદ"], "tags": ["apple_strong"]}
+{"roman": "thansothans", "native": "ઠાંસોઠાંસ", "accepted": ["ઠાંસોઠાંસ"], "tags": ["apple_strong"]}
+{"roman": "nyaysbhaa", "native": "ન્યાયસભા", "accepted": ["ન્યાયસભા"], "tags": ["apple_strong"]}
+{"roman": "rayaaanbalun", "native": "રાયઆંબળું", "accepted": ["રાયઆંબળું"], "tags": ["apple_strong"]}
+{"roman": "mandan", "native": "મંડન", "accepted": ["મંડન"], "tags": ["apple_strong"]}
+{"roman": "prkshoabhk", "native": "પ્રક્ષોભક", "accepted": ["પ્રક્ષોભક"], "tags": ["apple_strong"]}
+{"roman": "khasadafasad", "native": "ખસડફસડ", "accepted": ["ખસડફસડ"], "tags": ["apple_strong"]}
+{"roman": "avanatijanak", "native": "અવનતિજનક", "accepted": ["અવનતિજનક"], "tags": ["apple_strong"]}
+{"roman": "japan", "native": "જાપાન", "accepted": ["જાપાન"], "tags": ["apple_strong"]}
+{"roman": "yatidharm", "native": "યતિધર્મ", "accepted": ["યતિધર્મ"], "tags": ["apple_strong"]}
+{"roman": "shikaran", "native": "શિકરણ", "accepted": ["શિકરણ"], "tags": ["apple_strong"]}
+{"roman": "asanbhavit", "native": "અસંભવિત", "accepted": ["અસંભવિત"], "tags": ["apple_strong"]}
+{"roman": "vitanbana", "native": "વિટંબણા", "accepted": ["વિટંબણા"], "tags": ["apple_strong"]}
+{"roman": "vypdaeash", "native": "વ્યપદેશ", "accepted": ["વ્યપદેશ"], "tags": ["apple_strong"]}
+{"roman": "tuniyar", "native": "તુણિયાર", "accepted": ["તુણિયાર"], "tags": ["apple_strong"]}
+{"roman": "den", "native": "ડેન", "accepted": ["ડેન"], "tags": ["apple_strong"]}
+{"roman": "aadatalo", "native": "આડતાળો", "accepted": ["આડતાળો"], "tags": ["apple_strong"]}
+{"roman": "kusumonmad", "native": "કુસુમોન્માદ", "accepted": ["કુસુમોન્માદ"], "tags": ["apple_strong"]}
+{"roman": "langhaniy", "native": "લંઘનીય", "accepted": ["લંઘનીય"], "tags": ["apple_strong"]}
+{"roman": "kantho", "native": "કંઠો", "accepted": ["કંઠો"], "tags": ["apple_strong"]}
+{"roman": "kachavatiyun", "native": "કચવાટિયું", "accepted": ["કચવાટિયું"], "tags": ["apple_strong"]}
+{"roman": "kagaliyan", "native": "કાગળિયાં", "accepted": ["કાગળિયાં"], "tags": ["apple_strong"]}
+{"roman": "parirakshit", "native": "પરિરક્ષિત", "accepted": ["પરિરક્ષિત"], "tags": ["apple_strong"]}
+{"roman": "avach", "native": "અવચ", "accepted": ["અવચ"], "tags": ["apple_strong"]}
+{"roman": "kadakutiyun", "native": "કડાકૂટિયું", "accepted": ["કડાકૂટિયું"], "tags": ["apple_strong"]}
+{"roman": "gubbaro", "native": "ગુબ્બારો", "accepted": ["ગુબ્બારો"], "tags": ["apple_strong"]}
+{"roman": "alakamalak", "native": "અલકમલક", "accepted": ["અલકમલક"], "tags": ["apple_strong"]}
+{"roman": "pasavalo", "native": "પાસવાળો", "accepted": ["પાસવાળો"], "tags": ["apple_strong"]}
+{"roman": "avivikh", "native": "અવિવિખ", "accepted": ["અવિવિખ"], "tags": ["apple_strong"]}
+{"roman": "rangavalan", "native": "રંગવાળાં", "accepted": ["રંગવાળાં"], "tags": ["apple_strong"]}
+{"roman": "ashtmaadhik", "native": "અષ્ટમાધિક", "accepted": ["અષ્ટમાધિક"], "tags": ["apple_strong"]}
+{"roman": "dataradun", "native": "દાતરડું", "accepted": ["દાતરડું"], "tags": ["apple_strong"]}
+{"roman": "topala", "native": "ટોપલા", "accepted": ["ટોપલા"], "tags": ["apple_strong"]}
+{"roman": "ananshak", "native": "અનંશક", "accepted": ["અનંશક"], "tags": ["apple_strong"]}
+{"roman": "savatsi", "native": "સવત્સી", "accepted": ["સવત્સી"], "tags": ["apple_strong"]}
+{"roman": "hembargar", "native": "હૅમ્બર્ગર", "accepted": ["હૅમ્બર્ગર"], "tags": ["apple_strong"]}
+{"roman": "jivalok", "native": "જીવલોક", "accepted": ["જીવલોક"], "tags": ["apple_strong"]}
+{"roman": "fadachadiyun", "native": "ફડચાડિયું", "accepted": ["ફડચાડિયું"], "tags": ["apple_strong"]}
+{"roman": "nagapagalun", "native": "નાગપગલું", "accepted": ["નાગપગલું"], "tags": ["apple_strong"]}
+{"roman": "balatvaropan", "native": "બાલત્વારોપણ", "accepted": ["બાલત્વારોપણ"], "tags": ["apple_strong"]}
+{"roman": "karmatantr", "native": "કર્મતંત્ર", "accepted": ["કર્મતંત્ર"], "tags": ["apple_strong"]}
+{"roman": "hiranymy", "native": "હિરણ્યમય", "accepted": ["હિરણ્યમય"], "tags": ["apple_strong"]}
+{"roman": "dapakamanun", "native": "ડપકામણું", "accepted": ["ડપકામણું"], "tags": ["apple_strong"]}
+{"roman": "machhalan", "native": "માછલાં", "accepted": ["માછલાં"], "tags": ["apple_strong"]}
+{"roman": "suniyojan", "native": "સુનિયોજન", "accepted": ["સુનિયોજન"], "tags": ["apple_strong"]}
+{"roman": "savistar", "native": "સવિસ્તાર", "accepted": ["સવિસ્તાર"], "tags": ["apple_strong"]}
+{"roman": "tarodiyo", "native": "તારોડિયો", "accepted": ["તારોડિયો"], "tags": ["apple_strong"]}
+{"roman": "gud", "native": "ગુડ", "accepted": ["ગુડ"], "tags": ["apple_strong"]}
+{"roman": "burajo", "native": "બુરજો", "accepted": ["બુરજો"], "tags": ["apple_strong"]}
+{"roman": "vavathavavun", "native": "વવઠાવવું", "accepted": ["વવઠાવવું"], "tags": ["apple_strong"]}
+{"roman": "alpagrahi", "native": "અલ્પગ્રાહી", "accepted": ["અલ્પગ્રાહી"], "tags": ["apple_strong"]}
+{"roman": "katho", "native": "કાથો", "accepted": ["કાથો"], "tags": ["apple_strong"]}
+{"roman": "ubhani", "native": "ઊભણી", "accepted": ["ઊભણી"], "tags": ["apple_strong"]}
+{"roman": "uchhalavun", "native": "ઉછળવું", "accepted": ["ઉછળવું"], "tags": ["apple_strong"]}
+{"roman": "chhaparavali", "native": "છાપરાવાળી", "accepted": ["છાપરાવાળી"], "tags": ["apple_strong"]}
+{"roman": "bedarum", "native": "બેડરૂમ", "accepted": ["બેડરૂમ"], "tags": ["apple_strong"]}
+{"roman": "kaharan", "native": "કહારણ", "accepted": ["કહારણ"], "tags": ["apple_strong"]}

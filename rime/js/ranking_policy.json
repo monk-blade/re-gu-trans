@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "tiers": {
     "exact": 0,
     "dict": 1,
@@ -23,109 +23,52 @@
     "max_candidates": 6,
     "max_prefix": 3,
     "max_phonetic": 4,
-    "max_emoji": 2
+    "max_emoji": 2,
+    "latin_position": 2,
+    "include_latin": true
+  },
+  "lattice": {
+    "beam": 64,
+    "max_unattested_cost": 6,
+    "costs": {
+      "typed": 0,
+      "vowel_length": 1,
+      "case_place": 1.5,
+      "dental_retroflex": 2,
+      "aspirate": 2.5,
+      "digraph": 2,
+      "intervocalic_invent": 8
+    }
+  },
+  "ltr": {
+    "coefficients_path": "js/ltr_coefficients.json",
+    "enabled": false
   },
   "confusion_pairs": [
-    [
-      "sh",
-      "Sh"
-    ],
-    [
-      "Sh",
-      "sh"
-    ],
-    [
-      "s",
-      "sh"
-    ],
-    [
-      "t",
-      "T"
-    ],
-    [
-      "T",
-      "t"
-    ],
-    [
-      "d",
-      "D"
-    ],
-    [
-      "D",
-      "d"
-    ],
-    [
-      "n",
-      "N"
-    ],
-    [
-      "N",
-      "n"
-    ],
-    [
-      "l",
-      "L"
-    ],
-    [
-      "L",
-      "l"
-    ],
-    [
-      "i",
-      "ii"
-    ],
-    [
-      "ii",
-      "i"
-    ],
-    [
-      "u",
-      "uu"
-    ],
-    [
-      "uu",
-      "u"
-    ],
-    [
-      "u",
-      "oo"
-    ],
-    [
-      "oo",
-      "u"
-    ],
-    [
-      "a",
-      "aa"
-    ],
-    [
-      "aa",
-      "a"
-    ],
-    [
-      "v",
-      "w"
-    ],
-    [
-      "w",
-      "v"
-    ],
-    [
-      "j",
-      "z"
-    ],
-    [
-      "z",
-      "j"
-    ]
+    ["sh", "Sh"],
+    ["Sh", "sh"],
+    ["s", "sh"],
+    ["t", "T"],
+    ["T", "t"],
+    ["d", "D"],
+    ["D", "d"],
+    ["n", "N"],
+    ["N", "n"],
+    ["l", "L"],
+    ["L", "l"],
+    ["i", "ii"],
+    ["ii", "i"],
+    ["u", "uu"],
+    ["uu", "u"],
+    ["u", "oo"],
+    ["oo", "u"],
+    ["a", "aa"],
+    ["aa", "a"],
+    ["v", "w"],
+    ["w", "v"],
+    ["j", "z"],
+    ["z", "j"]
   ],
-  "near_exact_suffixes": [
-    "n",
-    "m",
-    "un",
-    "um",
-    "e",
-    "ne"
-  ],
-  "notes": "Shared by runtime (JS) and eval; do not bake per-word exceptions here."
+  "near_exact_suffixes": ["n", "m", "un", "um", "e", "ne"],
+  "notes": "Shared by runtime (JS) and eval; do not bake per-word exceptions here. beam≤64 hard cap."
 }

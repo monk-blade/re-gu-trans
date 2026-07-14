@@ -20,10 +20,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 EXT = DATA / "external"
-BLOB_PATH = ROOT / "rime" / "gu_lexicon_blob.json"
+BLOB_PATH = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
+BLOB_LEGACY = ROOT / "rime" / "gu_lexicon_blob.json"
 TAR = EXT / "dakshina_dataset_v1.0.tar"
 OUT_PAIRS = EXT / "dakshina_gu_pairs.tsv"
 OUT_NATIVE = EXT / "dakshina_gu_natives.txt"
+TEST_SPLIT = DATA / "splits" / "test_romans.json"
 
 SOFT_WEIGHT = 75
 SOFT_WEIGHT_MID = 80
@@ -117,19 +119,29 @@ def load_pairs_from_tar(tar_path: Path) -> dict[str, tuple[str, int]]:
     return best
 
 
-def merge_soft(best: dict[str, tuple[str, int]], max_add: int, soft_cap: int = 300_000) -> dict:
-    blob = json.loads(BLOB_PATH.read_text(encoding="utf-8"))
+def merge_soft(
+    best: dict[str, tuple[str, int]],
+    max_add: int,
+    soft_cap: int = 300_000,
+    exclude_romans: set[str] | None = None,
+) -> dict:
+    path = BLOB_PATH if BLOB_PATH.exists() else BLOB_LEGACY
+    blob = json.loads(path.read_text(encoding="utf-8"))
     lex: dict = blob.setdefault("lexicon", {})
     weights: dict = blob.setdefault("weights", {})
     native_set = set(lex.values())
     soft_count = sum(1 for w in weights.values() if is_soft_weight(w))
+    blocked = {r.lower() for r in (exclude_romans or set())}
     added = 0
     upgraded = 0
     skipped_pf = 0
     skipped_exist = 0
+    skipped_test = 0
 
     # Pass 1 — upgrade soft bands even when already at soft_cap.
     for roman, (native, cnt) in best.items():
+        if roman in blocked:
+            continue
         if roman not in lex:
             continue
         cur = float(weights.get(roman, 0) or 0)
@@ -146,6 +158,9 @@ def merge_soft(best: dict[str, tuple[str, int]], max_add: int, soft_cap: int = 3
     for roman, (native, cnt) in ranked:
         if added >= max_add or soft_count >= soft_cap:
             break
+        if roman in blocked:
+            skipped_test += 1
+            continue
         if roman in lex:
             skipped_exist += 1
             continue
@@ -169,13 +184,17 @@ def merge_soft(best: dict[str, tuple[str, int]], max_add: int, soft_cap: int = 3
     blob["weights"] = weights
     blob["dakshina_soft_added"] = added
     blob["dakshina_soft_upgraded"] = upgraded
-    BLOB_PATH.write_text(json.dumps(blob, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    (DATA / "gu_lexicon_blob.json").write_bytes(BLOB_PATH.read_bytes())
+    out = json.dumps(blob, ensure_ascii=False, separators=(",", ":"))
+    BLOB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    BLOB_PATH.write_text(out, encoding="utf-8")
+    BLOB_LEGACY.write_text(out, encoding="utf-8")
+    (DATA / "gu_lexicon_blob.json").write_text(out, encoding="utf-8")
     return {
         "added": added,
         "upgraded": upgraded,
         "skipped_postfix": skipped_pf,
         "skipped_existing": skipped_exist,
+        "skipped_test": skipped_test,
         "pairs": len(best),
         "max_add": max_add,
         "soft_total": soft_count,
@@ -214,10 +233,14 @@ def main() -> int:
         OUT_NATIVE.write_text("\n".join(natives) + "\n", encoding="utf-8")
         print(f"dakshina pairs={len(best)} natives={len(natives)} wrote {OUT_PAIRS}")
 
-    if not BLOB_PATH.exists():
+    if not BLOB_PATH.exists() and not BLOB_LEGACY.exists():
         print(f"ERROR: missing {BLOB_PATH}")
         return 2
-    stats = merge_soft(best, args.max_add, soft_cap=args.soft_cap)
+    exclude: set[str] = set()
+    if TEST_SPLIT.exists():
+        exclude = set(json.loads(TEST_SPLIT.read_text(encoding="utf-8")))
+        print(f"excluding {len(exclude)} test-split romans from Dakshina soft-fill")
+    stats = merge_soft(best, args.max_add, soft_cap=args.soft_cap, exclude_romans=exclude)
     print(f"dakshina soft-fill: {stats}")
     return 0
 

@@ -24,39 +24,34 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 
 | Path | Purpose |
 |------|---------|
-| `rime/gujarati.schema.yaml` | Schema (processors/translators/knobs) |
-| `rime/gujarati_translator.js` | Main qjs translator |
-| `rime/commit_on_punct_processor.js` | Space / `.,;'` commit selected candidate |
-| `rime/gu_lexicon_blob.json` | `{exceptions,lexicon,weights}` for qjs |
-| `rime/js/lm/unigram.tsv` | Native word frequencies (sole LM path; no `rime/lm/` duplicate) |
-| `rime/js/lm/stems.json` | Stem → frequency for morphology |
-| `rime/js/lm/attested.json` | Quality-attested natives for dict rescoring |
-| `scripts/sync_rime.sh` | Copy assets → Rime user dir (macOS / Linux) + reload |
-| `scripts/package/` | Stage payload; build macOS pkg/zip, Windows zip, Linux deb/rpm |
-| `packaging/` | nfpm config + `re-gu-trans-enable` |
-| `GUIDE.md` | Install walkthrough (Releases + from-source) |
-| `.github/workflows/release-packages.yml` | Tag `v*` → publish packages |
-| `scripts/build_gu_word_freq.py` | Rebuild unigram/stems from Apple+Google+Indic |
-| `scripts/filter_lexicon_quality.py` | Drop soft postfix/morph noise from lexicon blob |
-| `scripts/distill_apple_lexicon.py` | Rebuild lexicon blob / dict from probe extracts |
-| `scripts/install_librime_qjs.sh` | Install `librime-qjs.dylib` into Squirrel |
-| `data/` | Distill outputs + cached external wordcounts |
+| `rime/gujarati.schema.yaml` | Schema 2.9+ (processors/translators/knobs; `latin_position: 2`) |
+| `rime/js/gujarati_translator.js` | Thin qjs translator (Candidate/notifiers) |
+| `rime/js/ranking.js` | Tiers, CandidateRecord, menu layout, LTR coeffs hook |
+| `rime/js/phonetic.js` | Fuzzy + weighted lattice (beam≤64) |
+| `rime/js/storage.js` | Binary Trie loaders (`lexicon/prefix/native_lm.trie.bin`) |
+| `rime/js/learning.js` | `gujarati.user-learning.json` via `writeFileAtomic` only |
+| `rime/js/commit_on_punct_processor.js` | Space / `.,;'` commit selected candidate |
+| `rime/js/gu_lexicon_blob.json` | Build input; not required in release when bins ship |
+| `rime/js/lm/` | Unigram/stems/attested build inputs |
+| `scripts/sync_rime.sh` | Copy assets → Rime user dir + reload |
+| `scripts/build_qjs_tries.py` | Emit text + platform `.trie.bin` |
+| `scripts/package/` | Stage payload; build macOS/Windows/Linux packages |
+| `vendor/librime-qjs/` | Pinned plugin + `writeFileAtomic` overlay |
+| `GUIDE.md` | Install walkthrough |
+| `.github/workflows/ci.yml` | PR/main gates (leakage, smoke, held-out, gold, budgets) |
 
 ## Candidate ranking contract
 
-Order (lower tier wins; Rime sorts by `Candidate.quality`):
+Linguistic order (lower tier wins), then **display layout**:
 
-0. **Personalized** (user learning ≥ threshold for that roman only)
-1. **Exact / near-exact lexicon** (fuzzy roman queries + weak suffixes)
-2. **Dict-validated phonetics** (unigram / stem / attested; soft weight &lt;100)
-3. **Raw phonetics**
-4. **Latin echo**
-5. **Prefix completions** (`~suffix`), weight-sorted
-6. **Emoji** (always last)
+1. Strong exact / exception
+2. Evidence pool — soft exact, fuzzy, **stem_derived (never hard EXACT)**, attested phonetics
+3. Unattested raw phonetics
+4. Prefix
+5. Emoji
 
-Always assign `candidate.quality` after sorting — Rime **ignores array order**. Soft-fill never overrides Apple ≥100.
-
-Runtime is **qjs-only** (no Rime table `dictionary:` / apple `.dict.yaml` in packages). Assets live under `rime/js/`.
+Display: Gujarati #1 → Latin echo #2 (`include_latin`, fixed slot) → remaining GU → prefix → emoji.
+Assign `candidate.quality` **after** layout. Soft-fill never overrides Apple ≥100 by weight alone.
 
 ## Day-to-day commands
 

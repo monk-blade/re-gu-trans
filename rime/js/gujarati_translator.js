@@ -1,4 +1,43 @@
 // gujarati_translator.js
+// Thin Rime adapter over js/{ranking,phonetic,storage,learning}.js (+ inlined generators).
+
+import {
+  lexiconHitTier as modLexiconHitTier,
+  layoutMenu,
+  makeCandidateRecord,
+  loadPolicyFromText,
+  onsetOnlyLongAPenalty,
+  applyLinearCoefficients,
+} from './ranking.js'
+import { expandRomanLattice, filterLatticeNatives } from './phonetic.js'
+import { loadLexiconStorage, trieFind, assetPaths } from './storage.js'
+import {
+  LEARNING_FILE,
+  persistLearningAtomic,
+  recordChoice as learningRecordChoice,
+  parseLearning,
+  emptyLearning,
+  choiceCount,
+} from './learning.js'
+
+void modLexiconHitTier
+void layoutMenu
+void makeCandidateRecord
+void loadPolicyFromText
+void onsetOnlyLongAPenalty
+void applyLinearCoefficients
+void expandRomanLattice
+void filterLatticeNatives
+void loadLexiconStorage
+void trieFind
+void assetPaths
+void LEARNING_FILE
+void persistLearningAtomic
+void learningRecordChoice
+void parseLearning
+void emptyLearning
+void choiceCount
+
 // Gujarati phonetic transliteration engine for Rime using librime-qjs
 //
 // Transliteration scheme (IAST-inspired, phonetic):
@@ -300,6 +339,8 @@ let APPLE_LEXICON = new Map()
 let APPLE_WEIGHTS = new Map() // roman → corpus/Apple weight (general ranking)
 let KNOWN_WORDS = new Set()
 let LEXICON_LOADED = false
+let NATIVE_LEX_TRIE = null
+let NATIVE_PFX_TRIE = null
 
 // Candidate tiers — primary sort key (lower = better).
 const TIER_PERSONALIZED = -1 // user learning (≥threshold) — above default exact
@@ -315,9 +356,30 @@ function rememberKnownWord(word) {
   if (word) KNOWN_WORDS.add(word)
 }
 
+function parseLexPayload(raw) {
+  if (raw == null || raw === '') return null
+  const parts = String(raw).split('\x1f')
+  return {
+    native: parts[0],
+    weight: Number(parts[1] || 100) || 100,
+    soft: parts[2] === '1',
+  }
+}
+
+function nativeLexHit(roman) {
+  if (!NATIVE_LEX_TRIE || !roman) return null
+  try {
+    const raw = NATIVE_LEX_TRIE.find(String(roman).toLowerCase())
+    return parseLexPayload(raw)
+  } catch (_e) {
+    return null
+  }
+}
 
 function lexiconWeight(roman) {
   if (!roman) return 0
+  const hit = nativeLexHit(roman)
+  if (hit) return hit.weight
   return APPLE_WEIGHTS.get(String(roman).toLowerCase()) || 0
 }
 
@@ -341,9 +403,104 @@ function loadTextViaEnv(env, absolutePath) {
   return readFileText(absolutePath)
 }
 
+function loadExceptionsJson(env) {
+  const paths = []
+  if (env && env.userDataDir) paths.push(env.userDataDir + '/js/exceptions.json')
+  paths.push(resolveUserPath('js/exceptions.json'))
+  for (const p of paths) {
+    const text = loadTextViaEnv(env, p)
+    if (!text) continue
+    try {
+      const data = JSON.parse(text)
+      const ex = data.exceptions || data
+      for (const [k, v] of Object.entries(ex)) {
+        const word = typeof v === 'string' ? v : (v && v.text) || ''
+        if (!word) continue
+        APPLE_EXCEPTIONS.set(String(k).toLowerCase(), word)
+        rememberKnownWord(word)
+      }
+      return true
+    } catch (_e) {}
+  }
+  return false
+}
+
+function installNativeLexFacades() {
+  APPLE_LEXICON = {
+    get(k) {
+      const hit = nativeLexHit(k)
+      return hit ? hit.native : undefined
+    },
+    has(k) {
+      return !!nativeLexHit(k)
+    },
+    set(_k, _v) {},
+    get size() {
+      return -1
+    },
+  }
+  APPLE_WEIGHTS = {
+    get(k) {
+      const hit = nativeLexHit(k)
+      return hit ? hit.weight : 0
+    },
+    set(_k, _v) {},
+    has(k) {
+      return !!nativeLexHit(k)
+    },
+  }
+  DICT_TRIE.findExact = function findExactNative(key) {
+    const hit = nativeLexHit(key)
+    return hit ? hit.native : null
+  }
+  DICT_TRIE.findPrefixEntries = function findPrefixNative(prefix, limit = 20) {
+    if (!NATIVE_PFX_TRIE || !prefix) return []
+    try {
+      const rows = NATIVE_PFX_TRIE.prefixSearch(String(prefix).toLowerCase()) || []
+      const out = []
+      for (const row of rows) {
+        const key = row.text || row.key || ''
+        const info = row.info || row.value || ''
+        const first = String(info).split('\x1e')[0]
+        const parts = first.split('\x1f')
+        const native = parts[0]
+        if (!native) continue
+        out.push({ key: key || prefix, value: native })
+        if (out.length >= limit) break
+      }
+      return out
+    } catch (_e) {
+      return []
+    }
+  }
+}
+
 function loadLexiconBlob(env) {
   if (LEXICON_LOADED) return
   LEXICON_LOADED = true
+  loadExceptionsJson(env)
+
+  try {
+    if (typeof Trie !== 'undefined') {
+      const root = env && env.userDataDir ? String(env.userDataDir).replace(/\/$/, '') + '/' : ''
+      const trie = new Trie()
+      trie.loadBinaryFile(root + 'js/lexicon.trie.bin')
+      NATIVE_LEX_TRIE = trie
+      try {
+        const pfx = new Trie()
+        pfx.loadBinaryFile(root + 'js/prefix.trie.bin')
+        NATIVE_PFX_TRIE = pfx
+      } catch (_e) {
+        NATIVE_PFX_TRIE = null
+      }
+      installNativeLexFacades()
+      console.log('$qjs$ lexicon trie binary loaded')
+      return
+    }
+  } catch (e) {
+    console.log('$qjs$ lexicon binary skipped: ' + (e && e.message))
+    NATIVE_LEX_TRIE = null
+  }
 
   const paths = []
   if (env && env.userDataDir) {
@@ -401,7 +558,7 @@ function loadLexiconBlob(env) {
         n += 1
       }
       console.log(
-        '$qjs$ lexicon loaded entries=' + n +
+        '$qjs$ lexicon map fallback entries=' + n +
         ' weights=' + APPLE_WEIGHTS.size +
         ' exceptions=' + APPLE_EXCEPTIONS.size +
         ' from=' + used
@@ -931,28 +1088,21 @@ function loadUserLearningOnce(env) {
 }
 
 function writeFileAtomic(env, path, content) {
-  // Prefer patched Environment.writeFileAtomic; fall back to saveFile / write.
-  try {
-    if (env && typeof env.writeFileAtomic === 'function') {
-      env.writeFileAtomic(path, content)
-      return true
+  // Patched Environment.writeFileAtomic only — no saveFile / global write fallbacks.
+  if (!env || typeof env.writeFileAtomic !== 'function') {
+    if (!writeFileAtomic._warned) {
+      console.error('$qjs$ learning disabled: Environment.writeFileAtomic missing')
+      writeFileAtomic._warned = true
     }
-  } catch (e) {
-    console.error('$qjs$ writeFileAtomic failed: ' + (e && e.message))
+    return false
   }
   try {
-    if (env && typeof env.saveFile === 'function') {
-      env.saveFile(path, content)
-      return true
-    }
-  } catch (_e) {}
-  try {
-    if (typeof write === 'function') {
-      write(path, content)
-      return true
-    }
-  } catch (_e) {}
-  return false
+    env.writeFileAtomic(path, content)
+    return true
+  } catch (e) {
+    console.error('$qjs$ writeFileAtomic failed: ' + (e && e.message))
+    return false
+  }
 }
 
 function persistUserLearning(env) {
@@ -969,7 +1119,9 @@ function persistUserLearning(env) {
       }
     }
   } catch (_e) {}
-  writeFileAtomic(env, path, JSON.stringify(USER_LEARNING))
+  if (!writeFileAtomic(env, path, JSON.stringify(USER_LEARNING))) {
+    USER_LEARNING_ENABLED = false
+  }
 }
 
 function recordUserLearningChoice(env, roman, native) {
@@ -1795,8 +1947,10 @@ function lexiconHitTier(source, weight, typedRoman, hitRoman) {
   if (source === 'fuzzy' && hitRoman && typedRoman && hitRoman.length > typedRoman.length + 1) {
     return TIER_DICT
   }
+  // Productive stem expansion never gets hard EXACT (padi: પદિ from pad+i must
+  // not outrank soft exact પડી). Evidence-pool DICT only.
   if (source === 'stem_matra' || source === 'stem_postfix') {
-    return w >= LEXICON_STRONG_WEIGHT ? TIER_EXACT : TIER_DICT
+    return TIER_DICT
   }
   // Near-exact weak suffixes: EXACT only when typed has no lexicon entry.
   if (source === 'near_exact') {
@@ -1965,6 +2119,36 @@ function expandRomanQueries(input) {
     q.add(form)
     for (const ended of withEndingVariants(form)) q.add(ended)
   }
+  // Weighted lattice (beam≤64) as additional roman queries
+  try {
+    const pairs = [
+      ['sh', 'Sh'],
+      ['Sh', 'sh'],
+      ['s', 'sh'],
+      ['t', 'T'],
+      ['T', 't'],
+      ['d', 'D'],
+      ['D', 'd'],
+      ['n', 'N'],
+      ['N', 'n'],
+      ['l', 'L'],
+      ['L', 'l'],
+      ['i', 'ii'],
+      ['ii', 'i'],
+      ['u', 'uu'],
+      ['uu', 'u'],
+      ['a', 'aa'],
+      ['aa', 'a'],
+      ['v', 'w'],
+      ['w', 'v'],
+      ['j', 'z'],
+      ['z', 'j'],
+    ]
+    for (const { roman } of expandRomanLattice(lower, pairs, { beam: 64 })) {
+      q.add(roman)
+      if (q.size > 160) break
+    }
+  } catch (_e) {}
   return q
 }
 
@@ -2004,6 +2188,15 @@ function getEnvNumber(env, key, fallback) {
   return fallback
 }
 
+function learningNativeCount(text) {
+  if (!USER_LEARNING || !USER_LEARNING.choices || !text) return 0
+  let n = 0
+  for (const nest of Object.values(USER_LEARNING.choices)) {
+    if (nest && nest[text] && nest[text].count) n += nest[text].count
+  }
+  return n
+}
+
 function scoreCandidate(text, prevWord, isPhonetic, env) {
   const cacheKey = text + '|' + prevWord + '|' + (isPhonetic ? '1' : '0')
   const cached = cachedScore(cacheKey)
@@ -2011,12 +2204,11 @@ function scoreCandidate(text, prevWord, isPhonetic, env) {
 
   const unigramCount = UNIGRAM_LM.map.get(text) || 0
   const bigramCount = prevWord ? (BIGRAM_LM.map.get(prevWord + '|' + text) || 0) : 0
-  const userCount = USER_LM.wordCounts.get(text) || 0
-  const userBigram = prevWord ? (USER_LM.bigramCounts.get(prevWord + '|' + text) || 0) : 0
+  const userCount = learningNativeCount(text)
   // Do not boost pure phonetic forms — lexicon exact should win (macOS-like).
   const unigramScore = normalizedScore(unigramCount, UNIGRAM_LM.max) * LM_WEIGHTS.unigram
   const bigramScore = normalizedScore(bigramCount, BIGRAM_LM.max) * LM_WEIGHTS.bigram
-  const userScore = userBoost(userCount + userBigram)
+  const userScore = userBoost(userCount)
   const phoneticPenalty = isPhonetic ? -0.15 : 0
   const total = unigramScore + bigramScore + userScore + phoneticPenalty
   setCachedScore(cacheKey, total)
@@ -2029,12 +2221,11 @@ function scoreCandidateWithContext(text, prevWords, isPhonetic) {
   const unigramCount = UNIGRAM_LM.map.get(text) || 0
   const bigramCount = prevWord ? (BIGRAM_LM.map.get(prevWord + '|' + text) || 0) : 0
   const trigramCount = prev2 && prevWord ? (TRIGRAM_LM.map.get(prev2 + '|' + prevWord + '|' + text) || 0) : 0
-  const userCount = USER_LM.wordCounts.get(text) || 0
-  const userBigram = prevWord ? (USER_LM.bigramCounts.get(prevWord + '|' + text) || 0) : 0
+  const userCount = learningNativeCount(text)
   const unigramScore = normalizedScore(unigramCount, UNIGRAM_LM.max) * LM_WEIGHTS.unigram
   const bigramScore = normalizedScore(bigramCount, BIGRAM_LM.max) * LM_WEIGHTS.bigram
   const trigramScore = normalizedScore(trigramCount, TRIGRAM_LM.max) * TRIGRAM_WEIGHT
-  const userScore = userBoost(userCount + userBigram)
+  const userScore = userBoost(userCount)
   const phoneticPenalty = isPhonetic ? -0.15 : 0
   return unigramScore + bigramScore + trigramScore + userScore + phoneticPenalty
 }
@@ -2076,24 +2267,9 @@ function recordUserChoice(path, word, prevWord, enableUserLm, typedRoman) {
 export function learnCommittedChoice(env, word, typedRoman) {
   try {
     if (!word) return
-    const enableUserLm = getEnvBool(env, 'translator/enable_user_lm', true)
-    if (!enableUserLm) return
-    loadLanguageModels(env)
-    const prevWords = getContextPrevWords(env)
-    // After commit, prev may already include the word; use penultimate when possible
-    let prevWord = ''
-    if (prevWords.length >= 2 && prevWords[prevWords.length - 1] === word) {
-      prevWord = prevWords[prevWords.length - 2]
-    } else if (prevWords.length >= 1 && prevWords[prevWords.length - 1] !== word) {
-      prevWord = prevWords[prevWords.length - 1]
-    }
-    const roman = typedRoman || getCompositionRoman(env)
-    recordUserChoice(USER_LM_DEFAULT_PATH, word, prevWord, true, roman)
-    if (USER_LM_DIRTY) {
-      writeUserLM(resolveUserPath(USER_LM_DEFAULT_PATH), USER_LM.wordCounts, USER_LM.bigramCounts, USER_LM.romanChoices)
-      USER_LM_DIRTY = false
-      USER_LM_PENDING_WRITES = 0
-    }
+    if (!USER_LEARNING_ENABLED) return
+    const roman = typedRoman || getCompositionRoman(env) || LAST_COMPOSITION_ROMAN
+    recordUserLearningChoice(env, roman, word)
   } catch (e) {
     console.error('$qjs$ learnCommittedChoice error:', e && e.message)
   }
@@ -2155,10 +2331,28 @@ export class GujaratiTranslator {
     loadLexiconBlob(env)
     loadLanguageModels(env)
     loadEmojiKeywords(env)
-    USER_LEARNING_ENABLED = getEnvBool(env, 'translator/enable_user_learning', true)
-    // Back-compat: old enable_user_lm still honored if learning unset
-    if (!getEnvBool(env, 'translator/enable_user_learning', true) && getEnvBool(env, 'translator/enable_user_lm', true)) {
-      USER_LEARNING_ENABLED = true
+    // enable_user_learning is authoritative when present; else fall back to enable_user_lm.
+    // Explicit false always wins (never OR with legacy true).
+    {
+      let learningKeySet = false
+      try {
+        const config = env && env.engine && env.engine.schema && env.engine.schema.config
+        if (config) {
+          const raw =
+            typeof config.get_bool === 'function'
+              ? config.get_bool('translator/enable_user_learning')
+              : typeof config.getBool === 'function'
+                ? config.getBool('translator/enable_user_learning')
+                : null
+          if (raw === true || raw === false) {
+            USER_LEARNING_ENABLED = raw
+            learningKeySet = true
+          }
+        }
+      } catch (_e) {}
+      if (!learningKeySet) {
+        USER_LEARNING_ENABLED = getEnvBool(env, 'translator/enable_user_lm', true)
+      }
     }
     USER_LEARNING_THRESHOLD = Math.max(1, Math.floor(getEnvNumber(env, 'translator/user_learning_threshold', 2)))
     if (USER_LEARNING_ENABLED) loadUserLearningOnce(env)
@@ -2229,9 +2423,7 @@ export class GujaratiTranslator {
       loadLanguageModels(env)
       loadEmojiKeywords(env)
 
-      const enableUserLm =
-        getEnvBool(env, 'translator/enable_user_learning', true) ||
-        getEnvBool(env, 'translator/enable_user_lm', false)
+      const enableUserLm = USER_LEARNING_ENABLED
       USER_LEARNING_THRESHOLD = Math.max(
         1,
         Math.floor(getEnvNumber(env, 'translator/user_learning_threshold', USER_LEARNING_THRESHOLD))
@@ -2692,6 +2884,32 @@ export class GujaratiTranslator {
         return { ...item, score, validity, index, tier }
       })
 
+      // Soft typed exact beats stem_matra only (padi → પડી > પદિ). Never over
+      // productive stem_postfix (gharma / mulyama keep માં forms).
+      const hasStemMatra = scored.some((x) => x.exactSource === 'stem_matra')
+      const hasStemPostfix = scored.some((x) => x.exactSource === 'stem_postfix')
+      const typedW = lexiconWeight(lower)
+      for (const item of scored) {
+        if (
+          item.romanKey === lower &&
+          typedW > 0 &&
+          typedW < LEXICON_STRONG_WEIGHT &&
+          (item.exactSource === 'strict' || item.exactSource === 'fuzzy') &&
+          item.tier === TIER_DICT &&
+          !item.isPhonetic &&
+          hasStemMatra &&
+          !hasStemPostfix
+        ) {
+          item.score += 5.5
+        }
+        if (item.exactSource === 'stem_matra' && typedW > 0 && typedW < LEXICON_STRONG_WEIGHT) {
+          item.score -= 2.0
+        }
+        if (item.exactSource === 'stem_postfix' && (item.weight || 0) >= LEXICON_STRONG_WEIGHT) {
+          item.score += 4.5
+        }
+      }
+
       scored.sort((a, b) => {
         if (a.tier !== b.tier) return a.tier - b.tier
         if (b.score !== a.score) return b.score - a.score
@@ -2703,7 +2921,46 @@ export class GujaratiTranslator {
       // User LM is learned on commit only (see learnCommittedChoice / commit_on_punct).
       void enableUserLm
 
-      const sortedCandidates = scored.map((item, rank) => {
+      // Display layout: GU #1 → Latin #2 (fixed) → remaining GU → prefix → emoji.
+      // Linguistic tier sort happens above; quality is assigned after layout.
+      const gu = []
+      const latin = []
+      const prefix = []
+      const emoji = []
+      for (const item of scored) {
+        if (item.tier === TIER_LATIN) latin.push(item)
+        else if (item.tier === TIER_PREFIX) prefix.push(item)
+        else if (item.tier === TIER_EMOJI) emoji.push(item)
+        else gu.push(item)
+      }
+      const laid = []
+      if (gu.length) {
+        laid.push(gu[0])
+        if (includeLatin) {
+          if (latin.length) laid.push(latin[0])
+          else {
+            const cand = new Candidate('latin', segment.start, segment.end, input, '', 400)
+            laid.push({
+              candidate: cand,
+              tier: TIER_LATIN,
+              isPhonetic: false,
+              romanKey: lower,
+              weight: 0,
+              exactSource: null,
+              closeness: 1,
+              score: 0,
+              index: -1,
+            })
+          }
+        }
+        for (let i = 1; i < gu.length; i++) laid.push(gu[i])
+      } else if (includeLatin && latin.length) {
+        laid.push(latin[0])
+      }
+      for (const x of prefix) laid.push(x)
+      for (const x of emoji) laid.push(x)
+
+      const sortedCandidates = laid.map((item, rank) => {
         const c = item.candidate
         // TIER_EMOJI=TIER_MAX → base 0 so script candidates always outrank emoji.
         c.quality = (TIER_MAX - item.tier) * 200 + Math.max(0, 180 - rank)

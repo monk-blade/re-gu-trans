@@ -3,4 +3,4 @@ tag=v1.3.0
 commit=7231b4a
 librime_tag=1.16.1
 source=https://github.com/HuangJian/librime-qjs
-notes=Must match scripts/package/common.sh LIBRIME_QJS_TAG. Apply WRITEFILE_ATOMIC.md patch before production learning builds.
+notes=Must match scripts/package/common.sh LIBRIME_QJS_TAG. Apply WRITEFILE_ATOMIC overlay (scripts/package/apply_qjs_writefile_atomic.sh) before production learning builds. Stop shipping prebuilts that lack Environment.writeFileAtomic.

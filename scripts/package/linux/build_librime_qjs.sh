@@ -81,6 +81,9 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
   git submodule update --init --recursive
 )
 
+# Atomic learning API
+"$PACKAGE_ROOT/scripts/package/apply_qjs_writefile_atomic.sh" "$PWD/plugins/qjs"
+
 # --- patch: __FILE_NAME__ is Clang-only; GCC needs __FILE__ ---
 echo "Patching librime-qjs __FILE_NAME__ → __FILE__ for GCC ..."
 find plugins/qjs -type f \( -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) \

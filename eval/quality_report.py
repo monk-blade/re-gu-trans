@@ -36,7 +36,10 @@ def main() -> int:
     for name, cmd in [
         ("smoke", [sys.executable, "eval/rank_offline.py"]),
         ("apple_integrity", [sys.executable, "eval/apple_integrity.py"]),
-        ("training_source", [sys.executable, "eval/training_source_agree.py"]),
+        ("leakage", [sys.executable, "scripts/check_lexicon_leakage.py"]),
+        ("held_out", [sys.executable, "eval/held_out_agree.py"]),
+        ("gold", [sys.executable, "eval/gold_agree.py"]),
+        ("budgets", [sys.executable, "eval/check_budgets.py"]),
     ]:
         code, elapsed = run(cmd)
         codes[name] = code
@@ -47,7 +50,7 @@ def main() -> int:
     blob_path = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
     if not blob_path.exists():
         blob_path = ROOT / "rime" / "gu_lexicon_blob.json"
-    blob = json.loads(blob_path.read_text(encoding="utf-8"))
+    blob = json.loads(blob_path.read_text(encoding="utf-8")) if blob_path.exists() else {"lexicon": {}, "weights": {}}
     lex = blob.get("lexicon") or {}
     weights = blob.get("weights") or {}
     soft = sum(1 for w in weights.values() if 0 < float(w or 0) < 100)
@@ -66,10 +69,20 @@ def main() -> int:
     ir = ROOT / "eval" / "apple_integrity_summary.json"
     if ir.exists():
         integrity = json.loads(ir.read_text())
-    train_src = {}
-    tr = ROOT / "eval" / "training_source_agree_summary.json"
-    if tr.exists():
-        train_src = json.loads(tr.read_text())
+    held = {}
+    hr = ROOT / "eval" / "held_out_agree_summary.json"
+    if hr.exists():
+        held = json.loads(hr.read_text())
+    gold = {}
+    gr = ROOT / "eval" / "gold_agree_summary.json"
+    if gr.exists():
+        gold = json.loads(gr.read_text())
+    leak = {}
+    # budgets
+    budget = {}
+    br = ROOT / "eval" / "budget_summary.json"
+    if br.exists():
+        budget = json.loads(br.read_text())
 
     bench = {}
     bp = ROOT / "eval" / "bench_summary.json"
@@ -97,11 +110,9 @@ def main() -> int:
             "n": integrity.get("n"),
             "disagree": (integrity.get("n") or 0) - (integrity.get("match") or 0),
         },
-        "training_source_agree": {
-            "pct": train_src.get("pct"),
-            "n": train_src.get("n"),
-            "note": train_src.get("note"),
-        },
+        "held_out": held,
+        "leakage": {"pass": codes.get("leakage") == 0},
+        "gold": gold,
         "assets": {
             "lexicon_total": len(lex),
             "soft": soft,
@@ -109,6 +120,7 @@ def main() -> int:
             "unigram": uni_n,
             "hashes": {
                 "lexicon_blob": sha256(blob_path),
+                "lexicon_bin": sha256(ROOT / "rime" / "js" / "lexicon.trie.bin"),
                 "unigram": sha256(uni),
                 "stems": sha256(ROOT / "rime" / "js" / "lm" / "stems.json"),
                 "attested": sha256(ROOT / "rime" / "js" / "lm" / "attested.json"),
@@ -117,16 +129,13 @@ def main() -> int:
             },
         },
         "latency": {
-            "startup_ms": bench.get("startup_ms"),
+            "startup_ms": bench.get("startup_ms") or budget.get("startup_ms"),
             "query_p50_ms": bench.get("query_p50_ms"),
-            "query_p95_ms": bench.get("query_p95_ms"),
-            "note": "Filled when eval/bench_summary.json present",
+            "query_p95_ms": bench.get("query_p95_ms") or budget.get("query_p95_ms"),
+            "package_bytes": budget.get("staged_est_bytes"),
+            "note": "Filled when bench/budget summaries present",
         },
-        "top1_top3_mrr": {
-            "smoke_top1": smoke.get("smoke_ok"),
-            "integrity_top1_pct": integrity.get("pct"),
-            "training_source_top1_pct": train_src.get("pct"),
-        },
+        "budgets": budget,
     }
     OUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"wrote": str(OUT), "smoke_pass": report["smoke"]["pass"], "integrity_pct": integrity.get("pct")}, indent=2))
@@ -134,6 +143,8 @@ def main() -> int:
         return 1
     if (integrity.get("pct") or 0) < 99.5:
         return 2
+    if codes.get("leakage") not in (0, None):
+        return 3
     return 0
 
 

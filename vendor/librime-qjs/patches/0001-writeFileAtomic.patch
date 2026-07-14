@@ -1,0 +1,4 @@
+# Diff-style notes (overlay is applied via scripts/package/apply_qjs_writefile_atomic.sh)
+#
+# Adds Environment::writeFileAtomic + JS binding writeFileAtomic(path, content).
+# Full source overlay: vendor/librime-qjs/src-overlay/types/

@@ -48,6 +48,27 @@ eval/apple_integrity_summary.json
 eval/training_source_agree_summary.json
 eval/soft_oov_agree_summary.json
 eval/gold_agree_summary.json
+eval/held_out_agree_summary.json
+eval/bench_summary.json
+eval/budget_summary.json
+eval/leakage_report.json
+eval/ltr_diag_clusters.json
+eval/ltr_train_summary.json
+
+# Regenerable hash-split roman lists (keep test_romans.json + meta.json)
+data/splits/train_romans.txt
+data/splits/dev_romans.txt
+data/splits/test_romans.txt
+
+# Platform binary Tries (rebuild via scripts/build_qjs_tries.py --bin)
+rime/js/*.trie.bin
+rime/js/native_lm.trie.bin
+
+# Local Apple capture / LTR (never commit private dumps)
+data/apple_captures/
+data/ltr/
+eval/ltr_*.json
 
 # Local regenerable dumps
 data/ranker_train.jsonl
+.cache/

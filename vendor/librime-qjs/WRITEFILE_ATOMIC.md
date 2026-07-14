@@ -1,20 +1,23 @@
-# Patch notes: Environment.writeFileAtomic for librime-qjs
-
-Pin librime-qjs to the release tag in `scripts/package/common.sh` (`LIBRIME_QJS_TAG`)
-and `vendor/librime-qjs/version-info.txt` (must match).
+# Patch: Environment::writeFileAtomic for librime-qjs (v1.3.0 / 7231b4a)
 
 ## Required API
 
 ```cpp
-// Environment::writeFileAtomic(path, content)
-// - path must resolve under userDataDir (reject .. / absolute escape)
-// - write to path + ".tmp.<pid>" then rename
-// - POSIX mode 0600
-// - throw / return error on failure
+// Environment::writeFileAtomic(relativeOrAbsUnderUserData, content)
+// - Resolve under userDataDir only; reject ".." and absolute escapes
+// - Write to path + ".tmp.<pid>" then fsync + rename
+// - POSIX mode 0600 (Windows: user-only ACL best effort)
+// - Throw JsException on failure
 ```
 
-Until the patched dylib is built into packages, JS falls back to `saveFile` / `write`
-but still refuses paths outside `userDataDir` when detectable.
+## Apply
 
-Update `vendor/librime-qjs/version-info.txt` after applying the patch and rebuild
-macOS / Windows / Linux plugins in CI release jobs.
+```bash
+# From a clean HuangJian/librime-qjs checkout at LIBRIME_QJS_TAG:
+patch -p1 < vendor/librime-qjs/patches/0001-writeFileAtomic.patch
+# Then build plugins (see scripts/package/*/build_*.sh).
+```
+
+Stop shipping upstream prebuilts that lack `writeFileAtomic` once this lands in release CI.
+
+JS runtime: if `env.writeFileAtomic` is missing, learning stays **disabled** (one warning). No `saveFile` / global `write` fallback.
