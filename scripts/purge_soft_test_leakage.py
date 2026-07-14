@@ -2,7 +2,7 @@
 """Remove soft lexicon keys that collide with the frozen test roman split.
 
 Keeps strong (weight ≥100) keys even if roman is in the test set (integrity).
-Rewrites rime/js/gu_lexicon_blob.json (+ legacy mirrors).
+Rewrites rime/js/gu_lexicon_blob.json (+ data/ mirror).
 """
 from __future__ import annotations
 
@@ -11,14 +11,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 JS_BLOB = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
-ROOT_BLOB = ROOT / "rime" / "gu_lexicon_blob.json"
 DATA_BLOB = ROOT / "data" / "gu_lexicon_blob.json"
 TEST = ROOT / "data" / "splits" / "test_romans.json"
 STRONG = 100
 
 
 def main() -> int:
-    path = JS_BLOB if JS_BLOB.exists() else ROOT_BLOB
+    path = JS_BLOB
     if not path.exists():
         print(f"missing {path}")
         return 2
@@ -39,7 +38,7 @@ def main() -> int:
             dropped_strong_report += 1  # keep strong; report overlap only
     soft = sum(1 for w in weights.values() if 0 < float(w or 0) < STRONG)
     out = json.dumps({**blob, "lexicon": lex, "weights": weights}, ensure_ascii=False, separators=(",", ":"))
-    for dest in (JS_BLOB, ROOT_BLOB, DATA_BLOB):
+    for dest in (JS_BLOB, DATA_BLOB):
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(out, encoding="utf-8")
     print(

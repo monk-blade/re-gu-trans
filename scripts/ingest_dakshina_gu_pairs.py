@@ -21,7 +21,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 EXT = DATA / "external"
 BLOB_PATH = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
-BLOB_LEGACY = ROOT / "rime" / "gu_lexicon_blob.json"
 TAR = EXT / "dakshina_dataset_v1.0.tar"
 OUT_PAIRS = EXT / "dakshina_gu_pairs.tsv"
 OUT_NATIVE = EXT / "dakshina_gu_natives.txt"
@@ -125,7 +124,7 @@ def merge_soft(
     soft_cap: int = 300_000,
     exclude_romans: set[str] | None = None,
 ) -> dict:
-    path = BLOB_PATH if BLOB_PATH.exists() else BLOB_LEGACY
+    path = BLOB_PATH
     blob = json.loads(path.read_text(encoding="utf-8"))
     lex: dict = blob.setdefault("lexicon", {})
     weights: dict = blob.setdefault("weights", {})
@@ -187,7 +186,6 @@ def merge_soft(
     out = json.dumps(blob, ensure_ascii=False, separators=(",", ":"))
     BLOB_PATH.parent.mkdir(parents=True, exist_ok=True)
     BLOB_PATH.write_text(out, encoding="utf-8")
-    BLOB_LEGACY.write_text(out, encoding="utf-8")
     (DATA / "gu_lexicon_blob.json").write_text(out, encoding="utf-8")
     return {
         "added": added,
@@ -233,7 +231,7 @@ def main() -> int:
         OUT_NATIVE.write_text("\n".join(natives) + "\n", encoding="utf-8")
         print(f"dakshina pairs={len(best)} natives={len(natives)} wrote {OUT_PAIRS}")
 
-    if not BLOB_PATH.exists() and not BLOB_LEGACY.exists():
+    if not BLOB_PATH.exists():
         print(f"ERROR: missing {BLOB_PATH}")
         return 2
     exclude: set[str] = set()

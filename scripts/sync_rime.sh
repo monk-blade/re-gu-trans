@@ -31,6 +31,7 @@ detect_rime_dir() {
 
 RIME="$(detect_rime_dir)"
 mkdir -p "$RIME" "$RIME/run" "$RIME/js" "$RIME/js/lm"
+ALLOW_TEXT_FALLBACK="${ALLOW_TEXT_FALLBACK:-0}"
 
 JS="$ROOT/rime/js"
 require() { [[ -f "$1" ]] || { echo "ERROR: missing $1" >&2; exit 1; }; }
@@ -49,20 +50,32 @@ cp -f "$ROOT/rime/gujarati.custom.yaml.sample" "$RIME/" 2>/dev/null || true
 
 # Modules + policy
 cp -f "$JS/gujarati_translator.js" "$RIME/js/"
+cp -f "$JS/engine.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/ime_core.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/commit_on_punct_processor.js" "$RIME/js/"
+cp -f "$JS/selection_tracker_processor.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/ranking.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/phonetic.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/storage.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/learning.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/runtime_capabilities.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/ranking_policy.json" "$RIME/js/"
 cp -f "$JS/emoji_keywords.json" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/exceptions.json" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/ltr_coefficients.json" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/native_lm_meta.json" "$RIME/js/"
 cp -f "$JS/"*.trie.bin "$RIME/js/" 2>/dev/null || true
-# Dev fallback blob + LM text
-cp -f "$JS/gu_lexicon_blob.json" "$RIME/js/" 2>/dev/null || true
-cp -f "$JS/lm/"*.tsv "$RIME/js/lm/" 2>/dev/null || true
-cp -f "$JS/lm/"*.json "$RIME/js/lm/" 2>/dev/null || true
+# Explicit development fallback only. Default sync mirrors release binary mode.
+if [[ "$ALLOW_TEXT_FALLBACK" == "1" ]]; then
+  cp -f "$JS/gu_lexicon_blob.json" "$RIME/js/" 2>/dev/null || true
+  cp -f "$JS/prefix.trie.txt" "$RIME/js/" 2>/dev/null || true
+  cp -f "$JS/lm/"*.tsv "$RIME/js/lm/" 2>/dev/null || true
+  cp -f "$JS/lm/"*.json "$RIME/js/lm/" 2>/dev/null || true
+else
+  rm -f "$RIME/js/gu_lexicon_blob.json"
+  rm -f "$RIME/js/prefix.trie.txt"
+  rm -f "$RIME/js/lm/unigram.tsv" "$RIME/js/lm/stems.json" "$RIME/js/lm/attested.json"
+fi
 
 # qjs plugins: filename at user-dir root (schema @name) + mirror under js/
 cp -f "$JS/gujarati_translator.js" "$RIME/gujarati_translator.js"

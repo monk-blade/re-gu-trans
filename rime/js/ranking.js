@@ -2,6 +2,10 @@
  * Ranking core — tiers, CandidateRecord, menu layout, coefficient hooks.
  * Authoritative for source-aware macOS-style ordering.
  */
+import { EXPLICIT_PROMOTION_THRESHOLD } from './learning.js'
+import { expandRomanLattice } from './phonetic.js'
+import { nativeEvidenceLookup, trieFind } from './storage.js'
+
 export const RANKING_MODULE = 2
 
 export const TIER_PERSONALIZED = -1
@@ -149,6 +153,60 @@ export function loadPolicyFromText(text) {
     return DEFAULT_POLICY
   }
 }
+
+export function generateCandidates(roman, runtime, policy) {
+  const typed = String(roman || '').toLowerCase()
+  if (!typed || !runtime) return []
+  const lattice = expandRomanLattice(
+    typed,
+    (policy && policy.confusion_pairs) || null,
+    (policy && policy.lattice) || null
+  )
+  const records = []
+  const seen = new Set()
+  for (const form of lattice) {
+    const hit = trieFind(runtime, form.roman)
+    if (!hit || !hit.native || seen.has(hit.native)) continue
+    seen.add(hit.native)
+    const evidence = nativeEvidenceLookup(runtime, hit.native)
+    const source = form.roman === typed ? 'strict' : 'fuzzy'
+    records.push(
+      makeCandidateRecord({
+        native: hit.native,
+        text: hit.native,
+        romanKey: form.roman,
+        source,
+        weight: Number(hit.weight) || 0,
+        transformCost: form.cost || 0,
+        uni: evidence.unigram || 0,
+        stem: evidence.stem || 0,
+        attested: !!evidence.attested,
+        tier: lexiconHitTier(source, hit.weight, typed, form.roman),
+      })
+    )
+  }
+  return records
+}
+
+export function rankCandidates(records, context, policy, learning) {
+  const pref =
+    learning && context && context.roman
+      ? learning.choices &&
+        learning.choices[String(context.roman).toLowerCase()] &&
+        learning.choices[String(context.roman).toLowerCase()].preferred_native
+      : null
+  const sorted = (records || []).slice().sort((a, b) => {
+    if (pref) {
+      if (a.native === pref || a.text === pref) return -1
+      if (b.native === pref || b.text === pref) return 1
+    }
+    return (a.tier || 0) - (b.tier || 0) || (b.score || 0) - (a.score || 0)
+  })
+  const max = Math.max(1, Number(policy && policy.menu && policy.menu.max_candidates) || 6)
+  return sorted.slice(0, max)
+}
+
+export { EXPLICIT_PROMOTION_THRESHOLD }
 
 /** Onset-only long-a demotion (parkhavyu family). */
 export function onsetOnlyLongAPenalty(lower, text, penalty) {

@@ -12,7 +12,8 @@ It ranks candidates like Apple TransliterationIM — lexicon + fuzzy phonetics +
 | **[USAGE.md](./USAGE.md)** | Daily typing (menu, Space/`.` commit, Latin #2, numerals) |
 | **[GUIDE.md](./GUIDE.md)** | Install from Releases or from source |
 | **[AGENTS.md](./AGENTS.md)** | Contributors / coding agents |
-| [docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md) | Ecosystem notes |
+| [docs/ecosystem-integration.md](./docs/ecosystem-integration.md) | Plum / Squirrel / Weasel / deferred Ice+predict |
+| [docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md) | Broader ecosystem survey |
 
 ## Quick start
 

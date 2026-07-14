@@ -21,6 +21,7 @@ permissions:
 env:
   LIBRIME_QJS_TAG: v1.3.0
   LIBRIME_TAG: '1.16.1'
+  REQUIRE_BINARY_TRIES: '1'
 
 jobs:
   ci:
@@ -51,18 +52,23 @@ jobs:
       - name: Verify runtime assets
         run: |
           pip install marisa-trie
+          export REQUIRE_BINARY_TRIES=1
           python3 scripts/build_qjs_tries.py --bin --exceptions
           test -f rime/js/gujarati_translator.js
           test -f rime/js/commit_on_punct_processor.js
           test -f rime/js/ranking_policy.json
           test -f rime/js/lexicon.trie.bin
+          test -f rime/js/prefix.trie.bin
+          test -f rime/js/native_lm.trie.bin
+          test -f rime/js/native_lm_meta.json
           test -f rime/gujarati.schema.yaml
           ! grep -E '^\s*dictionary:\s*gujarati' rime/gujarati.schema.yaml
           python3 scripts/check_lexicon_leakage.py
           python3 scripts/check_version_sync.py
       - name: Clean deploy check
         run: |
-          chmod +x scripts/package/clean_deploy_check.sh scripts/package/stage_payload.sh
+          chmod +x scripts/package/*.sh
+          export REQUIRE_BINARY_TRIES=1
           ./scripts/package/clean_deploy_check.sh
       - name: Smoke + quality report
         run: |
@@ -78,8 +84,6 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update
-          # Ubuntu 22.04: install libunwind-dev before libgoogle-glog-dev
-          # https://bugs.launchpad.net/ubuntu/+source/google-glog/+bug/1991919
           sudo apt-get install -y --no-install-recommends libunwind-dev ninja-build
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake git curl zip unzip \
@@ -88,21 +92,24 @@ jobs:
             libgoogle-glog-dev libgtest-dev libyaml-cpp-dev \
             libleveldb-dev libmarisa-dev libopencc-dev \
             libcapnp-dev capnproto \
-            p7zip-full rpm
+            p7zip-full rpm python3-pip
+          pip install marisa-trie
       - name: Install nfpm
         run: |
           curl -sL "https://github.com/goreleaser/nfpm/releases/download/v2.41.3/nfpm_2.41.3_Linux_x86_64.tar.gz" \
             | sudo tar xz -C /usr/local/bin nfpm
           nfpm --version
-      - name: Build packages
+      - name: Build binaries + packages
         env:
           VERSION: ${{ needs.stage.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRE_BINARY_TRIES: '1'
         run: |
-          chmod +x scripts/package/**/*.sh packaging/linux/* || true
           chmod +x scripts/package/linux/*.sh scripts/package/*.sh
           chmod +x packaging/linux/re-gu-trans-enable packaging/linux/postinst.sh
+          python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/linux/build_packages.sh
+          ./scripts/package/validate_payload.sh dist/payload-linux
       - uses: actions/upload-artifact@v4
         with:
           name: packages-linux
@@ -119,10 +126,14 @@ jobs:
         env:
           VERSION: ${{ needs.stage.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRE_BINARY_TRIES: '1'
         run: |
           chmod +x scripts/package/macos/*.sh scripts/package/*.sh
           chmod +x scripts/package/macos/postinstall
+          pip3 install marisa-trie
+          python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/macos/build_pkg.sh
+          ./scripts/package/validate_payload.sh dist/payload-macos
       - uses: actions/upload-artifact@v4
         with:
           name: packages-macos
@@ -135,21 +146,25 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install 7zip
+      - name: Install 7zip + marisa-trie
         shell: bash
         run: |
           choco install 7zip -y --no-progress || true
           echo "$PROGRAMFILES/7-Zip" >> "$GITHUB_PATH"
           echo "/c/Program Files/7-Zip" >> "$GITHUB_PATH"
+          pip install marisa-trie
       - name: Build zip
         shell: bash
         env:
           VERSION: ${{ needs.stage.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRE_BINARY_TRIES: '1'
         run: |
           chmod +x scripts/package/windows/*.sh scripts/package/*.sh
           export PATH="/c/Program Files/7-Zip:$PATH"
+          python scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/windows/build_zip.sh
+          ./scripts/package/validate_payload.sh dist/payload-windows
       - uses: actions/upload-artifact@v4
         with:
           name: packages-windows
@@ -179,10 +194,11 @@ jobs:
           RIME_TAG: ${{ env.LIBRIME_TAG }}
         run: |
           cat > release-notes.md <<EOF
-          ## re-gu-trans ${VERSION}
+          ## Akshar GU (re-gu-trans) ${VERSION}
 
           Plugin + schema packages (requires a Rime frontend on each OS).
           Pinned **librime-qjs ${QJS_TAG}** / librime **${RIME_TAG}**.
+          Binary Tries only (no multi-MB JSON/TSV fallback in release payloads).
 
           ### Assets
 
@@ -192,25 +208,7 @@ jobs:
           | Windows x64 | \`re-gu-trans-${VERSION}-windows-x64.zip\` | [Weasel](https://github.com/rime/weasel/releases) |
           | Linux amd64 | \`re-gu-trans_${VERSION}_amd64.deb\` / \`.rpm\` | fcitx5-rime or ibus-rime |
 
-          ### Quick install
-
-          **macOS:** install Squirrel, then open the \`.pkg\` (or \`sudo ./install.sh\` from the zip).
-
-          **Windows:** install Weasel, exit tray icon, run \`install.bat\` as Administrator, Deploy.
-
-          **Linux (Debian/Ubuntu):**
-          \`\`\`bash
-          sudo apt install ./re-gu-trans_${VERSION}_amd64.deb
-          re-gu-trans-enable
-          \`\`\`
-
-          **Linux (Fedora/RHEL):**
-          \`\`\`bash
-          sudo dnf install ./re-gu-trans-${VERSION}*.rpm
-          re-gu-trans-enable
-          \`\`\`
-
-          Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md)
+          Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md) · Typing: [USAGE.md](https://github.com/monk-blade/re-gu-trans/blob/main/USAGE.md)
           EOF
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

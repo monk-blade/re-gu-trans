@@ -28,17 +28,28 @@ export COPYFILE_DISABLE=1
 
 "$SCRIPT_DIR/../stage_payload.sh" "$PAYLOAD" macos
 
-# --- download librime-qjs (pinned URL; no GitHub API) ---
-ASSET_URL="$(resolve_qjs_asset_url macos-arm64)"
-echo "Using librime-qjs asset: $ASSET_URL"
-ARCHIVE="$QJS_CACHE/$(basename "$ASSET_URL")"
-download_file "$ASSET_URL" "$ARCHIVE"
-EXTRACT="$QJS_CACHE/extract"
-rm -rf "$EXTRACT"
-mkdir -p "$EXTRACT"
-tar xjf "$ARCHIVE" -C "$EXTRACT" 2>/dev/null || tar xzf "$ARCHIVE" -C "$EXTRACT"
-DYLIB="$(find "$EXTRACT" -name 'librime-qjs.dylib' | head -1)"
+# Prefer patched plugin built from source + overlay (required for learning).
+DYLIB="${OUT_DYLIB:-$DIST/plugins/librime-qjs.dylib}"
+REQUIRE_PATCHED_QJS="${REQUIRE_PATCHED_QJS:-1}"
+if [[ ! -f "$DYLIB" ]]; then
+  if [[ "$REQUIRE_PATCHED_QJS" == "1" ]]; then
+    echo "Building patched librime-qjs.dylib from source..."
+    chmod +x "$SCRIPT_DIR/build_librime_qjs.sh"
+    "$SCRIPT_DIR/build_librime_qjs.sh"
+  else
+    ASSET_URL="$(resolve_qjs_asset_url macos-arm64)"
+    echo "WARN: downloading unpatched librime-qjs: $ASSET_URL" >&2
+    ARCHIVE="$QJS_CACHE/$(basename "$ASSET_URL")"
+    download_file "$ASSET_URL" "$ARCHIVE"
+    EXTRACT="$QJS_CACHE/extract"
+    rm -rf "$EXTRACT"
+    mkdir -p "$EXTRACT"
+    tar xjf "$ARCHIVE" -C "$EXTRACT" 2>/dev/null || tar xzf "$ARCHIVE" -C "$EXTRACT"
+    DYLIB="$(find "$EXTRACT" -name 'librime-qjs.dylib' | head -1)"
+  fi
+fi
 require_file "$DYLIB"
+"$PACKAGE_ROOT/scripts/package/verify_qjs_plugin.sh" "$DYLIB"
 
 # --- zip (script install) ---
 ZIP_DIR="$DIST/macos-zip"
@@ -91,3 +102,5 @@ codesign --force --sign - "$PKG_OUT" 2>/dev/null || true
 
 echo "macOS packages:"
 ls -la "$OUT_DIR"/re-gu-trans-"${VERSION}"-macos-arm64.*
+"$SCRIPT_DIR/../validate_archive.sh" "$OUT_DIR/re-gu-trans-${VERSION}-macos-arm64.zip"
+"$SCRIPT_DIR/../validate_archive.sh" "$PKG_OUT"

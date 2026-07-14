@@ -55,15 +55,20 @@ Get-ChildItem (Join-Path $Root 'plugin') -Filter '*.dll' | ForEach-Object {
 }
 Write-Host "Installed rime.dll with librime-qjs"
 
-# User Rime data
+# User Rime data — generic staged tree (bins + modules; blob/LM only if present)
 $RimeUser = Join-Path $env:APPDATA 'Rime'
-New-Item -ItemType Directory -Force -Path (Join-Path $RimeUser 'js\lm') | Out-Null
+$RimeJs = Join-Path $RimeUser 'js'
+New-Item -ItemType Directory -Force -Path $RimeJs | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $RimeUser 'run') | Out-Null
 
 Copy-Item -Force (Join-Path $PayloadRime 'gujarati.schema.yaml') $RimeUser
-Copy-Item -Force (Join-Path $PayloadRime 'js\*.js') (Join-Path $RimeUser 'js')
-Copy-Item -Force (Join-Path $PayloadRime 'js\gu_lexicon_blob.json') (Join-Path $RimeUser 'js')
-Copy-Item -Force (Join-Path $PayloadRime 'js\lm\*') (Join-Path $RimeUser 'js\lm')
+Get-ChildItem (Join-Path $PayloadRime 'js') -File | Copy-Item -Force -Destination $RimeJs
+$LmSrc = Join-Path $PayloadRime 'js\lm'
+if (Test-Path $LmSrc) {
+  $LmDst = Join-Path $RimeJs 'lm'
+  New-Item -ItemType Directory -Force -Path $LmDst | Out-Null
+  Copy-Item -Force (Join-Path $LmSrc '*') $LmDst -ErrorAction SilentlyContinue
+}
 Copy-Item -Force (Join-Path $PayloadRime 'js\gujarati_translator.js') $RimeUser
 Copy-Item -Force (Join-Path $PayloadRime 'js\commit_on_punct_processor.js') $RimeUser
 

@@ -159,7 +159,7 @@ def load_apple_counts() -> dict[str, int]:
             gu, w = nfc(parts[0]), int(parts[2])
             if is_gujarati_word(gu):
                 counts[gu] = max(counts[gu], w)
-    blob = ROOT / "rime" / "gu_lexicon_blob.json"
+    blob = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
     if blob.exists():
         data = json.loads(blob.read_text(encoding="utf-8"))
         weights = data.get("weights") or {}

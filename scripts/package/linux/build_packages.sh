@@ -29,6 +29,7 @@ if [[ ! -f "$PLUGIN_SO" ]]; then
   "$SCRIPT_DIR/build_librime_qjs.sh"
 fi
 require_file "$PLUGIN_SO"
+"$PACKAGE_ROOT/scripts/package/verify_qjs_plugin.sh" "$PLUGIN_SO"
 
 "$SCRIPT_DIR/../stage_payload.sh" "$PAYLOAD" linux
 
@@ -36,7 +37,7 @@ rm -rf "$STAGE"
 mkdir -p \
   "$STAGE/usr/lib/rime-plugins" \
   "$STAGE/usr/lib/x86_64-linux-gnu/rime-plugins" \
-  "$STAGE/usr/share/rime-data/js/lm" \
+  "$STAGE/usr/share/rime-data/js" \
   "$STAGE/usr/share/re-gu-trans/snippets" \
   "$STAGE/usr/bin"
 
@@ -44,12 +45,16 @@ mkdir -p \
 cp -f "$PLUGIN_SO" "$STAGE/usr/lib/rime-plugins/librime-qjs.so"
 cp -f "$PLUGIN_SO" "$STAGE/usr/lib/x86_64-linux-gnu/rime-plugins/librime-qjs.so"
 
-# Shared Rime data (schemas + JS loadable via sharedDataDir) — qjs-only
+# Shared Rime data (schemas + JS loadable via sharedDataDir) — binary Tries
+mkdir -p "$STAGE/usr/share/rime-data/js"
 cp -f "$PAYLOAD/rime/gujarati.schema.yaml" "$STAGE/usr/share/rime-data/"
 cp -f "$PAYLOAD/rime/js/"*.js "$STAGE/usr/share/rime-data/js/"
-cp -f "$PAYLOAD/rime/js/gu_lexicon_blob.json" "$STAGE/usr/share/rime-data/js/"
-cp -f "$PAYLOAD/rime/js/lm/"* "$STAGE/usr/share/rime-data/js/lm/"
-cp -f "$PAYLOAD/rime/js/ranking_policy.json" "$STAGE/usr/share/rime-data/js/" 2>/dev/null || true
+cp -f "$PAYLOAD/rime/js/"*.json "$STAGE/usr/share/rime-data/js/" 2>/dev/null || true
+cp -f "$PAYLOAD/rime/js/"*.bin "$STAGE/usr/share/rime-data/js/"
+if [[ -d "$PAYLOAD/rime/js/lm" ]]; then
+  mkdir -p "$STAGE/usr/share/rime-data/js/lm"
+  cp -f "$PAYLOAD/rime/js/lm/"* "$STAGE/usr/share/rime-data/js/lm/" 2>/dev/null || true
+fi
 
 # Vendor copy + enable helper
 cp -a "$PAYLOAD/rime" "$STAGE/usr/share/re-gu-trans/"
@@ -77,3 +82,6 @@ rm -f "$TMP_NFPM"
 
 echo "Linux packages:"
 ls -la "$OUT_DIR"/*.{deb,rpm} 2>/dev/null || ls -la "$OUT_DIR"
+for package in "$OUT_DIR"/*.deb "$OUT_DIR"/*.rpm; do
+  [[ -f "$package" ]] && "$SCRIPT_DIR/../validate_archive.sh" "$package"
+done

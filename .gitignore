@@ -56,6 +56,14 @@ eval/budget_summary.json
 eval/leakage_report.json
 eval/ltr_diag_clusters.json
 eval/ltr_train_summary.json
+eval/held_out_diag.json
+eval/js_parity_summary.json
+eval/js_parity_fixtures.jsonl
+eval/rime_harness_summary.json
+eval/release_quality_report.json
+eval/binary_text_parity_summary.json
+eval/learning_integration_summary.json
+eval/learning_v2_summary.json
 
 # Regenerable hash-split roman lists (keep test_romans.json + meta.json)
 data/splits/train_romans.txt

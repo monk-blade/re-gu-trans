@@ -39,6 +39,10 @@ def main() -> int:
         ("leakage", [sys.executable, "scripts/check_lexicon_leakage.py"]),
         ("held_out", [sys.executable, "eval/held_out_agree.py"]),
         ("gold", [sys.executable, "eval/gold_agree.py"]),
+        ("binary_text_parity", [sys.executable, "eval/binary_text_parity.py"]),
+        ("learning_unit", [sys.executable, "eval/learning_v2_test.py"]),
+        ("learning_integration", ["node", "eval/learning_integration_runner.mjs"]),
+        ("benchmark", [sys.executable, "eval/bench_production.py"]),
         ("budgets", [sys.executable, "eval/check_budgets.py"]),
     ]:
         code, elapsed = run(cmd)
@@ -49,7 +53,7 @@ def main() -> int:
 
     blob_path = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
     if not blob_path.exists():
-        blob_path = ROOT / "rime" / "gu_lexicon_blob.json"
+        blob_path = ROOT / "data" / "gu_lexicon_blob.json"
     blob = json.loads(blob_path.read_text(encoding="utf-8")) if blob_path.exists() else {"lexicon": {}, "weights": {}}
     lex = blob.get("lexicon") or {}
     weights = blob.get("weights") or {}
@@ -77,6 +81,14 @@ def main() -> int:
     gr = ROOT / "eval" / "gold_agree_summary.json"
     if gr.exists():
         gold = json.loads(gr.read_text())
+    parity = {}
+    parity_path = ROOT / "eval" / "js_parity_summary.json"
+    if parity_path.exists():
+        parity = json.loads(parity_path.read_text())
+    learning = {}
+    learning_path = ROOT / "eval" / "learning_integration_summary.json"
+    if learning_path.exists():
+        learning = json.loads(learning_path.read_text())
     leak = {}
     # budgets
     budget = {}
@@ -113,6 +125,8 @@ def main() -> int:
         "held_out": held,
         "leakage": {"pass": codes.get("leakage") == 0},
         "gold": gold,
+        "parity": parity,
+        "learning": learning,
         "assets": {
             "lexicon_total": len(lex),
             "soft": soft,
@@ -141,10 +155,29 @@ def main() -> int:
     print(json.dumps({"wrote": str(OUT), "smoke_pass": report["smoke"]["pass"], "integrity_pct": integrity.get("pct")}, indent=2))
     if codes.get("smoke") != 0:
         return 1
-    if (integrity.get("pct") or 0) < 99.5:
+    if (integrity.get("pct") or 0) < 99.6:
         return 2
     if codes.get("leakage") not in (0, None):
         return 3
+    required = (
+        "held_out",
+        "gold",
+        "binary_text_parity",
+        "learning_unit",
+        "learning_integration",
+        "benchmark",
+        "budgets",
+    )
+    if any(codes.get(name) != 0 for name in required):
+        return 4
+    if (held.get("top1_pct") or 0) < 34.3 or (held.get("recall_at_6_pct") or 0) < 42.35:
+        return 5
+    if (gold.get("pct") or 0) < 100:
+        return 6
+    if parity.get("binary_text_match_rate") != 100.0 or parity.get("non_finite") != 0:
+        return 7
+    if not learning.get("ok"):
+        return 8
     return 0
 
 

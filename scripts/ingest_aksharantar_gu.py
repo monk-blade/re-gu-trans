@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 EXT = DATA / "external"
-BLOB_PATH = ROOT / "rime" / "gu_lexicon_blob.json"
+BLOB_PATH = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
 OUT_PAIRS = EXT / "aksharantar_gu_pairs.tsv"
 OUT_NATIVE = EXT / "aksharantar_gu_native.txt"
 
@@ -306,6 +306,13 @@ def merge_soft_lexicon(
     added = added_bare + added_other
     blob["lexicon"] = lex
     blob["weights"] = weights
+    blob["provenance"] = {
+        "aksharantar": {
+            "soft_floors": {"low": SOFT_WEIGHT, "mid": SOFT_WEIGHT_MID, "high": SOFT_WEIGHT_HIGH},
+            "confidence": 0.7,
+            "note": "Soft floors are not equivalent to Apple≥100 or Dakshina/Google bands",
+        }
+    }
     blob["aksharantar_soft_keys"] = soft_count
     blob["aksharantar_soft_bare_added"] = added_bare
     blob["aksharantar_soft_skipped_postfix"] = skipped_postfix

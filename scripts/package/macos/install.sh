@@ -34,12 +34,16 @@ sudo chmod 755 "$PLUGIN_DIR/librime-qjs.dylib"
 sudo codesign --force --sign - "$PLUGIN_DIR/librime-qjs.dylib" || true
 
 RIME="${HOME}/Library/Rime"
-mkdir -p "$RIME/js/lm" "$RIME/run"
+mkdir -p "$RIME/js" "$RIME/run"
 cp -f "$PAYLOAD/gujarati.schema.yaml" "$RIME/"
+# Generic staged tree: modules, small JSON, binary Tries (blob/LM only if present)
 cp -f "$PAYLOAD/js/"*.js "$RIME/js/" 2>/dev/null || true
-cp -f "$PAYLOAD/js/gu_lexicon_blob.json" "$RIME/js/"
-cp -f "$PAYLOAD/js/lm/"* "$RIME/js/lm/"
-cp -f "$PAYLOAD/js/ranking_policy.json" "$RIME/js/" 2>/dev/null || true
+cp -f "$PAYLOAD/js/"*.json "$RIME/js/" 2>/dev/null || true
+cp -f "$PAYLOAD/js/"*.bin "$RIME/js/" 2>/dev/null || true
+if [[ -d "$PAYLOAD/js/lm" ]]; then
+  mkdir -p "$RIME/js/lm"
+  cp -f "$PAYLOAD/js/lm/"* "$RIME/js/lm/" 2>/dev/null || true
+fi
 # qjs resolves @plugin from user-dir root
 cp -f "$PAYLOAD/js/gujarati_translator.js" "$RIME/"
 cp -f "$PAYLOAD/js/commit_on_punct_processor.js" "$RIME/"

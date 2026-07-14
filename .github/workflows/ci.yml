@@ -17,6 +17,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Install marisa-trie (binary Tries)
         run: pip install marisa-trie
       - name: Leakage gate
@@ -34,14 +37,47 @@ jobs:
           python3 scripts/build_qjs_tries.py --bin --exceptions
           python3 eval/check_budgets.py
       - name: Clean deploy (file-level)
-        env:
-          REQUIRE_RIME_DEPLOYER: '0'
         run: |
           chmod +x scripts/package/clean_deploy_check.sh scripts/package/stage_payload.sh scripts/package/apply_qjs_writefile_atomic.sh
           ./scripts/package/clean_deploy_check.sh
       - name: Version sync
         run: python3 scripts/check_version_sync.py
-      - name: LTR stub train
+      - name: Learning v2 contract
+        run: |
+          python3 eval/learning_v2_test.py
+          node eval/learning_integration_runner.mjs
+          node eval/storage_runtime_test.js
+          node eval/runtime_capabilities_test.js
+      - name: Binary/text payload parity
+        run: python3 eval/binary_text_parity.py
+      - name: Coefficient schema validation
         run: python3 train/ltr/train_coefficients.py
-      - name: Quality report
-        run: python3 eval/quality_report.py
+      - name: Held-out diagnostic
+        run: python3 eval/held_out_diag.py
+      - name: Production benchmark
+        run: python3 eval/bench_production.py
+      - name: Release quality report
+        run: python3 eval/release_quality_report.py
+
+  integration-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build dependencies
+        run: |
+          brew install boost
+          pip3 install marisa-trie
+      - name: Build patched QJS and binary assets
+        run: |
+          chmod +x scripts/package/*.sh scripts/package/macos/*.sh eval/rime_harness.sh
+          python3 scripts/build_qjs_tries.py --bin --exceptions
+          ./scripts/package/macos/build_librime_qjs.sh
+          ./scripts/package/verify_qjs_plugin.sh dist/plugins/librime-qjs.dylib
+      - name: Real librime menu and learning integration
+        env:
+          REQUIRE_RIME_DEPLOYER: '1'
+          RIME_BUILD_ROOT: dist/librime-build-macos/librime
+        run: ./eval/rime_harness.sh

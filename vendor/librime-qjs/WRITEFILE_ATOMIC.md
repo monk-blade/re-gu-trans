@@ -18,6 +18,8 @@ patch -p1 < vendor/librime-qjs/patches/0001-writeFileAtomic.patch
 # Then build plugins (see scripts/package/*/build_*.sh).
 ```
 
-Stop shipping upstream prebuilts that lack `writeFileAtomic` once this lands in release CI.
+Stop shipping upstream prebuilts that lack `writeFileAtomic`. Release builders must compile
+librime-qjs from source with `scripts/package/apply_qjs_writefile_atomic.sh` applied
+(Linux/macOS/Windows `build_librime_qjs.sh`).
 
 JS runtime: if `env.writeFileAtomic` is missing, learning stays **disabled** (one warning). No `saveFile` / global `write` fallback.

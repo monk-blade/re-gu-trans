@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "eval"))
 
-import rank_offline as ro  # noqa: E402
+from production_rank import canonical_native, top_six_many  # noqa: E402
 
 TRAIN = ROOT / "data" / "gu_train.jsonl"
 SUMMARY = ROOT / "eval" / "apple_integrity_summary.json"
@@ -44,23 +44,26 @@ def main() -> int:
     if not rows:
         print("no train rows", file=sys.stderr)
         return 2
-    blob = ro.load_blob()
-    uni = ro.load_unigram()
-    stems = ro.load_stems()
-    attested, floor = ro.load_attested()
-    prefix_index = ro.build_prefix_index(blob.get("lexicon") or {})
-
     n = match = 0
     by_len: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     disagree_fh = DISAGREE.open("w", encoding="utf-8")
-    for row in rows:
+    valid_rows = [
+        row
+        for row in rows
+        if str(row.get("input") or row.get("roman") or "").strip()
+        and (row.get("candidates") or [])
+    ]
+    menus = top_six_many(
+        [str(row.get("input") or row.get("roman") or "").strip().lower() for row in valid_rows]
+    )
+    for row, menu in zip(valid_rows, menus, strict=True):
         roman = str(row.get("input") or row.get("roman") or "").strip().lower()
         cands = row.get("candidates") or []
-        apple = cands[0]["text"] if isinstance(cands[0], dict) else cands[0]
+        apple_raw = cands[0]["text"] if isinstance(cands[0], dict) else cands[0]
+        apple = canonical_native(apple_raw)
         if not roman or not apple:
             continue
-        ranked = ro.rank(roman, blob, uni, stems, attested, floor, prefix_index)
-        ours = ranked[0][0] if ranked else ""
+        ours = menu[0] if menu else ""
         ok = ours == apple
         n += 1
         match += int(ok)
@@ -73,12 +76,12 @@ def main() -> int:
                     {
                         "roman": roman,
                         "ours": ours,
-                        "ours_tier": ranked[0][1] if ranked else None,
+                        "ours_tier": None,
                         "apple": apple,
                         "apple_alts": [
-                            (c["text"] if isinstance(c, dict) else c) for c in cands[:5]
+                            canonical_native(c["text"] if isinstance(c, dict) else c) for c in cands[:5]
                         ],
-                        "ours_top5": [t for t, _tier, _sc in ranked[:5]],
+                        "ours_top5": menu[:5],
                     },
                     ensure_ascii=False,
                 )
@@ -89,6 +92,7 @@ def main() -> int:
     payload = {
         "report": "apple_integrity",
         "note": "Integrity vs Apple train labels — not held-out generalization",
+        "orthography_equivalence": "production canonical Gujarati vowels",
         "n": n,
         "match": match,
         "pct": pct,
@@ -97,6 +101,7 @@ def main() -> int:
             for k, v in sorted(by_len.items())
         },
         "disagree_path": str(DISAGREE.relative_to(ROOT)),
+        "ranker": "production-javascript-trie",
     }
     SUMMARY.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     LEGACY.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

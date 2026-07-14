@@ -19,6 +19,6 @@ def load_policy() -> dict:
     else:
         _CACHE = {
             "version": 1,
-            "weights": {"lexicon_strong": 100, "user_learning_threshold": 2},
+            "weights": {"lexicon_strong": 100, "user_learning_threshold": 3},
         }
     return _CACHE

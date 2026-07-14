@@ -34,15 +34,20 @@ sync_for_user() {
   home="$(dscl . -read "/Users/$u" NFSHomeDirectory 2>/dev/null | awk '{print $2}')"
   [[ -n "$home" && -d "$home" ]] || return 0
   local rime="$home/Library/Rime"
-  mkdir -p "$rime/js/lm" "$rime/run"
+  mkdir -p "$rime/js" "$rime/run"
   if [[ -d "$SHARE" ]]; then
     cp -f "$SHARE/gujarati.schema.yaml" "$rime/" 2>/dev/null || true
     cp -f "$SHARE/js/"*.js "$rime/js/" 2>/dev/null || true
-    cp -f "$SHARE/js/gu_lexicon_blob.json" "$rime/js/" 2>/dev/null || true
-    cp -f "$SHARE/js/lm/"* "$rime/js/lm/" 2>/dev/null || true
+    cp -f "$SHARE/js/"*.json "$rime/js/" 2>/dev/null || true
+    cp -f "$SHARE/js/"*.bin "$rime/js/" 2>/dev/null || true
+    if [[ -d "$SHARE/js/lm" ]]; then
+      mkdir -p "$rime/js/lm"
+      cp -f "$SHARE/js/lm/"* "$rime/js/lm/" 2>/dev/null || true
+    fi
     cp -f "$SHARE/js/gujarati_translator.js" "$rime/" 2>/dev/null || true
     cp -f "$SHARE/js/commit_on_punct_processor.js" "$rime/" 2>/dev/null || true
   fi
+
   local custom="$rime/default.custom.yaml"
   if [[ ! -f "$custom" ]]; then
     cat > "$custom" <<'EOF'

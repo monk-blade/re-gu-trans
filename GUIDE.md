@@ -3,6 +3,7 @@
 End-to-end setup for the Gujarati Rime IME (lexicon ranking + QuickJS plugins).
 
 **Daily typing** (menu order, Space/`.` commit, Latin #2, numerals): **[USAGE.md](./USAGE.md)**.
+Ecosystem / Plum notes: **[docs/ecosystem-integration.md](./docs/ecosystem-integration.md)**.
 
 ## Requirements
 
@@ -47,7 +48,7 @@ User dir: `~/Library/Rime/`
 4. Right-click `install.bat` → **Run as administrator** (or `powershell -ExecutionPolicy Bypass -File install.ps1`).
 5. Deploy from the Weasel tray menu; select **Gujarati Transliteration**.
 
-User dir: `%APPDATA%\Rime\`  
+User dir: `%APPDATA%\Rime\`
 The installer backs up the previous `rime.dll` as `rime.dll.re-gu-trans.bak`.
 
 ### Linux (amd64) — deb / rpm

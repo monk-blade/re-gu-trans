@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "eval"))
-import rank_offline as ro  # noqa: E402
+from production_rank import canonical_native, top_six_many  # noqa: E402
 
 GOLD = ROOT / "eval" / "gold" / "gu_gold.jsonl"
 OUT = ROOT / "eval" / "gold_agree_summary.json"
@@ -19,21 +19,15 @@ def main() -> int:
     for line in GOLD.read_text(encoding="utf-8").splitlines():
         if line.strip():
             rows.append(json.loads(line))
-    blob = ro.load_blob()
-    uni = ro.load_unigram()
-    stems = ro.load_stems()
-    attested, floor = ro.load_attested()
-    pfx = ro.build_prefix_index(blob.get("lexicon") or {})
+    menus = top_six_many([row["roman"] for row in rows])
     ok = 0
     misses = []
-    for row in rows:
-        ranked = ro.rank(row["roman"], blob, uni, stems, attested, floor, pfx)
-        # Skip latin echo at slot 2 when scoring gold natives
-        texts = [t for t, tier, _ in ranked if tier != ro.TIER_LATIN]
+    for row, texts in zip(rows, menus, strict=True):
+        # Production layout guarantees Gujarati #1 and Latin echo #2.
         top = texts[0] if texts else ""
-        accepted = set(row.get("accepted") or [])
+        accepted = {canonical_native(value) for value in (row.get("accepted") or [])}
         if row.get("native"):
-            accepted.add(row["native"])
+            accepted.add(canonical_native(row["native"]))
         hit = top in accepted
         ok += int(hit)
         if not hit:
@@ -45,6 +39,7 @@ def main() -> int:
         "pct": round(100 * ok / n, 2) if n else 0,
         "misses": misses[:40],
         "miss_count": len(misses),
+        "ranker": "production-javascript-trie",
     }
     OUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"gold agree: {ok}/{n} = {payload['pct']}%")

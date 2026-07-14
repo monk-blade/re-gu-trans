@@ -70,7 +70,6 @@ def extract_apple() -> set[str]:
         DATA / "gu_lexicon.tsv",
         DATA / "gu_lexicon_blob.json",
         ROOT / "rime" / "js" / "gu_lexicon_blob.json",
-        ROOT / "rime" / "gu_lexicon_blob.json",
         EXT / "apple_native_words.txt",
     ]
     found_any = False
@@ -173,7 +172,7 @@ def extract_google_ime() -> set[str]:
 
 def soft_fill_google_pairs() -> int:
     """Optional roman\\tnative soft-fill from google_ime_gu.* (never override Apple)."""
-    blob_path = ROOT / "rime" / "gu_lexicon_blob.json"
+    blob_path = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
     if not blob_path.exists():
         return 0
     paths = find_google_ime_paths()

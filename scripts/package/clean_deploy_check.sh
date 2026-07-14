@@ -12,7 +12,9 @@ mkdir -p "$STAGE"
 cleanup() { rm -rf "$STAGE"; }
 trap cleanup EXIT
 
-echo "== stage_payload =="
+export REQUIRE_BINARY_TRIES="${REQUIRE_BINARY_TRIES:-1}"
+
+echo "== stage_payload (REQUIRE_BINARY_TRIES=$REQUIRE_BINARY_TRIES) =="
 ./scripts/package/stage_payload.sh "$PAYLOAD" generic
 
 echo "== install into empty user dir =="
@@ -20,7 +22,8 @@ export RIME_USER_DIR="$RIME_USER"
 mkdir -p "$RIME_USER/js"
 
 cp -f "$PAYLOAD/rime/gujarati.schema.yaml" "$RIME_USER/"
-cp -f "$PAYLOAD/rime/js/"*.js "$RIME_USER/js/"
+# Generic tree copy — bins and modules without exclusive fallback names
+cp -f "$PAYLOAD/rime/js/"*.js "$RIME_USER/js/" 2>/dev/null || true
 cp -f "$PAYLOAD/rime/js/"*.json "$RIME_USER/js/" 2>/dev/null || true
 cp -f "$PAYLOAD/rime/js/"*.bin "$RIME_USER/js/" 2>/dev/null || true
 if [[ -d "$PAYLOAD/rime/js/lm" ]]; then
@@ -44,18 +47,27 @@ for f in \
   gujarati_translator.js \
   commit_on_punct_processor.js \
   js/ranking_policy.json \
+  js/native_lm_meta.json \
   js/ranking.js \
   js/storage.js
 do
   test -f "$RIME_USER/$f" || { echo "MISSING $f"; exit 1; }
 done
 
-if [[ -f "$RIME_USER/js/lexicon.trie.bin" ]]; then
-  echo "OK binary lexicon trie present"
-else
-  test -f "$RIME_USER/js/gu_lexicon_blob.json" || { echo "MISSING lexicon blob and trie.bin"; exit 1; }
-  test -f "$RIME_USER/js/lm/unigram.tsv" || { echo "MISSING unigram"; exit 1; }
-fi
+echo "== binary-only release contract =="
+for bin in lexicon.trie.bin prefix.trie.bin native_lm.trie.bin; do
+  test -f "$PAYLOAD/rime/js/$bin" || { echo "FAIL: missing $bin in payload"; exit 1; }
+  test -f "$RIME_USER/js/$bin" || { echo "FAIL: missing $bin after install"; exit 1; }
+done
+! test -f "$PAYLOAD/rime/js/gu_lexicon_blob.json" || {
+  echo "FAIL: gu_lexicon_blob.json must not ship in release payload"
+  exit 1
+}
+! test -f "$PAYLOAD/rime/js/lm/unigram.tsv" || {
+  echo "FAIL: unigram.tsv must not ship in release payload"
+  exit 1
+}
+echo "OK three binary Tries; no blob/unigram fallback"
 
 echo "== forbid broken / table-dict runtime deps =="
 ! test -f "$PAYLOAD/rime/gujarati_apple.dict.yaml" || { echo "FAIL: apple dict still packaged"; exit 1; }

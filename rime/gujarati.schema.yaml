@@ -22,6 +22,8 @@ engine:
     - key_binder
     - speller
     - punctuator
+    # BEFORE selector: observe numbered keys (kNoop); selector still commits
+    - qjs_processor@selection_tracker_processor
     - selector
     - navigator
     - express_editor
@@ -46,7 +48,10 @@ menu:
 translator:
   # qjs knobs (no Rime table dictionary)
   enable_user_learning: true
-  user_learning_threshold: 2
+  # Third explicit numbered selection → preferred Gujarati on next composition
+  user_learning_threshold: 3
+  # Dev-only: allow JSON/TSV when binary Tries absent (never for release packages)
+  allow_text_fallback: false
   # Prefer attested lexicon; drop unknown phonetic inventions when exact hits exist
   lexicon_hard_gate: true
   # When only fuzzy/near-exact lexicon hits exist (low weight), still allow

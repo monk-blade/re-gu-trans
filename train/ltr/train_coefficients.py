@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-"""Train compact linear ranking coefficients from local Apple capture dumps.
+"""Validate coefficient schema / train pairwise logistic ranking from Apple captures.
 
-Input (gitignored): data/apple_captures/menus.jsonl
-  {"roman": "...", "apple": ["ન1","ન2",...], "ours": optional}
-
-Output: rime/js/ltr_coefficients.json (global features only — no per-word coeffs).
-
-Gates (when captures present): recall@6 ≥90%; relative +10% top-1 & NDCG@6 vs baseline.
-Without captures: writes identity/stub coefficients and exits 0.
+Without captures: validate + write stub coefficients (CI: coefficient schema validation).
+With ≥1000 captures: pairwise logistic updates on CandidateRecord-like features.
+Learned scores apply only inside the evidence pool at runtime (ltr.enabled still false
+until held-out shows ≥10% relative gain).
 """
 from __future__ import annotations
 
@@ -33,10 +30,13 @@ FEATURE_NAMES = [
     "log_weight",
     "attested",
     "roman_len_ratio",
+    "transform_cost",
+    "user_count",
 ]
 
 
 def feats(roman: str, native: str, meta: dict) -> dict[str, float]:
+    """Production CandidateRecord-like features — never include word identity."""
     w = float(meta.get("weight") or 0)
     return {
         "soft": 1.0 if 0 < w < 100 else 0.0,
@@ -47,7 +47,17 @@ def feats(roman: str, native: str, meta: dict) -> dict[str, float]:
         "log_weight": math.log1p(max(0.0, w)),
         "attested": 1.0 if meta.get("attested") else 0.0,
         "roman_len_ratio": len(native) / max(1, len(roman)),
+        "transform_cost": float(meta.get("transform_cost") or 0),
+        "user_count": float(meta.get("user_count") or 0),
     }
+
+
+def sigmoid(x: float) -> float:
+    if x >= 20:
+        return 1.0
+    if x <= -20:
+        return 0.0
+    return 1.0 / (1.0 + math.exp(-x))
 
 
 def ndcg_at_k(ranked: list[str], gold: str, k: int = 6) -> float:
@@ -56,10 +66,18 @@ def ndcg_at_k(ranked: list[str], gold: str, k: int = 6) -> float:
     return 1.0 / math.log2(ranked.index(gold) + 2)
 
 
+def validate_schema(coeffs: dict) -> None:
+    assert "weights" in coeffs and "features" in coeffs
+    for k in coeffs["features"]:
+        assert k in coeffs["weights"], f"missing weight for {k}"
+    banned = ("word", "roman_id", "native_id", "per_word")
+    for k in coeffs["weights"]:
+        assert not any(b in k for b in banned), f"banned identity feature {k}"
+
+
 def main() -> int:
-    # Stub coefficients: prefer strong + attested + unigram, demote stem_derived slightly
     coeffs = {
-        "version": 1,
+        "version": 2,
         "bias": 0.0,
         "weights": {
             "soft": 0.4,
@@ -70,12 +88,17 @@ def main() -> int:
             "log_weight": 0.25,
             "attested": 0.8,
             "roman_len_ratio": 0.05,
+            "transform_cost": -0.15,
+            "user_count": 0.3,
         },
         "features": FEATURE_NAMES,
-        "note": "Stub/global coefficients; retrain when data/apple_captures/menus.jsonl exists",
+        "scope": "evidence_pool_only",
+        "enabled_gate": "held_out relative +10% top-1 or NDCG with integrity intact",
+        "note": "Stub/global coefficients; pairwise logistic when captures exist",
     }
+    validate_schema(coeffs)
 
-    report: dict = {"captures": 0, "trained": False}
+    report: dict = {"captures": 0, "trained": False, "mode": "coefficient_schema_validation"}
 
     if CAP.exists():
         import rank_offline as ro
@@ -86,14 +109,19 @@ def main() -> int:
         attested, floor = ro.load_attested()
         pfx = ro.build_prefix_index(blob.get("lexicon") or {})
 
-        rows = []
-        for line in CAP.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                rows.append(json.loads(line))
+        rows = [json.loads(line) for line in CAP.read_text(encoding="utf-8").splitlines() if line.strip()]
         report["captures"] = len(rows)
+        report["mode"] = "pairwise_logistic"
 
-        # Pairwise: gold (Apple#1) vs other ours candidates — accumulate gradient
-        grads = defaultdict(float)
+        def bucket(roman: str) -> str:
+            h = sum(ord(c) for c in roman) % 10
+            if h < 8:
+                return "train"
+            if h == 8:
+                return "val"
+            return "test"
+
+        grads: dict[str, float] = defaultdict(float)
         n_pairs = 0
         base_top1 = base_ndcg = model_top1 = model_ndcg = recall6 = 0
         n = 0
@@ -109,12 +137,9 @@ def main() -> int:
             if texts and texts[0] == gold:
                 base_top1 += 1
             base_ndcg += ndcg_at_k(texts, gold, 6)
-            if gold in texts[:6] or gold in apple[:6] and any(a in texts[:6] for a in apple[:6]):
-                # Apple recall@6: any apple menu item in our top6
-                if any(a in texts[:6] for a in apple[:6]):
-                    recall6 += 1
+            if any(a in texts[:6] for a in apple[:6]):
+                recall6 += 1
 
-            # Build feature vectors for ours candidates (source unknown → rough)
             cand_feats = []
             weights = blob.get("weights") or {}
             lex = blob.get("lexicon") or {}
@@ -124,14 +149,14 @@ def main() -> int:
                     "uni": uni.get(t, 0),
                     "attested": t in attested,
                     "source": "strict" if lex.get(roman) == t else "phonetic",
+                    "transform_cost": 0.0,
+                    "user_count": 0,
                 }
                 if t != lex.get(roman):
-                    # heuristic stem
                     meta["source"] = "stem_derived" if t.endswith(("માં", "થી", "ની")) else meta["source"]
                 cand_feats.append((t, feats(roman, t, meta)))
 
-            # Score with coeffs (iterative one-pass update)
-            def score(fv):
+            def score(fv: dict[str, float]) -> float:
                 s = coeffs["bias"]
                 for k, w in coeffs["weights"].items():
                     s += fv.get(k, 0) * w
@@ -143,29 +168,27 @@ def main() -> int:
                 model_top1 += 1
             model_ndcg += ndcg_at_k(model_texts, gold, 6)
 
-            gold_fv = None
-            for t, fv in cand_feats:
-                if t == gold:
-                    gold_fv = fv
-                    break
+            if bucket(roman) != "train" and report["captures"] >= 1000:
+                continue
+            gold_fv = next((fv for t, fv in cand_feats if t == gold), None)
             if gold_fv is None:
                 continue
             for t, fv in cand_feats:
                 if t == gold:
                     continue
-                # Push gold above rivals
                 margin = score(gold_fv) - score(fv)
-                if margin < 1.0:
-                    for k in FEATURE_NAMES:
-                        grads[k] += gold_fv.get(k, 0) - fv.get(k, 0)
-                    n_pairs += 1
+                p = sigmoid(margin)
+                for k in FEATURE_NAMES:
+                    grads[k] += (p - 1.0) * (gold_fv.get(k, 0) - fv.get(k, 0))
+                n_pairs += 1
 
         if n_pairs:
-            lr = 0.05 / max(1, n_pairs)
+            lr = 0.08 / max(1, n_pairs)
             for k in FEATURE_NAMES:
-                coeffs["weights"][k] = coeffs["weights"].get(k, 0) + lr * grads[k]
-            coeffs["note"] = f"Trained on {len(rows)} captures; pairs={n_pairs}"
+                coeffs["weights"][k] = coeffs["weights"].get(k, 0) - lr * grads[k]
+            coeffs["note"] = f"Pairwise logistic on {len(rows)} captures; pairs={n_pairs}"
             report["trained"] = True
+            validate_schema(coeffs)
 
         report.update(
             {
@@ -175,6 +198,7 @@ def main() -> int:
                 "model_top1_pct": round(100 * model_top1 / n, 2) if n else 0,
                 "model_ndcg6": round(model_ndcg / n, 4) if n else 0,
                 "apple_recall_at_6_pct": round(100 * recall6 / n, 2) if n else 0,
+                "ltr_enabled": False,
             }
         )
 

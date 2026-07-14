@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "eval"))
 import rank_offline as ro  # noqa: E402
+from production_rank import top_six_many  # noqa: E402
 
 EXT = ROOT / "data" / "external"
 SPLITS = ROOT / "data" / "splits" / "test_romans.json"
@@ -106,10 +107,6 @@ def main() -> int:
         OUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         return 1
 
-    uni = ro.load_unigram()
-    stems = ro.load_stems()
-    attested, floor = ro.load_attested()
-    pfx = ro.build_prefix_index(lex)
     rng = random.Random(SEED)
     items = eligible
     if len(items) > SAMPLE_N:
@@ -118,12 +115,11 @@ def main() -> int:
     ok = top3 = recall6 = 0
     rr = ndcg = 0.0
     in_lex_eval = 0
-    for roman, native in items:
+    menus = top_six_many([roman for roman, _native in items])
+    for (roman, native), texts in zip(items, menus, strict=True):
         if roman in lex:
             in_lex_eval += 1
             continue
-        ranked = ro.rank(roman, blob, uni, stems, attested, floor, pfx)
-        texts = [t for t, _a, _b in ranked]
         if texts and texts[0] == native:
             ok += 1
             top3 += 1
@@ -159,6 +155,7 @@ def main() -> int:
         "mrr": round(rr / n, 4) if n else 0,
         "ndcg_at_6": round(ndcg / n, 4) if n else 0,
         "baseline_invalid_prior_pct": 46.87,
+        "ranker": "production-javascript-trie",
     }
     OUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, indent=2))
@@ -168,6 +165,13 @@ def main() -> int:
     if in_lex_eval:
         print(f"FAIL: {in_lex_eval} evaluated items still in runtime lex", file=sys.stderr)
         return 1
+    # Non-regression floors (sampling noise ≤0.3pp). Raise after recall work.
+    if payload["top1_pct"] < 34.0:
+        print(f"FAIL: held-out top1 {payload['top1_pct']} < 34.0", file=sys.stderr)
+        return 3
+    if payload["recall_at_6_pct"] < 42.0:
+        print(f"FAIL: held-out recall@6 {payload['recall_at_6_pct']} < 42.0", file=sys.stderr)
+        return 4
     return 0
 
 

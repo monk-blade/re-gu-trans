@@ -21,7 +21,7 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BLOB = ROOT / "rime" / "gu_lexicon_blob.json"
+BLOB = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
 STATS = ROOT / "data" / "quality" / "lexicon_filter_stats.json"
 
 STRONG = 100

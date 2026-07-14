@@ -337,7 +337,6 @@ def distill_all() -> None:
     # Hot-path + compat blob mirrors; other TSV/rules stay under data/ + archive
     blob_text = blob_path.read_text(encoding="utf-8")
     (JS_OUT / "gu_lexicon_blob.json").write_text(blob_text, encoding="utf-8")
-    (RIME_OUT / "gu_lexicon_blob.json").write_text(blob_text, encoding="utf-8")
     (ARCHIVE_LEGACY / "gu_phonetic_rules.json").write_bytes((DATA / "gu_phonetic_rules.json").read_bytes())
     (ARCHIVE_LEGACY / "gu_exceptions.tsv").write_bytes(exc_path.read_bytes())
     (ARCHIVE_LEGACY / "gu_lexicon.tsv").write_bytes(lex_path.read_bytes())

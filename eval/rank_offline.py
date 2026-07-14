@@ -16,7 +16,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BLOB = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
-BLOB_LEGACY = ROOT / "rime" / "gu_lexicon_blob.json"
 UNI = ROOT / "rime" / "js" / "lm" / "unigram.tsv"
 STEMS = ROOT / "rime" / "js" / "lm" / "stems.json"
 ATTESTED = ROOT / "rime" / "js" / "lm" / "attested.json"
@@ -160,7 +159,7 @@ SMOKE = [
 
 
 def load_blob() -> dict:
-    path = BLOB if BLOB.exists() else BLOB_LEGACY
+    path = BLOB if BLOB.exists() else BLOB
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -1298,14 +1297,18 @@ def main() -> int:
     prefix_index = build_prefix_index(blob.get("lexicon") or {})
     print(f"lex={len(blob.get('lexicon') or {})} uni={len(uni)} stems={len(stems)} attested={len(attested)}")
 
+    # Metrics are orchestrated in Python, but menus must come from the same
+    # production JavaScript used by Rime.
+    from production_rank import top_six_many
+
     smoke_results = []
     smoke_ok = 0
-    for roman, expect in SMOKE:
-        ranked = rank(roman, blob, uni, stems, attested, floor, prefix_index)
-        top = ranked[0][0] if ranked else None
+    smoke_menus = top_six_many([roman for roman, _expect in SMOKE])
+    for (roman, expect), texts in zip(SMOKE, smoke_menus, strict=True):
+        top = texts[0] if texts else None
         ok = top == expect
         smoke_ok += int(ok)
-        smoke_results.append({"input": roman, "expected": expect, "top1": top, "ok": ok, "top5": [r[0] for r in ranked[:5]]})
+        smoke_results.append({"input": roman, "expected": expect, "top1": top, "ok": ok, "top5": texts[:5]})
         print(f"  smoke {roman}: top1={top} expected={expect} {'OK' if ok else 'FAIL'}")
 
     # Held-out: fuzzy transform of known lexicon keys (drop exact key, expect same word via fuzzy)
@@ -1325,9 +1328,9 @@ def main() -> int:
         samples.append((alt, word))
         if len(samples) >= 40:
             break
-    for alt, word in samples:
-        ranked = rank(alt, blob, uni, stems, attested, floor, prefix_index)
-        top = ranked[0][0] if ranked else None
+    oov_menus = top_six_many([alt for alt, _word in samples])
+    for (alt, word), texts in zip(samples, oov_menus, strict=True):
+        top = texts[0] if texts else None
         oov_n += 1
         oov_ok += int(top == word)
 
@@ -1343,6 +1346,7 @@ def main() -> int:
         "fuzzy_oov_rate": oov_rate,
         "attested_size": len(attested),
         "unigram_size": len(uni),
+        "ranker": "production-javascript-trie",
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

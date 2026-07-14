@@ -3,6 +3,7 @@
 #   ./scripts/install_recipe.sh
 #
 # Prerequisite: librime-qjs plugin on the frontend (see GUIDE.md / Release packages).
+# Release packages ship binary Tries; this recipe lists build/install inputs and bins when present.
 
 recipe:
   Rx: re-gu-trans
@@ -17,9 +18,19 @@ install_files: >-
   rime/gujarati.schema.yaml
   rime/gujarati.custom.yaml.sample
   rime/js/gujarati_translator.js
+  rime/js/engine.js
+  rime/js/ime_core.js
+  rime/js/selection_tracker_processor.js
   rime/js/commit_on_punct_processor.js
-  rime/js/gu_lexicon_blob.json
+  rime/js/ranking.js
+  rime/js/phonetic.js
+  rime/js/storage.js
+  rime/js/learning.js
+  rime/js/ranking_policy.json
+  rime/js/native_lm_meta.json
   rime/js/emoji_keywords.json
-  rime/js/lm/unigram.tsv
-  rime/js/lm/stems.json
-  rime/js/lm/attested.json
+  rime/js/exceptions.json
+  rime/js/ltr_coefficients.json
+  rime/js/lexicon.trie.bin
+  rime/js/prefix.trie.bin
+  rime/js/native_lm.trie.bin

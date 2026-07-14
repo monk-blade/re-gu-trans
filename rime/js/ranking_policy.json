@@ -11,13 +11,20 @@
   },
   "weights": {
     "lexicon_strong": 100,
-    "user_learning_threshold": 2,
+    "user_learning_threshold": 3,
     "user_roman_boost_at_threshold": 80,
     "lm_unigram": 0.6,
     "lm_user": 0.6,
     "onset_only_long_a_penalty": 3.8,
     "typed_aa_prefer_aa": 3.5,
-    "typed_aa_demote_a": 4.0
+    "typed_aa_demote_a": 4.0,
+    "source_confidence": {
+      "apple": 1.0,
+      "dakshina": 0.85,
+      "aksharantar": 0.7,
+      "google_ime": 0.75,
+      "native_freq": 0.6
+    }
   },
   "menu": {
     "max_candidates": 6,
@@ -29,6 +36,7 @@
   },
   "lattice": {
     "beam": 64,
+    "passes": 2,
     "max_unattested_cost": 6,
     "costs": {
       "typed": 0,
@@ -37,6 +45,10 @@
       "dental_retroflex": 2,
       "aspirate": 2.5,
       "digraph": 2,
+      "gemination": 2.2,
+      "anusvara": 2.0,
+      "loan_o": 2.5,
+      "conjunct_glide": 3.0,
       "intervocalic_invent": 8
     }
   },
@@ -48,6 +60,10 @@
     ["sh", "Sh"],
     ["Sh", "sh"],
     ["s", "sh"],
+    ["sh", "s"],
+    ["s", "Sh"],
+    ["ch", "chh"],
+    ["chh", "ch"],
     ["t", "T"],
     ["T", "t"],
     ["d", "D"],
@@ -56,19 +72,33 @@
     ["N", "n"],
     ["l", "L"],
     ["L", "l"],
+    ["f", "ph"],
+    ["ph", "f"],
+    ["v", "w"],
+    ["w", "v"],
+    ["z", "j"],
+    ["j", "z"],
     ["i", "ii"],
     ["ii", "i"],
+    ["i", "ee"],
+    ["ee", "i"],
     ["u", "uu"],
     ["uu", "u"],
     ["u", "oo"],
     ["oo", "u"],
+    ["u", "un"],
+    ["un", "u"],
     ["a", "aa"],
     ["aa", "a"],
-    ["v", "w"],
-    ["w", "v"],
-    ["j", "z"],
-    ["z", "j"]
+    ["o", "au"],
+    ["au", "o"],
+    ["gn", "gy"],
+    ["gy", "gn"],
+    ["gy", "gny"],
+    ["gny", "gy"],
+    ["gy", "jny"],
+    ["jny", "gy"]
   ],
   "near_exact_suffixes": ["n", "m", "un", "um", "e", "ne"],
-  "notes": "Shared by runtime (JS) and eval; do not bake per-word exceptions here. beam≤64 hard cap."
+  "notes": "Shared by runtime (JS) and eval; do not bake per-word exceptions here. beam≤64 hard cap. Soft floors are not equivalent across sources — use provenance confidence."
 }

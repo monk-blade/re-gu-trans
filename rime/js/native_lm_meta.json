@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "payload_format": "unigram\\tstem\\tattested",
+  "max_unigram": 54588,
+  "attested_floor": 60,
+  "native_count": 695910
+}

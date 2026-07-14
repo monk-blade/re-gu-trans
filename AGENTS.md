@@ -28,11 +28,14 @@ End-user typing: **[USAGE.md](./USAGE.md)**. Install: **[GUIDE.md](./GUIDE.md)**
 | Path | Purpose |
 |------|---------|
 | `rime/gujarati.schema.yaml` | Schema 2.9+ (processors/translators/knobs; `latin_position: 2`) |
-| `rime/js/gujarati_translator.js` | Thin qjs translator (Candidate/notifiers) |
-| `rime/js/ranking.js` | Tiers, CandidateRecord, menu layout, LTR coeffs hook |
-| `rime/js/phonetic.js` | Fuzzy + weighted lattice (beam≤64) |
-| `rime/js/storage.js` | Binary Trie loaders (`lexicon/prefix/native_lm.trie.bin`) |
-| `rime/js/learning.js` | `gujarati.user-learning.json` via `writeFileAtomic` only |
+| `rime/js/gujarati_translator.js` | Thin Rime entry re-export |
+| `rime/js/engine.js` | Thin adapter re-export |
+| `rime/js/ime_core.js` | Transitional ranking core (still large; prefer modules) |
+| `rime/js/selection_tracker_processor.js` | Numbered-selection observer (before selector) |
+| `rime/js/ranking.js` | Tiers, CandidateRecord, menu layout, LTR coeffs |
+| `rime/js/phonetic.js` | Weighted multi-pass lattice (beam≤64) |
+| `rime/js/storage.js` | Sole binary Trie + native evidence authority |
+| `rime/js/learning.js` | Learning v2 — prefer after 3 numbered picks |
 | `rime/js/commit_on_punct_processor.js` | Space / `.,;'` commit selected candidate |
 | `rime/js/gu_lexicon_blob.json` | Build input; not required in release when bins ship |
 | `rime/js/lm/` | Unigram/stems/attested build inputs |

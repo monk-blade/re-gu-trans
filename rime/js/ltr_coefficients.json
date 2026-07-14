@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "bias": 0.0,
   "weights": {
     "soft": 0.4,
@@ -9,7 +9,9 @@
     "log_uni": 0.45,
     "log_weight": 0.25,
     "attested": 0.8,
-    "roman_len_ratio": 0.05
+    "roman_len_ratio": 0.05,
+    "transform_cost": -0.15,
+    "user_count": 0.3
   },
   "features": [
     "soft",
@@ -19,7 +21,11 @@
     "log_uni",
     "log_weight",
     "attested",
-    "roman_len_ratio"
+    "roman_len_ratio",
+    "transform_cost",
+    "user_count"
   ],
-  "note": "Stub/global coefficients; retrain when data/apple_captures/menus.jsonl exists"
+  "scope": "evidence_pool_only",
+  "enabled_gate": "held_out relative +10% top-1 or NDCG with integrity intact",
+  "note": "Stub/global coefficients; pairwise logistic when captures exist"
 }

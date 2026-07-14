@@ -30,7 +30,15 @@ Typical order:
 
 So slot **#2** is the intentional Latin keep-as-typed option — not a ranking bug.
 
-## What stays ASCII
+## Preferred candidate (numbered selection)
+
+Press **1–9** to pick a Gujarati candidate from the menu. After you pick the
+**same** Gujarati word for the **same** roman spelling **three times** with
+number keys, that word becomes the preferred Gujarati candidate (**menu #1**)
+the next time you type that roman.
+
+Space / `.` `,` `;` `'` commits do **not** count toward preference. Latin echo
+and emoji never become preferred.
 
 ASCII numbers and decimals stay ASCII: `2026`, `2.9`, `3.14`. Do not expect Gujarati digits when typing Western numerals.
 

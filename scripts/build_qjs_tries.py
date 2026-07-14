@@ -32,6 +32,7 @@ OUT_NAT = JS / "native_lm.tsv"
 OUT_LEX_BIN = JS / "lexicon.trie.bin"
 OUT_PFX_BIN = JS / "prefix.trie.bin"
 OUT_NAT_BIN = JS / "native_lm.trie.bin"
+OUT_NAT_META = JS / "native_lm_meta.json"
 EXCEPTIONS_OUT = JS / "exceptions.json"
 STRONG = 100
 PREFIX_MAX = 8
@@ -77,6 +78,7 @@ def write_text_assets(lex: dict, weights: dict):
             if str(v).isdigit() or isinstance(v, (int, float))
         }
     attested: set[str] = set()
+    attested_floor = 50
     if ATT.exists():
         data = json.loads(ATT.read_text())
         words = data.get("words") if isinstance(data, dict) else data
@@ -84,6 +86,8 @@ def write_text_assets(lex: dict, weights: dict):
             attested = set(map(str, words))
         elif isinstance(words, dict):
             attested = set(words)
+        if isinstance(data, dict) and str(data.get("floor", "")).isdigit():
+            attested_floor = int(data["floor"])
 
     natives = set(lex.values()) | set(uni) | set(stems) | attested
     nat_lines = []
@@ -95,6 +99,16 @@ def write_text_assets(lex: dict, weights: dict):
         nat_lines.append(f"{w}\t{payload}")
         nat_map[w] = payload
     OUT_NAT.write_text("\n".join(nat_lines) + "\n", encoding="utf-8")
+    metadata = {
+        "version": 1,
+        "payload_format": "unigram\\tstem\\tattested",
+        "max_unigram": max(uni.values(), default=1),
+        "attested_floor": attested_floor,
+        "native_count": len(nat_map),
+    }
+    OUT_NAT_META.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     return len(lines), len(pfx_lines), len(nat_lines), pfx_map, nat_map  # type: ignore
 
 
@@ -144,6 +158,7 @@ def main() -> int:
     print(f"wrote {OUT_LEX} ({n_lex} keys)")
     print(f"wrote {OUT_PFX} ({n_pfx} prefix rows)")
     print(f"wrote {OUT_NAT} ({n_nat} natives)")
+    print(f"wrote {OUT_NAT_META}")
 
     if args.exceptions or args.bin:
         EXCEPTIONS_OUT.write_text(

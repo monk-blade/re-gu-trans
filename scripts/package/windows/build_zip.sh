@@ -19,35 +19,42 @@ mkdir -p "$OUT_DIR" "$QJS_CACHE"
 
 "$SCRIPT_DIR/../stage_payload.sh" "$PAYLOAD" windows
 
-ASSET_URL="$(resolve_qjs_asset_url windows-x64)"
-echo "Using librime-qjs asset: $ASSET_URL"
-ARCHIVE="$QJS_CACHE/$(basename "$ASSET_URL")"
-download_file "$ASSET_URL" "$ARCHIVE"
-
-EXTRACT="$QJS_CACHE/extract"
-rm -rf "$EXTRACT"
-mkdir -p "$EXTRACT"
-case "$ARCHIVE" in
-  *.7z)
-    if command -v 7z >/dev/null 2>&1; then
-      7z x -o"$EXTRACT" "$ARCHIVE" >/dev/null
-    elif command -v 7za >/dev/null 2>&1; then
-      7za x -o"$EXTRACT" "$ARCHIVE" >/dev/null
-    else
-      echo "ERROR: need 7z to extract $ARCHIVE" >&2
-      exit 1
-    fi
-    ;;
-  *.zip)
-    unzip -q "$ARCHIVE" -d "$EXTRACT"
-    ;;
-  *)
-    tar xf "$ARCHIVE" -C "$EXTRACT"
-    ;;
-esac
-
-RIME_DLL="$(find "$EXTRACT" -iname 'rime.dll' | head -1)"
+# Prefer patched rime.dll built from source + overlay (required for learning).
+RIME_DLL="${OUT_DLL:-$DIST/plugins/rime.dll}"
+REQUIRE_PATCHED_QJS="${REQUIRE_PATCHED_QJS:-1}"
+if [[ ! -f "$RIME_DLL" ]]; then
+  if [[ "$REQUIRE_PATCHED_QJS" == "1" ]]; then
+    echo "Building patched Windows rime.dll from source..."
+    chmod +x "$SCRIPT_DIR/build_librime_qjs.sh"
+    "$SCRIPT_DIR/build_librime_qjs.sh"
+    RIME_DLL="${OUT_DLL:-$DIST/plugins/rime.dll}"
+  else
+    ASSET_URL="$(resolve_qjs_asset_url windows-x64)"
+    echo "WARN: downloading unpatched librime-qjs: $ASSET_URL" >&2
+    ARCHIVE="$QJS_CACHE/$(basename "$ASSET_URL")"
+    download_file "$ASSET_URL" "$ARCHIVE"
+    EXTRACT="$QJS_CACHE/extract"
+    rm -rf "$EXTRACT"
+    mkdir -p "$EXTRACT"
+    case "$ARCHIVE" in
+      *.7z)
+        if command -v 7z >/dev/null 2>&1; then
+          7z x -o"$EXTRACT" "$ARCHIVE" >/dev/null
+        elif command -v 7za >/dev/null 2>&1; then
+          7za x -o"$EXTRACT" "$ARCHIVE" >/dev/null
+        else
+          echo "ERROR: need 7z to extract $ARCHIVE" >&2
+          exit 1
+        fi
+        ;;
+      *.zip) unzip -q "$ARCHIVE" -d "$EXTRACT" ;;
+      *) tar xf "$ARCHIVE" -C "$EXTRACT" ;;
+    esac
+    RIME_DLL="$(find "$EXTRACT" -iname 'rime.dll' | head -1)"
+  fi
+fi
 require_file "$RIME_DLL"
+"$PACKAGE_ROOT/scripts/package/verify_qjs_plugin.sh" "$RIME_DLL"
 
 rm -rf "$ZIP_DIR"
 mkdir -p "$ZIP_DIR/payload" "$ZIP_DIR/plugin"
@@ -76,3 +83,4 @@ zip_dir_contents "$ZIP_DIR" "$OUT_DIR/re-gu-trans-${VERSION}-windows-x64.zip"
 
 echo "Windows package:"
 ls -la "$OUT_DIR"/re-gu-trans-"${VERSION}"-windows-x64.zip
+"$SCRIPT_DIR/../validate_archive.sh" "$OUT_DIR/re-gu-trans-${VERSION}-windows-x64.zip"
