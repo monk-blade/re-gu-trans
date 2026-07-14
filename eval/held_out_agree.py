@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Clean held-out agreement: only test romans absent from runtime training sources.
 
+Prefers committed `data/splits/held_out_gold.jsonl` (CI-safe). Optional rebuild
+from `data/external/*_gu_pairs.tsv` when that cache is present locally.
+
 Requires soft∩test leakage already purged. Reports overlap, eligible, top-1/3, MRR,
 recall@6, NDCG@6.
 """
@@ -18,6 +21,7 @@ import rank_offline as ro  # noqa: E402
 
 EXT = ROOT / "data" / "external"
 SPLITS = ROOT / "data" / "splits" / "test_romans.json"
+FROZEN_GOLD = ROOT / "data" / "splits" / "held_out_gold.jsonl"
 OUT = ROOT / "eval" / "held_out_agree_summary.json"
 SAMPLE_N = 2000
 SEED = 7
@@ -32,12 +36,19 @@ def ndcg_at_k(ranked: list[str], gold: str, k: int = 6) -> float:
     return 1.0 / math.log2(idx + 2)
 
 
-def main() -> int:
-    if not SPLITS.exists():
-        print("missing splits — run scripts/build_eval_splits.py", file=sys.stderr)
-        return 2
-    test = set(json.loads(SPLITS.read_text(encoding="utf-8")))
+def load_gold(test: set[str]) -> tuple[dict[str, str], str]:
+    """Return (roman→native, source_note). Prefer frozen CI gold."""
     gold: dict[str, str] = {}
+    if FROZEN_GOLD.exists():
+        for line in FROZEN_GOLD.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            r = str(row["roman"]).lower()
+            if r in test:
+                gold[r] = row["native"]
+        return gold, str(FROZEN_GOLD.relative_to(ROOT))
+
     for path in (EXT / "aksharantar_gu_pairs.tsv", EXT / "dakshina_gu_pairs.tsv"):
         if not path.exists():
             continue
@@ -48,6 +59,24 @@ def main() -> int:
             r, n = parts[0].lower(), parts[1]
             if r in test and r not in gold:
                 gold[r] = n
+    if gold:
+        return gold, "data/external/*_gu_pairs.tsv"
+    return {}, "missing"
+
+
+def main() -> int:
+    if not SPLITS.exists():
+        print("missing splits — run scripts/build_eval_splits.py", file=sys.stderr)
+        return 2
+    test = set(json.loads(SPLITS.read_text(encoding="utf-8")))
+    gold, gold_src = load_gold(test)
+    if not gold:
+        print(
+            "FAIL: no held-out gold — commit data/splits/held_out_gold.jsonl "
+            "(scripts/build_held_out_gold.py)",
+            file=sys.stderr,
+        )
+        return 2
 
     blob = ro.load_blob()
     lex = blob.get("lexicon") or {}
@@ -72,6 +101,7 @@ def main() -> int:
             "soft_overlap": soft_overlap,
             "strong_overlap": strong_overlap,
             "eligible": len(eligible),
+            "gold_source": gold_src,
         }
         OUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         return 1
@@ -113,6 +143,7 @@ def main() -> int:
         "report": "held_out_agree",
         "clean": True,
         "note": "Eligible = test∩source gold with roman absent from runtime lexicon",
+        "gold_source": gold_src,
         "test_romans": len(test),
         "soft_overlap": soft_overlap,
         "strong_overlap": strong_overlap,
