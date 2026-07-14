@@ -1,13 +1,19 @@
 {
-  "lexicon_total": 275859,
-  "soft": 179533,
+  "lexicon_total": 404749,
+  "soft": 308423,
   "strong": 96326,
-  "soft_cap": 180000,
-  "filter_dropped": 467,
-  "filter_reasons": {
-    "soft_postfix_dup": 467
+  "soft_cap": 300000,
+  "soft_bands": {
+    "80": 20007,
+    "75": 288321,
+    "85": 95
   },
-  "apple_agree_pct": 99.56,
-  "apple_disagree": 32,
-  "delta_vs_prior_179769": 96090
+  "google_ime_natives": 3531,
+  "glossaries": 0,
+  "unigram_entries": 662916,
+  "attested": 589967,
+  "apple_agree_pct": 99.59,
+  "apple_disagree": 30,
+  "soft_oov_agree_pct": 48.2,
+  "unused_aksharantar_bare_roman_oov": 252861
 }

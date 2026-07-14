@@ -31,10 +31,13 @@ OUT_NATIVE = EXT / "aksharantar_gu_native.txt"
 
 HF_URL = "https://huggingface.co/datasets/ai4bharat/Aksharantar/resolve/main/guj.zip"
 
-# Soft lexicon weight (Apple entries typically ≥100; never override Apple keys)
+# Soft lexicon weights (Apple entries typically ≥100; never override Apple keys).
+# Frost-style bands by Aksharantar pair count (still <100 → DICT, not EXACT).
 SOFT_WEIGHT = 75
-# Cap soft OOV keys (stem-eligible first). Higher than legacy 120k for useful coverage.
-MAX_SOFT_KEYS = 180_000
+SOFT_WEIGHT_MID = 80
+SOFT_WEIGHT_HIGH = 85
+# Cap soft OOV keys (stem-eligible first).
+MAX_SOFT_KEYS = 300_000
 ATTESTED_FLOOR = 50
 
 # Same postpositions as scripts/filter_lexicon_quality.py (longest first).
@@ -80,6 +83,33 @@ def is_bare_stem_native(gu: str) -> bool:
     return strip_postfix(gu) is None
 
 
+def is_soft_weight(w: float | int) -> bool:
+    try:
+        v = float(w)
+    except (TypeError, ValueError):
+        return False
+    return 0 < v < 100
+
+
+def soft_weight_for_count(
+    cnt: int,
+    native_fanin: int = 0,
+    *,
+    multi_source: bool = False,
+    native_freq: int = 0,
+    morph_penalty: bool = False,
+) -> int:
+    """Provenance-aware soft confidence band (still <100 → never EXACT)."""
+    evidence = max(int(cnt or 0), int(native_fanin or 0))
+    if morph_penalty:
+        evidence = max(0, evidence - 5)
+    if multi_source or native_freq >= 500 or evidence >= 40 or cnt >= 8:
+        return SOFT_WEIGHT_HIGH
+    if native_freq >= 50 or evidence >= 8 or cnt >= 2:
+        return SOFT_WEIGHT_MID
+    return SOFT_WEIGHT
+
+
 def download_zip(cache: Path) -> Path:
     cache.parent.mkdir(parents=True, exist_ok=True)
     if cache.exists() and cache.stat().st_size > 1_000_000:
@@ -92,8 +122,8 @@ def download_zip(cache: Path) -> Path:
     return cache
 
 
-def parse_guj_zip(zpath: Path) -> tuple[dict[str, tuple[str, int]], set[str]]:
-    """Return roman→(native, count) and set of native words."""
+def parse_guj_zip(zpath: Path) -> tuple[dict[str, tuple[str, int]], set[str], dict[str, int]]:
+    """Return roman→(native, count), natives, and native→roman fan-in."""
     pair_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     natives: set[str] = set()
 
@@ -140,36 +170,55 @@ def parse_guj_zip(zpath: Path) -> tuple[dict[str, tuple[str, int]], set[str]]:
     for roman, choices in pair_counts.items():
         native, cnt = max(choices.items(), key=lambda x: x[1])
         best[roman] = (native, cnt)
-    return best, natives
+    native_fanin: dict[str, int] = defaultdict(int)
+    for roman, (native, _cnt) in best.items():
+        native_fanin[native] += 1
+    return best, natives, native_fanin
 
 
-def load_pairs_tsv(path: Path) -> tuple[dict[str, tuple[str, int]], set[str]]:
+def load_pairs_tsv(path: Path) -> tuple[dict[str, tuple[str, int]], set[str], dict[str, int]]:
+    """roman → (native, pair_cnt); also native → distinct-roman fan-in."""
     best: dict[str, tuple[str, int]] = {}
     natives: set[str] = set()
+    native_fanin: dict[str, int] = defaultdict(int)
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line:
             continue
-        parts = line.split("\t")
+        parts = [p.strip() for p in line.split("\t")]
         if len(parts) < 2:
             continue
         roman, native = parts[0].lower(), nfc(parts[1])
-        cnt = int(parts[2]) if len(parts) >= 3 and parts[2].isdigit() else 1
+        cnt = 1
+        if len(parts) >= 3:
+            try:
+                cnt = int(float(parts[2]))
+            except ValueError:
+                cnt = 1
         if not is_roman(roman) or not is_gujarati(native):
             continue
         prev = best.get(roman)
         if prev is None or cnt > prev[1]:
             best[roman] = (native, cnt)
         natives.add(native)
-    return best, natives
+        native_fanin[native] += 1
+    return best, natives, native_fanin
 
 
-def merge_soft_lexicon(best: dict[str, tuple[str, int]], max_soft: int) -> tuple[int, dict[str, int]]:
+def merge_soft_lexicon(
+    best: dict[str, tuple[str, int]],
+    max_soft: int,
+    native_fanin: dict[str, int] | None = None,
+    exclude_romans: set[str] | None = None,
+) -> tuple[int, dict[str, int]]:
     """Additive soft-fill: prune bad soft postfix, keep good soft, add bare-stem OOV up to cap.
 
-    Never overrides Apple / non-soft keys (weight != SOFT_WEIGHT).
+    Never overrides Apple / non-soft keys (weight >= 100). Soft bands 75/80/85 by evidence.
+    Test-split romans (exclude_romans) are never soft-filled.
     """
     if not BLOB_PATH.exists():
         raise SystemExit(f"missing {BLOB_PATH}")
+    fanin = native_fanin or {}
+    blocked = {r.lower() for r in (exclude_romans or set())}
     blob = json.loads(BLOB_PATH.read_text(encoding="utf-8"))
     lex: dict = blob.setdefault("lexicon", {})
     weights: dict = blob.setdefault("weights", {})
@@ -177,10 +226,11 @@ def merge_soft_lexicon(best: dict[str, tuple[str, int]], max_soft: int) -> tuple
     Soft_MAX_NATIVE_LEN = 16
     purged_postfix = 0
     purged_long = 0
+    upgraded = 0
 
     # Phase 1 — prune soft keys that violate stem/length policy (keep good soft like vinash).
     native_set = set(lex.values())
-    for roman in [k for k, w in list(weights.items()) if int(w) == SOFT_WEIGHT]:
+    for roman in [k for k, w in list(weights.items()) if is_soft_weight(w)]:
         gu = lex.get(roman) or ""
         if " " in gu or "\u00a0" in gu or len(gu) > Soft_MAX_NATIVE_LEN:
             lex.pop(roman, None)
@@ -193,22 +243,43 @@ def merge_soft_lexicon(best: dict[str, tuple[str, int]], max_soft: int) -> tuple
             weights.pop(roman, None)
             purged_postfix += 1
 
+    # Phase 1b — upgrade soft bands from Aksharantar evidence (same native, higher weight).
+    for roman, (native, cnt) in best.items():
+        if roman not in lex:
+            continue
+        cur = float(weights.get(roman, 0) or 0)
+        if not is_soft_weight(cur):
+            continue
+        if lex.get(roman) != native:
+            continue
+        nw = soft_weight_for_count(cnt, fanin.get(native, 0))
+        if nw > cur:
+            weights[roman] = nw
+            upgraded += 1
+
     # Refresh native set after prune.
     native_set = set(lex.values())
-    soft_count = sum(1 for w in weights.values() if int(w) == SOFT_WEIGHT)
+    soft_count = sum(1 for w in weights.values() if is_soft_weight(w))
     skipped_existing = 0
     skipped_postfix = 0
     added_bare = 0
     added_other = 0
+    band_counts = {SOFT_WEIGHT: 0, SOFT_WEIGHT_MID: 0, SOFT_WEIGHT_HIGH: 0}
 
     # Phase 2 — add missing bare stems first (growth), then orphan postfix if room.
     ranked = sorted(
         best.items(),
-        key=lambda x: (0 if is_bare_stem_native(x[1][0]) else 1, -x[1][1], x[0]),
+        key=lambda x: (
+            0 if is_bare_stem_native(x[1][0]) else 1,
+            -max(x[1][1], fanin.get(x[1][0], 0)),
+            x[0],
+        ),
     )
-    for roman, (native, _cnt) in ranked:
+    for roman, (native, cnt) in ranked:
         if soft_count >= max_soft:
             break
+        if roman in blocked:
+            continue
         if roman in lex:
             skipped_existing += 1
             continue  # never override Apple / existing soft
@@ -221,10 +292,12 @@ def merge_soft_lexicon(best: dict[str, tuple[str, int]], max_soft: int) -> tuple
             continue
         if " " in native or len(native) > Soft_MAX_NATIVE_LEN:
             continue
+        sw = soft_weight_for_count(cnt, fanin.get(native, 0))
         lex[roman] = native
-        weights[roman] = SOFT_WEIGHT
+        weights[roman] = sw
         native_set.add(native)
         soft_count += 1
+        band_counts[sw] = band_counts.get(sw, 0) + 1
         if stem is None:
             added_bare += 1
         else:
@@ -237,6 +310,7 @@ def merge_soft_lexicon(best: dict[str, tuple[str, int]], max_soft: int) -> tuple
     blob["aksharantar_soft_bare_added"] = added_bare
     blob["aksharantar_soft_skipped_postfix"] = skipped_postfix
     blob["aksharantar_soft_purged_postfix"] = purged_postfix
+    blob["aksharantar_soft_upgraded"] = upgraded
     BLOB_PATH.write_text(json.dumps(blob, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     data_blob = DATA / "gu_lexicon_blob.json"
     data_blob.parent.mkdir(parents=True, exist_ok=True)
@@ -249,6 +323,8 @@ def merge_soft_lexicon(best: dict[str, tuple[str, int]], max_soft: int) -> tuple
         "skipped_existing": skipped_existing,
         "purged_postfix": purged_postfix,
         "purged_long": purged_long,
+        "upgraded_bands": upgraded,
+        "band_added": band_counts,
         "soft_total": soft_count,
         "cap": max_soft,
     }
@@ -307,11 +383,11 @@ def main() -> None:
     EXT.mkdir(parents=True, exist_ok=True)
 
     if args.from_cache and OUT_PAIRS.exists():
-        best, natives = load_pairs_tsv(OUT_PAIRS)
+        best, natives, native_fanin = load_pairs_tsv(OUT_PAIRS)
         print(f"loaded cache {OUT_PAIRS}: romans={len(best)} natives={len(natives)}")
     else:
         zpath = download_zip(EXT / "aksharantar_guj.zip")
-        best, natives = parse_guj_zip(zpath)
+        best, natives, native_fanin = parse_guj_zip(zpath)
         print(f"aksharantar unique romans={len(best)} natives={len(natives)}")
         with OUT_PAIRS.open("w", encoding="utf-8") as f:
             for roman, (native, cnt) in sorted(best.items(), key=lambda x: -x[1][1]):
@@ -319,12 +395,22 @@ def main() -> None:
         OUT_NATIVE.write_text("\n".join(sorted(natives)) + "\n", encoding="utf-8")
         print(f"wrote {OUT_PAIRS} and {OUT_NATIVE}")
 
-    added, stats = merge_soft_lexicon(best, args.max_soft)
+    exclude: set[str] = set()
+    split_path = DATA / "splits" / "test_romans.json"
+    if split_path.exists():
+        try:
+            exclude = set(json.loads(split_path.read_text(encoding="utf-8")))
+            print(f"excluding {len(exclude)} test-split romans from soft-fill")
+        except Exception as e:
+            print(f"WARN: could not load {split_path}: {e}")
+
+    added, stats = merge_soft_lexicon(best, args.max_soft, native_fanin, exclude_romans=exclude)
     print(
         f"soft-fill: +{added} (bare={stats['added_bare']} orphan_pf={stats['added_postfix_orphan']}) "
         f"soft_total={stats['soft_total']}/{stats['cap']} "
         f"purged_pf={stats['purged_postfix']} purged_long={stats['purged_long']} "
-        f"skipped_pf={stats['skipped_postfix_stem_known']} weight={SOFT_WEIGHT}"
+        f"upgraded={stats['upgraded_bands']} bands_added={stats['band_added']} "
+        f"skipped_pf={stats['skipped_postfix_stem_known']}"
     )
     if not args.skip_lm:
         merge_into_lm(natives)

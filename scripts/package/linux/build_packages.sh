@@ -44,17 +44,16 @@ mkdir -p \
 cp -f "$PLUGIN_SO" "$STAGE/usr/lib/rime-plugins/librime-qjs.so"
 cp -f "$PLUGIN_SO" "$STAGE/usr/lib/x86_64-linux-gnu/rime-plugins/librime-qjs.so"
 
-# Shared Rime data (schemas + JS loadable via sharedDataDir)
+# Shared Rime data (schemas + JS loadable via sharedDataDir) — qjs-only
 cp -f "$PAYLOAD/rime/gujarati.schema.yaml" "$STAGE/usr/share/rime-data/"
-cp -f "$PAYLOAD/rime/gujarati.dict.yaml" "$STAGE/usr/share/rime-data/"
-cp -f "$PAYLOAD/rime/gujarati_apple.dict.yaml" "$STAGE/usr/share/rime-data/" 2>/dev/null || true
 cp -f "$PAYLOAD/rime/js/"*.js "$STAGE/usr/share/rime-data/js/"
 cp -f "$PAYLOAD/rime/js/gu_lexicon_blob.json" "$STAGE/usr/share/rime-data/js/"
 cp -f "$PAYLOAD/rime/js/lm/"* "$STAGE/usr/share/rime-data/js/lm/"
+cp -f "$PAYLOAD/rime/js/ranking_policy.json" "$STAGE/usr/share/rime-data/js/" 2>/dev/null || true
 
 # Vendor copy + enable helper
 cp -a "$PAYLOAD/rime" "$STAGE/usr/share/re-gu-trans/"
-cp -f "$PAYLOAD/rime/default.custom.yaml" "$STAGE/usr/share/re-gu-trans/snippets/"
+cp -f "$PAYLOAD/rime/default.custom.yaml.snippet" "$STAGE/usr/share/re-gu-trans/snippets/" 2>/dev/null || true
 cp -f "$PACKAGE_ROOT/packaging/linux/re-gu-trans-enable" "$STAGE/usr/bin/"
 chmod 755 "$STAGE/usr/bin/re-gu-trans-enable"
 

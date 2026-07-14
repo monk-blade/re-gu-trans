@@ -37,5 +37,17 @@ data/external/
 # Large regenerable unique-quality TSV (summary JSON is tracked)
 data/quality/unique_gu_words.tsv
 
+# Compact trie dumps (rebuild via scripts/build_qjs_tries.py)
+rime/js/lexicon.trie.txt
+rime/js/prefix.trie.txt
+rime/js/native_lm.tsv
+
+# Eval dumps
+eval/quality_report.json
+eval/apple_integrity_summary.json
+eval/training_source_agree_summary.json
+eval/soft_oov_agree_summary.json
+eval/gold_agree_summary.json
+
 # Local regenerable dumps
 data/ranker_train.jsonl

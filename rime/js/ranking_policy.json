@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "tiers": {
+    "exact": 0,
+    "dict": 1,
+    "phonetic": 2,
+    "latin": 3,
+    "prefix": 4,
+    "emoji": 5,
+    "personalized": -1
+  },
+  "weights": {
+    "lexicon_strong": 100,
+    "user_learning_threshold": 2,
+    "user_roman_boost_at_threshold": 80,
+    "lm_unigram": 0.6,
+    "lm_user": 0.6,
+    "onset_only_long_a_penalty": 3.8,
+    "typed_aa_prefer_aa": 3.5,
+    "typed_aa_demote_a": 4.0
+  },
+  "menu": {
+    "max_candidates": 6,
+    "max_prefix": 3,
+    "max_phonetic": 4,
+    "max_emoji": 2
+  },
+  "confusion_pairs": [
+    [
+      "sh",
+      "Sh"
+    ],
+    [
+      "Sh",
+      "sh"
+    ],
+    [
+      "s",
+      "sh"
+    ],
+    [
+      "t",
+      "T"
+    ],
+    [
+      "T",
+      "t"
+    ],
+    [
+      "d",
+      "D"
+    ],
+    [
+      "D",
+      "d"
+    ],
+    [
+      "n",
+      "N"
+    ],
+    [
+      "N",
+      "n"
+    ],
+    [
+      "l",
+      "L"
+    ],
+    [
+      "L",
+      "l"
+    ],
+    [
+      "i",
+      "ii"
+    ],
+    [
+      "ii",
+      "i"
+    ],
+    [
+      "u",
+      "uu"
+    ],
+    [
+      "uu",
+      "u"
+    ],
+    [
+      "u",
+      "oo"
+    ],
+    [
+      "oo",
+      "u"
+    ],
+    [
+      "a",
+      "aa"
+    ],
+    [
+      "aa",
+      "a"
+    ],
+    [
+      "v",
+      "w"
+    ],
+    [
+      "w",
+      "v"
+    ],
+    [
+      "j",
+      "z"
+    ],
+    [
+      "z",
+      "j"
+    ]
+  ],
+  "near_exact_suffixes": [
+    "n",
+    "m",
+    "un",
+    "um",
+    "e",
+    "ne"
+  ],
+  "notes": "Shared by runtime (JS) and eval; do not bake per-word exceptions here."
+}

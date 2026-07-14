@@ -46,13 +46,17 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 
 Order (lower tier wins; Rime sorts by `Candidate.quality`):
 
-1. **Exact / near-exact lexicon** (fuzzy roman queries + `poshatu`→`poshatun`-style weak suffixes)
-2. **Dict-validated phonetics** (unigram or stem evidence)
-3. **Latin echo**
-4. **Raw phonetics**
+0. **Personalized** (user learning ≥ threshold for that roman only)
+1. **Exact / near-exact lexicon** (fuzzy roman queries + weak suffixes)
+2. **Dict-validated phonetics** (unigram / stem / attested; soft weight &lt;100)
+3. **Raw phonetics**
+4. **Latin echo**
 5. **Prefix completions** (`~suffix`), weight-sorted
+6. **Emoji** (always last)
 
-Always assign `candidate.quality` after sorting — Rime **ignores array order**.
+Always assign `candidate.quality` after sorting — Rime **ignores array order**. Soft-fill never overrides Apple ≥100.
+
+Runtime is **qjs-only** (no Rime table `dictionary:` / apple `.dict.yaml` in packages). Assets live under `rime/js/`.
 
 ## Day-to-day commands
 
@@ -70,11 +74,13 @@ Ranking regression check (no Rime required):
 
 ```bash
 python3 scripts/build_gu_word_freq.py   # aspell-gu + hunspell + Google/Indic
-python3 scripts/ingest_aksharantar_gu.py --from-cache  # soft-fill bare-stem OOV (cap 180k; never override Apple)
+python3 scripts/ingest_aksharantar_gu.py --from-cache --max-soft 300000  # bare-stem OOV bands 75/80/85
+python3 scripts/ingest_dakshina_gu_pairs.py --from-cache   # Dakshina roman↔GU soft stems
+python3 scripts/extract_proprietary_gu_natives.py          # Google IME natives when available
 python3 scripts/filter_lexicon_quality.py # drop residual soft postfix/long noise
-
-python3 eval/rank_offline.py            # smoke: jamin/favshe/poshatu/ketli/mulya/aachar
-python3 eval/apple_agree.py             # optional: Apple top-1 regression
+python3 eval/rank_offline.py
+python3 eval/apple_agree.py
+python3 eval/soft_oov_agree.py
 ./scripts/install_recipe.sh             # or ./scripts/sync_rime.sh
 ```
 

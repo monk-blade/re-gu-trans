@@ -15,7 +15,8 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BLOB = ROOT / "rime" / "gu_lexicon_blob.json"
+BLOB = ROOT / "rime" / "js" / "gu_lexicon_blob.json"
+BLOB_LEGACY = ROOT / "rime" / "gu_lexicon_blob.json"
 UNI = ROOT / "rime" / "js" / "lm" / "unigram.tsv"
 STEMS = ROOT / "rime" / "js" / "lm" / "stems.json"
 ATTESTED = ROOT / "rime" / "js" / "lm" / "attested.json"
@@ -159,7 +160,8 @@ SMOKE = [
 
 
 def load_blob() -> dict:
-    return json.loads(BLOB.read_text(encoding="utf-8"))
+    path = BLOB if BLOB.exists() else BLOB_LEGACY
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def load_unigram() -> dict[str, int]:
@@ -1183,6 +1185,28 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
                     scored_tier = TIER_DICT
         elif "ં" in c["text"] and re.search(r"n[kgcjtdTDpb]", lower):
             score += 0.35
+        # Typed aa… → prefer આ over અ (aadas→આડસ); short-a cannot stay EXACT
+        if lower.startswith("aa"):
+            if c["text"].startswith("આ"):
+                score += 3.5
+            elif c["text"].startswith("અ"):
+                score -= 4.0
+                if scored_tier == TIER_EXACT:
+                    scored_tier = TIER_DICT
+        elif re.match(
+            r"^(?:[kgcjtdTDpbnmylrsvwxyz]|ch|kh|gh|jh|th|dh|ph|bh|sh|Sh|tr|dr)a(?!a)",
+            lower,
+            re.I,
+        ):
+            # Short-a onset + later a: demote onset-only long-a (પારખવ્યું not બાંદા).
+            t = c["text"]
+            lead_long = t.startswith("આ") or (
+                len(t) >= 2 and "\u0A95" <= t[0] <= "\u0AB9" and t[1] == "ા"
+            )
+            if lead_long:
+                rest = t[1:] if t.startswith("આ") else t[2:]
+                if "ા" not in rest and re.search(r"a(?!a)", lower[2:]):
+                    score -= 3.8
         # Prefer long-a; ignore spurious trailing આ when roman doesn't end in a
         a_vowels = len(re.findall(r"a+", lower))
         aa_count = c["text"].count("ા")

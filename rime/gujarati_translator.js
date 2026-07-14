@@ -218,545 +218,7 @@ const APPLE_PREFERRED = {
   'z': 'ઝ',
 }
 
-const WORD_DICT = {
-  // Numbers
-  'ek':       'એક',
-  'be':       'બે',
-  'tran':     'ત્રણ',
-  'chaar':    'ચાર',
-  'paanch':   'પાંચ',
-  'chh':      'છ',
-  'saat':     'સાત',
-  'aath':     'આઠ',
-  'nav':      'નવ',
-  'das':      'દસ',
-  'agyaar':   'અગિયાર',
-  'baar':     'બાર',
-  'ter':      'તેર',
-  'chaud':    'ચૌદ',
-  'pandar':   'પંદર',
-  'sor':      'સોળ',
-  'satar':    'સતર',
-  'aadhar':   'અઢાર',
-  'ogNis':    'ઓગણીસ',
-  'vis':      'વીસ',
-  'so':       'સો',
-  'hajar':    'હજાર',
-  'laakh':    'લાખ',
-  'karod':    'કરોડ',
-
-  // Common words
-  'gujaraat':   'ગુજરાત',
-  'gujaraatii': 'ગુજરાતી',
-  'bhaarat':    'ભારત',
-  'hindustaan': 'હિંદુસ્તાન',
-  'ahmedaabaad':'અમદાવાદ',
-  'surat':      'સુરત',
-  'vadodaraa':  'વડોદરા',
-  'raajkot':    'રાજકોટ',
-  'bhaavnagar': 'ભાવનગર',
-  'jamnagar':   'જામનગર',
-  'gandhinagar':'ગાંધીનગર',
-
-  // Pronouns
-  'huM':        'હું',
-  'tuM':        'તું',
-  'te':         'તે',
-  'tame':       'તમે',
-  'tameM':      'તમં',
-  'ame':        'અમે',
-  'aap':        'આપ',
-  'aapNe':      'આપને',
-  'enee':       'એને',
-  'tenee':      'તેને',
-  'mujh':       'મુઝ',
-  'mujhe':      'મુઝે',
-  'tujh':       'તુઝ',
-  'tujhe':      'તુઝે',
-
-  // Common nouns/verbs
-  'naam':       'નામ',
-  'kaam':       'કામ',
-  'gaaM':       'ગામ',
-  'ghar':       'ઘર',
-  'duniyaa':    'દુનિયા',
-  'desh':       'દેશ',
-  'rajy':       'રાજ્ય',
-  'nagar':      'નગર',
-  'shaher':     'શહેર',
-  'maarga':     'માર્ગ',
-  'rasta':      'રસ્તા',
-  'vidyaa':     'વિદ્યા',
-  'shikshaN':   'શિક્ષણ',
-  'shaalaa':    'શાળા',
-  'vishvavidyaalay':'વિશ્વવિદ્યાલય',
-  'pustak':     'પુસ્તક',
-  'kavitaa':    'કવિતા',
-  'sahity':     'સાહિત્ય',
-  'samachaar':  'સમાચાર',
-  'akhabaar':   'અખબાર',
-  'chaatr':     'છાત્ર',
-  'shikshak':   'શિક્ષક',
-  'vyaapaar':   'વ્યાપાર',
-  'kaarobaar':  'કારોબાર',
-  'dukaan':     'દુકાન',
-  'paise':      'પૈસે',
-  'rupiyaa':    'રૂપિયા',
-  'daam':       'દામ',
-  'kimat':      'કિંમત',
-  'bhaav':      'ભાવ',
-
-  // Time
-  'divas':      'દિવસ',
-  'raatr':      'રાત્ર',
-  'raatri':     'રાત્રિ',
-  'saveraa':    'સવાર',
-  'saMja':      'સાંજ',
-  'saayMkaal':  'સાંજકાળ',
-  'prabhaat':   'પ્રભાત',
-  'dopahr':     'દોપહેર',
-  'samay':      'સમય',
-  'ghaDi':      'ઘડી',
-  'miNaT':      'મિનિટ',
-  'kshaN':      'ક્ષણ',
-  'kaal':       'કાળ',
-  'varsh':      'વર્ષ',
-  'mahinaa':    'મહિનો',
-  'maas':       'માસ',
-  'saptaah':    'સપ્તાહ',
-  'hafto':      'હફ્તો',
-  'aaj':        'આજ',
-  'kaal_e':     'કાલે',
-  'parso':      'પરસો',
-  'kal':        'કાલ',
-
-  // Nature
-  'paani':      'પાણી',
-  'aag':        'આગ',
-  'havaa':      'હવા',
-  'aakaash':    'આકાશ',
-  'dhartii':    'ધરતી',
-  'pRuthvii':   'પૃથ્વી',
-  'sury':       'સૂર્ય',
-  'suuraj':     'સૂરજ',
-  'chandra':    'ચંદ્ર',
-  'taaraa':     'તારા',
-  'nadii':      'નદી',
-  'samudr':     'સમુદ્ર',
-  'pahaad':     'પહાડ',
-  'parvat':     'પર્વત',
-  'van':        'વન',
-  'jungle':     'જંગલ',
-  'pashu':      'પશુ',
-  'pakshii':    'પક્ષી',
-  'phal':       'ફળ',
-  'phuul':      'ફૂલ',
-  'rukh':       'રુક્ખ',
-  'ped':        'પેડ',
-  'vRuksh':     'વૃક્ષ',
-  'biij':       'બીજ',
-  'miTTii':     'મિટ્ટી',
-  'bijalii':    'બિજલી',
-
-  // People/Family
-  'maataa':     'માતા',
-  'maa':        'મા',
-  'pitaajii':   'પિતાજી',
-  'pitaa':      'પિતા',
-  'baa':        'બા',
-  'baapujii':   'બાપુજી',
-  'dikraa':     'દીકરો',
-  'dikarii':    'દીકરી',
-  'betaa':      'બેટા',
-  'betii':      'બેટી',
-  'bhau':       'ભાઈ',
-  'ben':        'બહેન',
-  'dadaajii':   'દાદાજી',
-  'daadii':     'દાદી',
-  'naanaajii':  'નાનાજી',
-  'naanii':     'નાની',
-  'maasii':     'માસી',
-  'maamaajii':  'મામાજી',
-  'kkaakaa':    'કાકા',
-  'kkaakii':    'કાકી',
-  'mama':       'મામા',
-  'mousii':     'મૌસી',
-  'bhaai':      'ભાઈ',
-  'bahiiN':     'બહીન',
-  'patii':      'પતિ',
-  'patnii':     'પત્ની',
-  'purush':     'પુરુષ',
-  'strii':      'સ્ત્રી',
-  'maanav':     'માનવ',
-  'vyakti':     'વ્યક્તિ',
-  'jan':        'જન',
-  'lok':        'લોક',
-  'janaataa':   'જનતા',
-  'mitr':       'મિત્ર',
-  'dost':       'દોસ્ત',
-  'shatru':     'શત્રુ',
-
-  // Abstract
-  'prem':       'પ્રેમ',
-  'maitr':      'મૈત્ર',
-  'saty':       'સત્ય',
-  'jhuuTh':     'ઝૂઠ',
-  'dharm':      'ધર્મ',
-  'karma':      'કર્મ',
-  'yog':        'યોગ',
-  'gyaan':      'જ્ઞાન',
-  'buddhi':     'બુદ્ધિ',
-  'vivek':      'વિવેક',
-  'shakti':     'શક્તિ',
-  'bal':        'બળ',
-  'aashaa':     'આશા',
-  'niraashaa':  'નિરાશા',
-  'khushii':    'ખુશી',
-  'dukh':       'દુઃખ',
-  'shaaNti':    'શાંતિ',
-  'anand':      'આનંદ',
-  'hriday':     'હૃદય',
-  'aatm':       'આત્મ',
-  'aashirvaad': 'આશીર્વાદ',
-  'prarthanaa': 'પ્રાર્થના',
-  'puujaa':     'પૂજા',
-  'sevaa':      'સેવા',
-  'tyaag':      'ત્યાગ',
-  'daan':       'દાન',
-  'paap':       'પાપ',
-  'punya':      'પુણ્ય',
-  'svaatantry': 'સ્વાતંત્ર્ય',
-  'aazaadii':   'આઝાદી',
-  'sammaan':    'સન્માન',
-  'apamaan':    'અપમાન',
-  'laaj':       'લાજ',
-  'sharm':      'શરમ',
-  'himmat':     'હિંમત',
-  'sahas':      'સાહસ',
-  'shourya':    'શૌર્ય',
-  'krodh':      'ક્રોધ',
-  'lobh':       'લોભ',
-  'moha':       'મોહ',
-  'ahankaar':   'અહંકાર',
-  'maan':       'માન',
-  'sneh':       'સ્નેહ',
-  'kaaruNya':   'કારુણ્ય',
-  'dayaa':      'દયા',
-  'kripaa':     'કૃપા',
-  'krupa':      'કૃપા',
-  'anugrah':    'અનુગ્રહ',
-
-  // Colors
-  'laal':       'લાલ',
-  'haraa':      'હરો',
-  'hariyaal':   'હરિયાળ',
-  'piilaa':     'પીળો',
-  'niilaa':     'નીલો',
-  'ujLuu':      'ઉજ્જળ',
-  'kaaLuu':     'કાળો',
-  'safed':      'સફેદ',
-  'sufed':      'સફેદ',
-  'bhauraa':    'ભૂરો',
-  'naarangii':  'નારંગી',
-  'gulaabii':   'ગુલાબી',
-  'bainganii':  'બૈંગણી',
-
-  // Food
-  'rotlII':     'રોટલી',
-  'shaak':      'શાક',
-  'daal':       'દાળ',
-  'bhaat':      'ભાત',
-  'khiichDii':  'ખિચડી',
-  'dokLaa':     'ઢોકળા',
-  'khamaaN':    'ખમણ',
-  'fafDaa':     'ફાફડા',
-  'jalebi':     'જલેબી',
-  'shrikhaND':  'શ્રીખંડ',
-  'basuNDii':   'બસુંદી',
-  'gharii':     'ઘરી',
-  'undhiyuu':   'ઉંધિયું',
-  'thepLaa':    'થેપલા',
-  'gathiyaa':   'ગાંઠિયા',
-  'paatraa':    'પાત્રા',
-  'laapsii':    'લાપસી',
-  'suurati-jaamnagar': 'સુરતી-જામનગર',
-  'maLaa-ii':   'મળાઈ',
-  'chaash':     'છાશ',
-  'dudh':       'દૂધ',
-  'ghee':       'ઘી',
-  'tel':        'તેલ',
-  'miThaaii':   'મિઠાઈ',
-  'miThuu':     'મીઠું',
-  'tiikh':      'તીખ',
-  'kaDvvuu':    'કડવું',
-  'khattuu':    'ખાટ્ટું',
-  'nammuuk':    'નમ્મક',
-
-  // Verbs
-  'karo':       'કરો',
-  'karvu':      'કરવું',
-  'bolo':       'બોલો',
-  'bolvu':      'બોલવું',
-  'jaao':       'જાઓ',
-  'jaavu':      'જાવું',
-  'aavo':       'આવો',
-  'aavvu':      'આવવું',
-  'khaavo':     'ખાવો',
-  'khaavu':     'ખાવું',
-  'piivo':      'પીવો',
-  'piivu':      'પીવું',
-  'paDho':      'પઢો',
-  'paDhvuu':    'પઢવું',
-  'laakho':     'લખો',
-  'laakhvuu':   'લખવું',
-  'sunoo':      'સાંભળો',
-  'sunvuu':     'સાંભળવું',
-  'dekho':      'જુઓ',
-  'jovuu':      'જોવું',
-  'utho':       'ઉઠો',
-  'uThvuu':     'ઉઠવું',
-  'baiso':      'બેસો',
-  'baisvuu':    'બેસવું',
-  'hasso':      'હસો',
-  'hasvuu':     'હસવું',
-  'rovo':       'રડો',
-  'rovu':       'રડવું',
-  'doudo':      'દોડો',
-  'doudvuu':    'દોડવું',
-  'raho':       'રહો',
-  'rahvuu':     'રહેવું',
-  'mariye':     'મરીએ',
-  'marvu':      'મરવું',
-  'dekhaay':    'દેખાય',
-  'thaay':      'થાય',
-  'hoy':        'હોય',
-  'nathi':      'નથી',
-  'chhe':       'છે',
-  'hato':       'હતો',
-  'hati':       'હતી',
-  'hashe':      'હશે',
-  'karish':     'કરીશ',
-  'jaaiish':    'જઈશ',
-  'aaviish':    'આવીશ',
-  'kariishuM':  'કરીશું',
-  'jaaiishuM':  'જઈશું',
-  'aaviishuM':  'આવીશું',
-  'karishuM':   'કરીશું',
-
-  // Alternate spellings / fuzzy matches
-  'ave':        'આવે',
-  'aavvu':      'આવવું',
-  'aavjo':      'આવજો',
-  'aave':       'આવે',
-
-  // Adjectives/Adverbs
-  'saaru':      'સારું',
-  'saarii':     'સારી',
-  'saaro':      'સારો',
-  'naaLu':      'નાળું',
-  'naaLii':     'નાળી',
-  'naaLo':      'નાળો',
-  'maDvu':      'મધ્ય',
-  'nava':       'નવા',
-  'navi':       'નવી',
-  'navaa':      'નવું',
-  'juna':       'જૂના',
-  'junii':      'જૂની',
-  'junu':       'જૂનું',
-  'motu':       'મોટું',
-  'motii':      'મોટી',
-  'moto':       'મોટો',
-  'naanu':      'નાનું',
-  'naanii':     'નાની',
-  'naano':      'નાનો',
-  'uuchu':      'ઊંચું',
-  'uuchii':     'ઊંચી',
-  'uucho':      'ઊંચો',
-  'laambu':     'લાંબું',
-  'laambii':    'લાંબી',
-  'laambo':     'લાંબો',
-  'thaaNDu':    'ઠંડું',
-  'thaaNDii':   'ઠંડી',
-  'thaaNDo':    'ઠંડો',
-  'gaRmu':      'ગરમ',
-  'gaRmii':     'ગરમી',
-  'tej':        'તેજ',
-  'dhaaLuu':    'ઢાળું',
-  'dhaaLii':    'ઢાળી',
-  'dhaaLo':     'ઢાળો',
-  'sidaLuu':    'સીધું',
-  'sidaLii':    'સીધી',
-  'sidaLo':     'સીધો',
-  'gola':       'ગોળ',
-  'chaursu':    'ચોરસ',
-  'trikuN':     'ત્રિકોણ',
-  'aage':       'આગળ',
-  'paaChu':     'પાછળ',
-  'uupar':      'ઉપર',
-  'niiche':     'નીચે',
-  'daaM':       'ડાબું',
-  'jaMvu':      'જમણું',
-  'biich':      'બીચ',
-  'bahaar':     'બહાર',
-  'andar':      'અંદર',
-  'paas':       'પાસ',
-  'duur':       'દૂર',
-  'paheLaa':    'પહેલાં',
-  'pachhii':    'પછી',
-  'aaje':       'આજે',
-  'kaaLe':      'કાલે',
-  'hameShaa':   'હમેશા',
-  'ekla':       'એકલા',
-  'saaThe':     'સાથે',
-  'sarv':       'સર્વ',
-  'sab':        'સબ',
-  'badhaa':     'બધા',
-  'koi':        'કોઈ',
-  'kaaii':      'કઈ',
-  'shu':        'શું',
-  'kaheM':      'કેમ',
-  'kyaare':     'ક્યારે',
-  'kyaM':       'ક્યાં',
-  'kone':       'કોને',
-  'shuuM':      'શું',
-  'kahe':       'કહે',
-  'bolaav':     'બોલાવ',
-  'jaai':       'જાઈ',
-  'thaai':      'થાઈ',
-  'dekhii':     'દેખી',
-  'saaMbhLii':  'સાંભળી',
-
-  // Phrases
-  'namaste':    'નમસ્તે',
-  'jay-hind':   'જય હિંદ',
-  'jay-gujaraat':'જય ગુજરાત',
-  'kem-chho':   'કેમ છો',
-  'huM-maajaa-maa':'હું મજામાં',
-  'dhanyavaad': 'ધન્યવાદ',
-  'aabhaar':    'આભાર',
-  'maaf-karjo': 'માફ કરજો',
-  'aavjo':      'આવજો',
-  'jaajo':      'જાજો',
-  'subh-prabhaat':'શુભ પ્રભાત',
-  'subh-raatr': 'શુભ રાત્રિ',
-  'shubhakaamnaa':'શુભકામના',
-  'hardik-aabhinaMdan':'હાર્દિક અભિનંદન',
-  'janmadin-mubarak':'જન્મદિન મુબારક',
-
-  // Modern terms
-  'saMgaNak':   'સંગણક',
-  'kaMpuTar':   'કમ્પ્યુટર',
-  'moobaail':   'મોબાઈલ',
-  'foon':       'ફોન',
-  'iMTarneT':   'ઈન્ટરનેટ',
-  'sophtaveyar':'સોફ્ટવેર',
-  'haDaver':    'હાર્ડવેર',
-  'sauchaaLaya':'સૌચાલય',
-  'vimaan':     'વિમાન',
-  'relgDDii':   'રેલગાડી',
-  'bas':        'બસ',
-  'gDDii':      'ગાડી',
-  'moTar':      'મોટર',
-  'saiakal':    'સાઈકલ',
-
-  // Body parts
-  'aankh':      'આંખ',
-  'aamkh':      'આંખ',
-  'kaan':       'કાન',
-  'naak':       'નાક',
-  'moM':        'મોં',
-  'haath':      'હાથ',
-  'pag':        'પગ',
-  'daaMt':      'દાંત',
-  'magaj':      'મગજ',
-  'peT':        'પેટ',
-  'piiTh':      'પીઠ',
-  'aangLii':    'આંગળી',
-  'aamgLii':    'આંગળી',
-  'nakha':      'નખ',
-
-  // Alternate spellings (phonetic vs dictionary)
-  'chatr':      'છત્ર',
-  'chhatr':     'છત્ર',
-  'chhaatr':    'છાત્ર',
-  'naL':        'નળ',
-  'naaL':       'નાળ',
-  'nal':        'નળ',
-
-  // Days
-  'somvaar':    'સોમવાર',
-  'maNgaLvaar': 'મંગળવાર',
-  'budhvaar':   'બુધવાર',
-  'guruvaar':   'ગુરુવાર',
-  'shukrvaar':  'શુક્રવાર',
-  'shanivaar':  'શનિવાર',
-  'ravivaar':   'રવિવાર',
-
-  // Gregorian months
-  'jaanyuaarii':'જાન્યુઆરી',
-  'phebruaarii':'ફેબ્રુઆરી',
-  'maarch':     'માર્ચ',
-  'epril':      'એપ્રિલ',
-  'me':         'મે',
-  'juun':       'જૂન',
-  'julaaii':    'જુલાઈ',
-  'ogasT':      'ઓગસ્ટ',
-  'sapTembar':  'સપ્ટેમ્બર',
-  'okTobar':    'ઓક્ટોબર',
-  'novembar':   'નવેમ્બર',
-  'Disembar':   'ડિસેમ્બર',
-
-  // Gujarati months
-  'chaitr':     'ચૈત્ર',
-  'vaishaakh':  'વૈશાખ',
-  'jheTh':      'જેઠ',
-  'aashaaDh':   'આષાઢ',
-  'shraavaN':   'શ્રાવણ',
-  'bhaadarvo':  'ભાદરવો',
-  'aaso':       'આસો',
-  'kaartak':    'કારતક',
-  'maagasr':    'માગસર',
-  'posh':       'પોષ',
-  'mahaa':      'મહા',
-  'phaagaN':    'ફાગણ',
-
-  // Additional verbs
-  'laavo':      'લાવો',
-  'laavvu':     'લાવવું',
-  'mokLo':      'મોકળો',
-  'mokLvu':     'મોકળવું',
-  'khoLo':      'ખોળો',
-  'khoLvu':     'ખોલવું',
-  'chaalo':     'ચાલો',
-  'chaalvu':    'ચાલવું',
-  'roko':       'રોકો',
-  'rokvu':      'રોકવું',
-  'vadhaaro':   'વધારો',
-  'ghaTaado':   'ઘટાડો',
-
-  // Common nouns/adjectives — ranking comes from Apple lexicon weights,
-  // not hand-baked entries (96k+ romans in gu_lexicon_blob.json).
-  'samasya':    'સમસ્યા',
-  'ukel':       'ઉકેલ',
-  'rasto':      'રસ્તો',
-  'ghaDiyaaL':  'ઘડિયાળ',
-  'vichaar':    'વિચાર',
-  'beThak':     'બેઠક',
-  'sabhaa':     'સભા',
-  'samiti':     'સમિતિ',
-  'manTan':     'મંતન',
-  'yojanaa':    'યોજના',
-  'kaamgiri':   'કામગિરી',
-  'shikshit':   'શિક્ષિત',
-  'anapaDh':    'અનપઢ',
-  'laayak':     'લાયક',
-  'beimaan':    'બેઈમાન',
-  'iimaanDaar': 'ઈમાનદાર',
-  'dhani':      'ધની',
-  'garib':      'ગરીબ',
-  'svaasthya':  'સ્વાસ્થ્ય',
-  'rogo':       'રોગ',
-}
+// WORD_DICT removed — generated lexicon covers these entries.
 
 // ---------------------------------------------------------------------------
 // Trie for fast prefix matching
@@ -823,19 +285,14 @@ class Trie {
 }
 
 const DICT_TRIE = new Trie()
-for (const [key, value] of Object.entries(WORD_DICT)) {
-  DICT_TRIE.insert(key, value)
-}
 
 // ---------------------------------------------------------------------------
 // Distilled Apple lexicon / exceptions (loaded from JSON blob)
 // ---------------------------------------------------------------------------
 
 const LEXICON_BLOB_PATHS = [
-  'gu_lexicon_blob.json',
   'js/gu_lexicon_blob.json',
   '~/Library/Rime/js/gu_lexicon_blob.json',
-  '~/Library/Rime/gu_lexicon_blob.json',
 ]
 
 let APPLE_EXCEPTIONS = new Map()
@@ -845,6 +302,7 @@ let KNOWN_WORDS = new Set()
 let LEXICON_LOADED = false
 
 // Candidate tiers — primary sort key (lower = better).
+const TIER_PERSONALIZED = -1 // user learning (≥threshold) — above default exact
 const TIER_EXACT = 0
 const TIER_DICT = 1   // phonetic form attested via native wordlist / stem (macOS-like)
 const TIER_PHONETIC = 2
@@ -857,9 +315,6 @@ function rememberKnownWord(word) {
   if (word) KNOWN_WORDS.add(word)
 }
 
-for (const value of Object.values(WORD_DICT)) {
-  rememberKnownWord(value)
-}
 
 function lexiconWeight(roman) {
   if (!roman) return 0
@@ -893,7 +348,6 @@ function loadLexiconBlob(env) {
   const paths = []
   if (env && env.userDataDir) {
     paths.push(env.userDataDir + '/js/gu_lexicon_blob.json')
-    paths.push(env.userDataDir + '/gu_lexicon_blob.json')
   }
   for (const p of LEXICON_BLOB_PATHS) {
     paths.push(resolveUserPath(p))
@@ -909,7 +363,7 @@ function loadLexiconBlob(env) {
     }
   }
   if (!text) {
-    console.log('$qjs$ lexicon blob missing; using WORD_DICT only')
+    console.log('$qjs$ lexicon blob missing; phonetic/Latin fallback only')
     return
   }
   try {
@@ -1412,19 +866,19 @@ function userBoost(count) {
 }
 
 /** Extra boost when user previously committed this native for this typed roman.
- * After 2+ commits, return a ceiling boost so the pick becomes top. */
+ * After threshold commits, personalized tier + ceiling boost. */
 function userRomanCount(typedRoman, native) {
-  if (!typedRoman || !native || !USER_LM.romanChoices) return 0
-  const nest = USER_LM.romanChoices.get(String(typedRoman).toLowerCase())
-  if (!nest) return 0
-  return nest.get(native) || 0
+  if (!typedRoman || !native || !USER_LEARNING || !USER_LEARNING.choices) return 0
+  const nest = USER_LEARNING.choices[String(typedRoman).toLowerCase()]
+  if (!nest || !nest[native]) return 0
+  return nest[native].count || 0
 }
 
-function userRomanBoost(typedRoman, native) {
+function userRomanBoost(typedRoman, native, threshold) {
   const c = userRomanCount(typedRoman, native)
   if (!c) return 0
-  // Two repeats → dominate menu (beats typical EXACT/DICT score gaps).
-  if (c >= 2) return 80
+  const thr = threshold || USER_LEARNING_THRESHOLD
+  if (c >= thr) return 80
   return Math.min(8.0, 2.4 * Math.log1p(c * 3))
 }
 
@@ -1440,12 +894,112 @@ function setCachedScore(key, value) {
   SCORE_CACHE.set(key, value)
 }
 
-function ensureUserLM(path) {
-  const resolved = resolveUserPath(path)
-  if (resolved && resolved !== USER_LM_PATH) {
-    USER_LM_PATH = resolved
-    USER_LM = loadUserLM(USER_LM_PATH)
+const USER_LEARNING_FILE = 'gujarati.user-learning.json'
+let USER_LEARNING = { version: 1, choices: {} }
+let USER_LEARNING_THRESHOLD = 2
+let USER_LEARNING_ENABLED = true
+let LAST_COMPOSITION_ROMAN = ''
+let COMMIT_CONN = null
+let UPDATE_CONN = null
+
+function learningPath(env) {
+  try {
+    if (env && env.userDataDir) {
+      return String(env.userDataDir).replace(/\/$/, '') + '/' + USER_LEARNING_FILE
+    }
+  } catch (_e) {}
+  return resolveUserPath('~/Library/Rime/' + USER_LEARNING_FILE)
+}
+
+function loadUserLearningOnce(env) {
+  const path = learningPath(env)
+  let text = ''
+  try {
+    if (env && typeof env.loadFile === 'function') text = env.loadFile(path) || ''
+    else if (typeof read === 'function') text = read(path) || ''
+  } catch (_e) {
+    text = ''
   }
+  try {
+    const data = JSON.parse(text || '{}')
+    USER_LEARNING = data && typeof data === 'object' ? data : { version: 1, choices: {} }
+    if (!USER_LEARNING.choices) USER_LEARNING.choices = {}
+    USER_LEARNING.version = 1
+  } catch (_e) {
+    USER_LEARNING = { version: 1, choices: {} }
+  }
+}
+
+function writeFileAtomic(env, path, content) {
+  // Prefer patched Environment.writeFileAtomic; fall back to saveFile / write.
+  try {
+    if (env && typeof env.writeFileAtomic === 'function') {
+      env.writeFileAtomic(path, content)
+      return true
+    }
+  } catch (e) {
+    console.error('$qjs$ writeFileAtomic failed: ' + (e && e.message))
+  }
+  try {
+    if (env && typeof env.saveFile === 'function') {
+      env.saveFile(path, content)
+      return true
+    }
+  } catch (_e) {}
+  try {
+    if (typeof write === 'function') {
+      write(path, content)
+      return true
+    }
+  } catch (_e) {}
+  return false
+}
+
+function persistUserLearning(env) {
+  const path = learningPath(env)
+  // Refuse writes outside userDataDir when we can detect traversal
+  try {
+    if (env && env.userDataDir) {
+      const root = String(env.userDataDir).replace(/\/$/, '')
+      if (!path.startsWith(root + '/') && path !== root + '/' + USER_LEARNING_FILE.replace(/^.*\//, '')) {
+        if (!String(path).startsWith(root)) {
+          console.error('$qjs$ refuse learning write outside userDataDir')
+          return
+        }
+      }
+    }
+  } catch (_e) {}
+  writeFileAtomic(env, path, JSON.stringify(USER_LEARNING))
+}
+
+function recordUserLearningChoice(env, roman, native) {
+  if (!USER_LEARNING_ENABLED) return
+  if (!roman || !native) return
+  if (!/[\u0A80-\u0AFF]/.test(native)) return // GU only
+  if (/[\u{1F300}-\u{1FAFF}]/u.test(native)) return
+  const r = String(roman).toLowerCase()
+  if (!USER_LEARNING.choices[r]) USER_LEARNING.choices[r] = {}
+  const nest = USER_LEARNING.choices[r]
+  const cur = nest[native] || { count: 0, last_used: 0 }
+  cur.count = Math.min(255, (cur.count || 0) + 1)
+  cur.last_used = Date.now()
+  nest[native] = cur
+  // Cap 8 natives / roman
+  const ents = Object.entries(nest).sort((a, b) => (b[1].last_used || 0) - (a[1].last_used || 0))
+  if (ents.length > 8) USER_LEARNING.choices[r] = Object.fromEntries(ents.slice(0, 8))
+  // Cap 10k romans LRU
+  const keys = Object.keys(USER_LEARNING.choices)
+  if (keys.length > 10000) {
+    const scored = keys
+      .map((k) => [k, Math.max(0, ...Object.values(USER_LEARNING.choices[k]).map((x) => x.last_used || 0))])
+      .sort((a, b) => a[1] - b[1])
+    for (let i = 0; i < scored.length - 10000; i++) delete USER_LEARNING.choices[scored[i][0]]
+  }
+  persistUserLearning(env)
+}
+
+function ensureUserLM(_path) {
+  // Legacy no-op — learning uses USER_LEARNING JSON only.
 }
 
 function getContextPrevWord(env) {
@@ -2601,9 +2155,55 @@ export class GujaratiTranslator {
     loadLexiconBlob(env)
     loadLanguageModels(env)
     loadEmojiKeywords(env)
+    USER_LEARNING_ENABLED = getEnvBool(env, 'translator/enable_user_learning', true)
+    // Back-compat: old enable_user_lm still honored if learning unset
+    if (!getEnvBool(env, 'translator/enable_user_learning', true) && getEnvBool(env, 'translator/enable_user_lm', true)) {
+      USER_LEARNING_ENABLED = true
+    }
+    USER_LEARNING_THRESHOLD = Math.max(1, Math.floor(getEnvNumber(env, 'translator/user_learning_threshold', 2)))
+    if (USER_LEARNING_ENABLED) loadUserLearningOnce(env)
+
+    try {
+      const ctx = env && env.engine && env.engine.context
+      if (ctx && ctx.updateNotifier && typeof ctx.updateNotifier.connect === 'function') {
+        UPDATE_CONN = ctx.updateNotifier.connect(() => {
+          try {
+            LAST_COMPOSITION_ROMAN = String(ctx.input || '').toLowerCase()
+          } catch (_e) {}
+        })
+      }
+      if (ctx && ctx.commitNotifier && typeof ctx.commitNotifier.connect === 'function') {
+        COMMIT_CONN = ctx.commitNotifier.connect(() => {
+          try {
+            let native = ''
+            try {
+              if (ctx.commitHistory && ctx.commitHistory.last) {
+                const last = ctx.commitHistory.last
+                native = String((last && (last.text || last)) || '')
+              }
+            } catch (_e) {}
+            if (!native && typeof ctx.getCommitText === 'function') {
+              native = String(ctx.getCommitText() || '')
+            }
+            const roman = LAST_COMPOSITION_ROMAN || String(ctx.input || '').toLowerCase()
+            if (native && roman) recordUserLearningChoice(env, roman, native)
+          } catch (e) {
+            console.error('$qjs$ commit learn error: ' + (e && e.message))
+          }
+        })
+      }
+    } catch (e) {
+      console.error('$qjs$ notifier wire error: ' + (e && e.message))
+    }
   }
 
   finalizer() {
+    try {
+      if (COMMIT_CONN && typeof COMMIT_CONN.disconnect === 'function') COMMIT_CONN.disconnect()
+      if (UPDATE_CONN && typeof UPDATE_CONN.disconnect === 'function') UPDATE_CONN.disconnect()
+    } catch (_e) {}
+    COMMIT_CONN = null
+    UPDATE_CONN = null
     console.log('$qjs$ gujarati translator finit')
   }
 
@@ -2629,7 +2229,14 @@ export class GujaratiTranslator {
       loadLanguageModels(env)
       loadEmojiKeywords(env)
 
-      const enableUserLm = getEnvBool(env, 'translator/enable_user_lm', true)
+      const enableUserLm =
+        getEnvBool(env, 'translator/enable_user_learning', true) ||
+        getEnvBool(env, 'translator/enable_user_lm', false)
+      USER_LEARNING_THRESHOLD = Math.max(
+        1,
+        Math.floor(getEnvNumber(env, 'translator/user_learning_threshold', USER_LEARNING_THRESHOLD))
+      )
+      // No per-keystroke user-file I/O — learning loaded once at init / updated on commit.
       const hardGate = getEnvBool(env, 'translator/lexicon_hard_gate', true)
       const fuzzyExactSoft = getEnvBool(env, 'translator/fuzzy_exact_soft', true)
       const includeLatin = getEnvBool(env, 'translator/include_latin', true)
@@ -3004,14 +2611,14 @@ export class GujaratiTranslator {
         // Closeness: prefer lexicon romans equal to typed over longer fuzzy keys.
         if (isLex && item.romanKey === lower && typedW >= LEXICON_STRONG_WEIGHT) score += 2.0
         else if (isLex && item.romanKey && item.romanKey.length > lower.length + 1) score -= 1.5
-        // Personalization: 2+ commits for this roman → force top tier + huge score.
+        // Personalization: threshold commits → dedicated tier above Exact.
         if (enableUserLm) {
           const uc = userRomanCount(lower, text)
-          if (uc >= 2) {
-            tier = TIER_EXACT
-            score += userRomanBoost(lower, text)
+          if (uc >= USER_LEARNING_THRESHOLD) {
+            tier = TIER_PERSONALIZED
+            score += userRomanBoost(lower, text, USER_LEARNING_THRESHOLD)
           } else if (uc > 0) {
-            score += userRomanBoost(lower, text)
+            score += userRomanBoost(lower, text, USER_LEARNING_THRESHOLD)
           }
         }
         if (text.includes('ય') && !lower.includes('y')) score -= 4.0
@@ -3046,6 +2653,27 @@ export class GujaratiTranslator {
           }
         } else if (text.includes(ANUSVARA) && /n[kgcjtdTDpb]/.test(lower)) {
           score += 0.35
+        }
+        if (lower.startsWith('aa')) {
+          // Typed aa… → prefer આ over soft/fuzzy અ… (aadas→આડસ not અડાસ).
+          if (text.startsWith('આ')) score += 3.5
+          else if (text.startsWith('અ')) {
+            score -= 4.0
+            if (tier === TIER_EXACT) tier = TIER_DICT
+          }
+        } else if (
+          /^(?:[kgcjtdTDpbnmylrsvwxyz]|ch|kh|gh|jh|th|dh|ph|bh|sh|Sh|tr|dr)a(?!a)/i.test(lower)
+        ) {
+          // Short-a onset + another later `a`: demote native that ONLY long-a's the
+          // onset (પારખવ્યું) — not words that also lengthen later (બાંદા / નાહ્યા).
+          const leadLong =
+            text.startsWith('આ') || /^[\u0A95-\u0AB9]\u0ABE/.test(text)
+          if (leadLong) {
+            const rest = text.startsWith('આ') ? text.slice(1) : text.slice(2)
+            if (!rest.includes('ા') && /a(?!a)/.test(lower.slice(2))) {
+              score -= 3.8
+            }
+          }
         }
         const aVowels = (lower.match(/a+/g) || []).length
         let aa = 0

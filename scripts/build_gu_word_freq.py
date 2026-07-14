@@ -55,11 +55,12 @@ GLOSSARY_URLS = [
 ]
 INDICCORP_GU_URL = "https://huggingface.co/datasets/ai4bharat/IndicCorpV2/resolve/main/data/gu.txt"
 
-FLOOR_SPELL = 50
-FLOOR_WIKI = 40
-FLOOR_AKSHA = 50
-FLOOR_GOOGLE_IME = 80
+FLOOR_SPELL = 60
+FLOOR_WIKI = 45
+FLOOR_AKSHA = 40
+FLOOR_GOOGLE_IME = 90
 # Soft (non-attested / Aksharantar-floor) unigram entries need real corpus mass.
+# Provenance (frost/ice): IME/spell floors outrank soft Aksharantar pad.
 UNIGRAM_SOFT_MIN = int(os.environ.get("UNIGRAM_SOFT_MIN", "100"))
 # AI4Bharat IndicXlit vocab — soft unigram only; floor ≥ soft-min so rows survive prune
 FLOOR_A4B = max(UNIGRAM_SOFT_MIN, int(os.environ.get("FLOOR_A4B", str(UNIGRAM_SOFT_MIN))))

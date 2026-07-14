@@ -2,9 +2,11 @@
 // When a candidate menu is open, Space and common punctuation commit the
 // selected candidate (macOS TransliterationIM-style), then insert the mark.
 //
-// NOTE: This processor must be listed BEFORE key_binder in the schema.
-// Default Rime bindings remap period → Page_Down when has_menu.
-// User LM is updated here on commit only (not on every translate keystroke).
+// Digit / Return selection is handled by Rime selector + translator notifiers
+// (user learning). This processor only handles unmodified commit punctuation.
+// Control / Alt / Super / Command modifiers always pass through (kNoop).
+//
+// NOTE: Listed BEFORE key_binder so period is not remapped to Page_Down.
 
 /**
  * @implements {Processor}
@@ -22,8 +24,10 @@ export class CommitOnPunctProcessor {
   process(keyEvent, env) {
     try {
       if (!keyEvent || keyEvent.release) return 'kNoop'
+      const repr = String(keyEvent.repr || '')
+      if (hasModifier(repr)) return 'kNoop'
 
-      const punct = punctForKey(String(keyEvent.repr || ''))
+      const punct = punctForKey(repr)
       if (punct === null) return 'kNoop'
 
       const engine = env && env.engine
@@ -32,15 +36,8 @@ export class CommitOnPunctProcessor {
         return 'kNoop'
       }
 
-      const committed = selectedCandidateText(ctx)
-      const typedRoman = compositionInput(ctx)
-
       if (typeof ctx.commit === 'function') {
         ctx.commit()
-      }
-
-      if (committed) {
-        learnUserWord(env, committed, typedRoman)
       }
 
       if (punct !== '' && engine && typeof engine.commitText === 'function') {
@@ -58,129 +55,18 @@ export class CommitOnPunctProcessor {
   }
 }
 
-function selectedCandidateText(ctx) {
-  try {
-    if (typeof ctx.getSelectedCandidate === 'function') {
-      const sel = ctx.getSelectedCandidate()
-      if (sel && sel.text) return String(sel.text)
-    }
-  } catch (_e) {}
-  return ''
-}
-
-function compositionInput(ctx) {
-  try {
-    if (typeof ctx.input === 'string' && ctx.input) return String(ctx.input)
-    if (typeof ctx.get_input === 'function') {
-      const v = ctx.get_input()
-      if (v) return String(v)
-    }
-    if (ctx.composition && typeof ctx.composition.input === 'string') {
-      return String(ctx.composition.input)
-    }
-  } catch (_e) {}
-  return ''
-}
-
-function resolveUserPath(path) {
-  if (!path || typeof path !== 'string') return path
-  if (path.startsWith('~/') && typeof os !== 'undefined' && os.homedir) {
-    return os.homedir() + path.slice(1)
-  }
-  return path
-}
-
-function getEnvBool(env, key, fallback) {
-  try {
-    if (env && typeof env.engine && env.engine.schema) {
-      const conf = env.engine.schema.config
-      if (conf && typeof conf.getBool === 'function') {
-        const v = conf.getBool(key)
-        if (typeof v === 'boolean') return v
-      }
-    }
-  } catch (_e) {}
-  return fallback
-}
-
-/** Append-only personalization on commit (same TSV shape as translator user LM). */
-function learnUserWord(env, word, typedRoman) {
-  try {
-    if (!getEnvBool(env, 'translator/enable_user_lm', true)) return
-    if (!word || typeof word !== 'string') return
-    const path = resolveUserPath('~/Library/Rime/gujarati.user.tsv')
-    let text = ''
-    try {
-      if (typeof std !== 'undefined' && std.open) {
-        const f = std.open(path, 'r')
-        if (f) {
-          text = f.readAsString() || ''
-          f.close()
-        }
-      } else if (typeof read === 'function') {
-        text = read(path) || ''
-      }
-    } catch (_e) {
-      text = ''
-    }
-    const wordCounts = new Map()
-    const bigramCounts = new Map()
-    const romanChoices = new Map()
-    for (const line of String(text).split(/\r?\n/)) {
-      if (!line) continue
-      const parts = line.split('\t')
-      if (parts.length === 2) {
-        const w = parts[0]
-        const c = Number(parts[1])
-        if (w && Number.isFinite(c)) wordCounts.set(w, c)
-      } else if (parts.length >= 4 && parts[0] === '@') {
-        const roman = String(parts[1] || '').toLowerCase()
-        const nat = parts[2]
-        const c = Number(parts[3])
-        if (!roman || !nat || !Number.isFinite(c)) continue
-        if (!romanChoices.has(roman)) romanChoices.set(roman, new Map())
-        romanChoices.get(roman).set(nat, c)
-      } else if (parts.length >= 3) {
-        const prev = parts[0]
-        const w = parts[1]
-        const c = Number(parts[2])
-        if (prev && w && Number.isFinite(c) && prev !== '@') bigramCounts.set(prev + '|' + w, c)
-      }
-    }
-    wordCounts.set(word, (wordCounts.get(word) || 0) + 1)
-    const roman = typedRoman ? String(typedRoman).toLowerCase() : ''
-    if (roman) {
-      if (!romanChoices.has(roman)) romanChoices.set(roman, new Map())
-      const nest = romanChoices.get(roman)
-      nest.set(word, (nest.get(word) || 0) + 1)
-    }
-    const lines = []
-    for (const [w, c] of wordCounts) lines.push(w + '\t' + c)
-    for (const [k, c] of bigramCounts) {
-      const idx = k.indexOf('|')
-      if (idx < 0) continue
-      lines.push(k.slice(0, idx) + '\t' + k.slice(idx + 1) + '\t' + c)
-    }
-    for (const [rom, nest] of romanChoices) {
-      for (const [nat, c] of nest) lines.push('@\t' + rom + '\t' + nat + '\t' + c)
-    }
-    const out = lines.join('\n') + (lines.length ? '\n' : '')
-    try {
-      if (typeof write === 'function') {
-        write(path, out)
-      } else if (typeof std !== 'undefined' && std.open) {
-        const f = std.open(path, 'w')
-        if (f) {
-          f.puts(out)
-          f.close()
-        }
-      }
-    } catch (e) {
-      console.error('$qjs$ user lm write error:', e && e.message)
-    }
-  } catch (e) {
-    console.error('$qjs$ learnUserWord error:', e && e.message)
-  }
+function hasModifier(repr) {
+  const r = String(repr || '').toLowerCase()
+  return (
+    r.includes('control+') ||
+    r.includes('ctrl+') ||
+    r.includes('alt+') ||
+    r.includes('option+') ||
+    r.includes('super+') ||
+    r.includes('meta+') ||
+    r.includes('command+') ||
+    r.includes('cmd+')
+  )
 }
 
 /**
@@ -194,9 +80,6 @@ function punctForKey(repr) {
   const bare = lower
     .replace(/^release\+/i, '')
     .replace(/^shift\+/i, '')
-    .replace(/^control\+/i, '')
-    .replace(/^alt\+/i, '')
-    .replace(/^super\+/i, '')
 
   if (bare === 'space' || r === ' ') return ' '
 

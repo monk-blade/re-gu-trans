@@ -1,34 +1,12 @@
-# Rime dictionary — Gujarati transliteration
+# DEV ARTIFACT ONLY — not used at runtime (qjs translator + gu_lexicon_blob).
+# Kept for offline export / debugging. Do not package or Deploy as a dependency.
 # encoding: utf-8
-# Format: gujarati_word<TAB>roman_code<TAB>weight
 
 ---
 name: gujarati
-version: "5.0"
+version: "5.1"
 sort: by_weight
 use_preset_vocabulary: false
-import_tables:
-  - gujarati_apple
-  # emoji via qjs (rime/js/emoji_keywords.json), not table_translator
-  - gujarati_extra
-  - gujarati_learned
 ...
 
-# High-priority curated entries
-પણ	pan	2000
-ણ	n	1500
-કેમ	kem	2000
-કેમ છો	kemcho	2000
-આવજો	aavjo	2000
-ગુજરાત	gujarat	2000
-ગુજરાતી	gujarati	2000
-ધન્યવાદ	dhanyavad	2000
-તમે	tame	2000
-હું	hu	2000
-છું	chu	2000
-છે	chhe	2000
-શું	shu	2000
-સારું	saru	2000
-મદદ	madad	2000
-ભાઈ	bhai	2000
-પ્રેમ	prem	2000
+# Intentionally empty — runtime lexicon lives in js/gu_lexicon_blob.json

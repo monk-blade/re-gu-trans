@@ -30,6 +30,10 @@ resolve_version() {
     git -C "$PACKAGE_ROOT" describe --tags --exact-match | sed 's/^v//'
     return
   fi
+  if [[ -f "$PACKAGE_ROOT/VERSION" ]]; then
+    tr -d '[:space:]' <"$PACKAGE_ROOT/VERSION"
+    return
+  fi
   local schema_ver
   schema_ver="$(
     python3 - "$PACKAGE_ROOT/rime/gujarati.schema.yaml" <<'PY'
@@ -40,6 +44,45 @@ print(m.group(1) if m else "0.0.0")
 PY
   )"
   echo "${schema_ver:-0.0.0}-dev"
+}
+
+# Ensure schema_list contains gujarati without appending a second patch: block.
+ensure_schema_list() {
+  local custom="$1"
+  if [[ ! -f "$custom" ]]; then
+    cat >"$custom" <<'EOF'
+patch:
+  schema_list:
+    - schema: gujarati
+EOF
+    return
+  fi
+  if grep -q 'schema: gujarati' "$custom" 2>/dev/null; then
+    return
+  fi
+  python3 - "$custom" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+if "schema: gujarati" in text:
+    raise SystemExit(0)
+if "schema_list:" in text:
+    lines = text.splitlines(True)
+    out = []
+    inserted = False
+    for line in lines:
+        out.append(line)
+        if (not inserted) and line.strip() == "schema_list:":
+            indent = line[: len(line) - len(line.lstrip())]
+            out.append(f"{indent}  - schema: gujarati\n")
+            inserted = True
+    if not inserted:
+        out.append("\npatch:\n  schema_list:\n    - schema: gujarati\n")
+    p.write_text("".join(out), encoding="utf-8")
+else:
+    p.write_text(text.rstrip() + "\n\npatch:\n  schema_list:\n    - schema: gujarati\n", encoding="utf-8")
+PY
 }
 
 # Resolve a HuangJian/librime-qjs release asset URL.

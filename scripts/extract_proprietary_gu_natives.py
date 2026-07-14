@@ -114,33 +114,107 @@ def find_google_ime_paths() -> list[Path]:
 def extract_google_ime() -> set[str]:
     out: set[str] = set()
     paths = find_google_ime_paths()
-    if not paths:
+    if paths:
+        for path in paths:
+            print(f"parse Google IME dict {path}")
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            if path.suffix.lower() in {".csv"}:
+                try:
+                    for row in csv.reader(text.splitlines()):
+                        for cell in row:
+                            out |= extract_gu_tokens(cell)
+                except Exception:
+                    out |= extract_gu_tokens(text)
+            else:
+                for line in text.splitlines():
+                    parts = line.split("\t")
+                    if len(parts) >= 2 and is_gujarati_word(nfc(parts[1])):
+                        out.add(nfc(parts[1]))
+                    elif len(parts) >= 1 and is_gujarati_word(nfc(parts[0])):
+                        out.add(nfc(parts[0]))
+                    else:
+                        out |= extract_gu_tokens(line)
+        return out
+
+    # Fallback (frost/ice pattern): high-count Google i18n GU wordcounts as T0b natives
+    # when proprietary Input Tools dump is unavailable. Roman→native soft pairs still need
+    # google_ime_gu.* or GOOGLE_IME_GU_DICT.
+    wc = EXT / "gu_google_wordcounts.txt"
+    if not wc.exists():
         print(
             "WARN: no Google Input Tools dict found. Place at data/external/google_ime_gu.txt "
             "or set GOOGLE_IME_GU_DICT=/path/to/dump (gitignored). Skip T0b."
         )
         return out
-    for path in paths:
-        print(f"parse Google IME dict {path}")
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        if path.suffix.lower() in {".csv"}:
-            try:
-                for row in csv.reader(text.splitlines()):
-                    for cell in row:
-                        out |= extract_gu_tokens(cell)
-            except Exception:
-                out |= extract_gu_tokens(text)
+    print(f"fallback: Google wordcounts natives from {wc}")
+    for line in wc.read_text(encoding="utf-8", errors="ignore").splitlines():
+        parts = [p.strip() for p in line.split("\t") if p.strip()]
+        if len(parts) < 2:
+            continue
+        # Accept count\\tword (i18n dumps) or word\\tcount.
+        w_raw, c_raw = parts[0], parts[1]
+        if is_gujarati_word(nfc(w_raw)):
+            w, c_s = nfc(w_raw), c_raw
+        elif is_gujarati_word(nfc(c_raw)):
+            w, c_s = nfc(c_raw), w_raw
         else:
-            for line in text.splitlines():
-                parts = line.split("\t")
-                # prefer native column if present
-                if len(parts) >= 2 and is_gujarati_word(nfc(parts[1])):
-                    out.add(nfc(parts[1]))
-                elif len(parts) >= 1 and is_gujarati_word(nfc(parts[0])):
-                    out.add(nfc(parts[0]))
-                else:
-                    out |= extract_gu_tokens(line)
+            continue
+        try:
+            c = int(float(c_s))
+        except ValueError:
+            continue
+        if c >= 20 and len(w) <= 20:
+            out.add(w)
+    print(f"google wordcount natives={len(out)}")
     return out
+
+
+def soft_fill_google_pairs() -> int:
+    """Optional roman\\tnative soft-fill from google_ime_gu.* (never override Apple)."""
+    blob_path = ROOT / "rime" / "gu_lexicon_blob.json"
+    if not blob_path.exists():
+        return 0
+    paths = find_google_ime_paths()
+    pairs: dict[str, str] = {}
+    for path in paths:
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            parts = [p.strip() for p in line.split("\t")]
+            if len(parts) < 2:
+                continue
+            a, b = parts[0], parts[1]
+            if is_gujarati_word(nfc(a)) and all(c.isalpha() or c in ".'-" for c in b.lower()) and len(b) >= 2:
+                pairs[b.lower()] = nfc(a)
+            elif is_gujarati_word(nfc(b)) and all(c.isalpha() or c in ".'-" for c in a.lower()) and len(a) >= 2:
+                pairs[a.lower()] = nfc(b)
+    if not pairs:
+        return 0
+    blob = json.loads(blob_path.read_text(encoding="utf-8"))
+    lex = blob.setdefault("lexicon", {})
+    weights = blob.setdefault("weights", {})
+    native_set = set(lex.values())
+    added = 0
+    for roman, native in sorted(pairs.items(), key=lambda x: (len(x[0]), x[0])):
+        if roman in lex:
+            continue
+        if len(native) > 16 or " " in native:
+            continue
+        # skip postfix when stem known
+        for pf in ("માં", "ની", "ના", "ને", "નો", "નું", "થી"):
+            if native.endswith(pf) and native[: -len(pf)] in native_set:
+                break
+        else:
+            lex[roman] = native
+            weights[roman] = 80  # soft mid band
+            native_set.add(native)
+            added += 1
+            if added >= 40_000:
+                break
+    if added:
+        blob["google_ime_soft_added"] = added
+        blob_path.write_text(json.dumps(blob, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        (DATA / "gu_lexicon_blob.json").write_bytes(blob_path.read_bytes())
+        print(f"google_ime soft roman pairs added={added}")
+    return added
 
 
 def write_words(path: Path, words: set[str]) -> None:
@@ -155,6 +229,7 @@ def main() -> None:
     write_words(EXT / "apple_native_words.txt", apple)
     git = extract_google_ime()
     write_words(EXT / "google_ime_native_words.txt", git)
+    soft_fill_google_pairs()
     print(f"done apple={len(apple)} google_ime={len(git)}")
 
 

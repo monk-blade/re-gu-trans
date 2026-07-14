@@ -1,0 +1,12 @@
+{
+  "seed": "re-gu-trans-splits-v1",
+  "counts": {
+    "train": 837277,
+    "dev": 104415,
+    "test": 105198
+  },
+  "sources": {
+    "aksharantar_gu_pairs": 1033799,
+    "dakshina_gu_pairs": 116644
+  }
+}

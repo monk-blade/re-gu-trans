@@ -61,23 +61,28 @@ New-Item -ItemType Directory -Force -Path (Join-Path $RimeUser 'js\lm') | Out-Nu
 New-Item -ItemType Directory -Force -Path (Join-Path $RimeUser 'run') | Out-Null
 
 Copy-Item -Force (Join-Path $PayloadRime 'gujarati.schema.yaml') $RimeUser
-Copy-Item -Force (Join-Path $PayloadRime 'gujarati.dict.yaml') $RimeUser
-if (Test-Path (Join-Path $PayloadRime 'gujarati_apple.dict.yaml')) {
-  Copy-Item -Force (Join-Path $PayloadRime 'gujarati_apple.dict.yaml') $RimeUser
-}
 Copy-Item -Force (Join-Path $PayloadRime 'js\*.js') (Join-Path $RimeUser 'js')
 Copy-Item -Force (Join-Path $PayloadRime 'js\gu_lexicon_blob.json') (Join-Path $RimeUser 'js')
-Copy-Item -Force (Join-Path $PayloadRime 'gu_lexicon_blob.json') $RimeUser -ErrorAction SilentlyContinue
 Copy-Item -Force (Join-Path $PayloadRime 'js\lm\*') (Join-Path $RimeUser 'js\lm')
-Get-ChildItem (Join-Path $PayloadRime '*.js') -ErrorAction SilentlyContinue | Copy-Item -Force -Destination $RimeUser
+Copy-Item -Force (Join-Path $PayloadRime 'js\gujarati_translator.js') $RimeUser
+Copy-Item -Force (Join-Path $PayloadRime 'js\commit_on_punct_processor.js') $RimeUser
 
 $Custom = Join-Path $RimeUser 'default.custom.yaml'
-$Snippet = Join-Path $PayloadRime 'default.custom.yaml'
 if (-not (Test-Path $Custom)) {
-  Copy-Item -Force $Snippet $Custom
+  @"
+patch:
+  schema_list:
+    - schema: gujarati
+"@ | Set-Content -Path $Custom -Encoding UTF8
 } elseif (-not (Select-String -Path $Custom -Pattern 'schema: gujarati' -Quiet)) {
-  Add-Content -Path $Custom -Value "`n# re-gu-trans"
-  Get-Content $Snippet | Add-Content -Path $Custom
+  $text = Get-Content -Raw $Custom
+  if ($text -match '(?m)^(\s*)schema_list:\s*$') {
+    $indent = $Matches[1]
+    $text = $text -replace '(?m)^(\s*)schema_list:\s*$', "`$0`n$indent  - schema: gujarati"
+    Set-Content -Path $Custom -Value $text -Encoding UTF8
+  } else {
+    Add-Content -Path $Custom -Value "`npatch:`n  schema_list:`n    - schema: gujarati"
+  }
 }
 
 $Deployer = Join-Path $WeaselDir 'WeaselDeployer.exe'

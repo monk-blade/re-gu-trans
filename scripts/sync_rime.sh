@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Sync re-gu-trans Rime package into the local Rime user dir and reload.
+# qjs-only: no table .dict.yaml / apple table. Assets under js/; plugins also
+# copied to user-dir root so @gujarati_translator resolves.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -28,28 +30,34 @@ detect_rime_dir() {
 }
 
 RIME="$(detect_rime_dir)"
-mkdir -p "$RIME" "$RIME/run" "$RIME/js" "$RIME/js/lm" "$RIME/lm"
+mkdir -p "$RIME" "$RIME/run" "$RIME/js" "$RIME/js/lm"
+
+JS="$ROOT/rime/js"
+require() { [[ -f "$1" ]] || { echo "ERROR: missing $1" >&2; exit 1; }; }
+
+require "$ROOT/rime/gujarati.schema.yaml"
+require "$JS/gujarati_translator.js"
+require "$JS/commit_on_punct_processor.js"
+require "$JS/gu_lexicon_blob.json"
 
 cp -f "$ROOT/rime/gujarati.schema.yaml" "$RIME/"
-cp -f "$ROOT/rime/gujarati.dict.yaml" "$RIME/"
-cp -f "$ROOT/rime/gujarati_apple.dict.yaml" "$RIME/"
-cp -f "$ROOT/rime/gujarati_translator.js" "$RIME/" 2>/dev/null || true
-cp -f "$ROOT/rime/gujarati_translator.js" "$RIME/js/" 2>/dev/null || true
-cp -f "$ROOT/rime/commit_on_punct_processor.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$ROOT/rime/gujarati.custom.yaml.sample" "$RIME/" 2>/dev/null || true
-cp -f "$ROOT/rime/gu_lexicon_blob.json" "$RIME/" 2>/dev/null || true
-cp -f "$ROOT/rime/gu_lexicon_blob.json" "$RIME/js/" 2>/dev/null || true
-cp -f "$ROOT/rime/js/emoji_keywords.json" "$RIME/js/" 2>/dev/null || true
 
-# Single source of truth: rime/js/lm/ — mirror into user lm/ for legacy path fallbacks.
-if [[ -d "$ROOT/rime/js/lm" ]]; then
-  cp -f "$ROOT/rime/js/lm/"*.tsv "$RIME/js/lm/" 2>/dev/null || true
-  cp -f "$ROOT/rime/js/lm/"*.json "$RIME/js/lm/" 2>/dev/null || true
-  cp -f "$ROOT/rime/js/lm/"*.tsv "$RIME/lm/" 2>/dev/null || true
-  cp -f "$ROOT/rime/js/lm/"*.json "$RIME/lm/" 2>/dev/null || true
-fi
+# Assets once under js/
+cp -f "$JS/gu_lexicon_blob.json" "$RIME/js/"
+cp -f "$JS/emoji_keywords.json" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/ranking_policy.json" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/"*.trie "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/lm/"*.tsv "$RIME/js/lm/" 2>/dev/null || true
+cp -f "$JS/lm/"*.json "$RIME/js/lm/" 2>/dev/null || true
 
-# Ensure schema is enabled
+# qjs plugins: filename at user-dir root (schema @name) + mirror under js/
+cp -f "$JS/gujarati_translator.js" "$RIME/gujarati_translator.js"
+cp -f "$JS/commit_on_punct_processor.js" "$RIME/commit_on_punct_processor.js"
+cp -f "$JS/gujarati_translator.js" "$RIME/js/"
+cp -f "$JS/commit_on_punct_processor.js" "$RIME/js/"
+
+# Enable schema without appending a second patch: block (merge helper)
 DEFAULT_CUSTOM="$RIME/default.custom.yaml"
 if [[ ! -f "$DEFAULT_CUSTOM" ]]; then
   cat > "$DEFAULT_CUSTOM" <<'EOF'
@@ -58,10 +66,36 @@ patch:
     - schema: gujarati
 EOF
 elif ! grep -q 'schema: gujarati' "$DEFAULT_CUSTOM" 2>/dev/null; then
-  echo "NOTE: add '- schema: gujarati' under patch.schema_list in $DEFAULT_CUSTOM"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$DEFAULT_CUSTOM" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+if "schema: gujarati" in text:
+    raise SystemExit(0)
+# Insert under existing schema_list if present; else create one patch block
+if "schema_list:" in text:
+    lines = text.splitlines(True)
+    out = []
+    inserted = False
+    for i, line in enumerate(lines):
+        out.append(line)
+        if (not inserted) and line.strip() == "schema_list:":
+            indent = line[: len(line) - len(line.lstrip())]
+            out.append(f"{indent}  - schema: gujarati\n")
+            inserted = True
+    if not inserted:
+        out.append("\npatch:\n  schema_list:\n    - schema: gujarati\n")
+    p.write_text("".join(out), encoding="utf-8")
+else:
+    p.write_text(text.rstrip() + "\n\npatch:\n  schema_list:\n    - schema: gujarati\n", encoding="utf-8")
+PY
+  else
+    echo "NOTE: add '- schema: gujarati' under patch.schema_list in $DEFAULT_CUSTOM"
+  fi
 fi
 
-# Reload frontend if available
 if [[ -x "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]]; then
   "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
 elif command -v fcitx5-remote >/dev/null 2>&1; then
@@ -70,7 +104,6 @@ elif command -v ibus >/dev/null 2>&1; then
   ibus restart || true
 fi
 
-echo "Synced to $RIME"
+echo "Synced to $RIME (qjs-only; no table dict)"
 echo "Engine: exact → dict → phonetic → latin → prefix → emoji"
-echo "Commit: Space and . , ; ' etc. (processor before key_binder)"
 echo "Try: jamin, favshe, parkhavyu, mne, prem — then Space or ."

@@ -48,9 +48,20 @@ jobs:
         run: |
           test -f rime/js/lm/unigram.tsv
           test -f rime/js/lm/stems.json
-          test -f rime/gu_lexicon_blob.json
-          test -f rime/gujarati_translator.js
-          test -f rime/commit_on_punct_processor.js
+          test -f rime/js/gu_lexicon_blob.json
+          test -f rime/js/gujarati_translator.js
+          test -f rime/js/commit_on_punct_processor.js
+          test -f rime/gujarati.schema.yaml
+          ! grep -E '^\s*dictionary:\s*gujarati' rime/gujarati.schema.yaml
+      - name: Clean deploy check
+        run: |
+          chmod +x scripts/package/clean_deploy_check.sh scripts/package/stage_payload.sh
+          ./scripts/package/clean_deploy_check.sh
+      - name: Smoke + quality report
+        run: |
+          python3 eval/rank_offline.py
+          python3 eval/apple_integrity.py
+          python3 eval/quality_report.py
 
   linux:
     needs: stage

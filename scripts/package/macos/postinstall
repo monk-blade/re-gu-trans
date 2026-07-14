@@ -37,13 +37,11 @@ sync_for_user() {
   mkdir -p "$rime/js/lm" "$rime/run"
   if [[ -d "$SHARE" ]]; then
     cp -f "$SHARE/gujarati.schema.yaml" "$rime/" 2>/dev/null || true
-    cp -f "$SHARE/gujarati.dict.yaml" "$rime/" 2>/dev/null || true
-    cp -f "$SHARE/gujarati_apple.dict.yaml" "$rime/" 2>/dev/null || true
-    cp -f "$SHARE/"*.js "$rime/" 2>/dev/null || true
-    cp -f "$SHARE/gu_lexicon_blob.json" "$rime/" 2>/dev/null || true
     cp -f "$SHARE/js/"*.js "$rime/js/" 2>/dev/null || true
     cp -f "$SHARE/js/gu_lexicon_blob.json" "$rime/js/" 2>/dev/null || true
     cp -f "$SHARE/js/lm/"* "$rime/js/lm/" 2>/dev/null || true
+    cp -f "$SHARE/js/gujarati_translator.js" "$rime/" 2>/dev/null || true
+    cp -f "$SHARE/js/commit_on_punct_processor.js" "$rime/" 2>/dev/null || true
   fi
   local custom="$rime/default.custom.yaml"
   if [[ ! -f "$custom" ]]; then
@@ -53,12 +51,27 @@ patch:
     - schema: gujarati
 EOF
   elif ! grep -q 'schema: gujarati' "$custom" 2>/dev/null; then
-    printf '\n# re-gu-trans\n' >> "$custom"
-    cat >> "$custom" <<'EOF'
-patch:
-  schema_list:
-    - schema: gujarati
-EOF
+    python3 - "$custom" <<'PY' 2>/dev/null || true
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+if "schema: gujarati" in text:
+    raise SystemExit(0)
+if "schema_list:" in text:
+    lines = text.splitlines(True)
+    out = []
+    inserted = False
+    for line in lines:
+        out.append(line)
+        if (not inserted) and line.strip() == "schema_list:":
+            indent = line[: len(line) - len(line.lstrip())]
+            out.append(f"{indent}  - schema: gujarati\n")
+            inserted = True
+    p.write_text("".join(out) if inserted else text + "\npatch:\n  schema_list:\n    - schema: gujarati\n", encoding="utf-8")
+else:
+    p.write_text(text.rstrip() + "\n\npatch:\n  schema_list:\n    - schema: gujarati\n", encoding="utf-8")
+PY
   fi
   chown -R "$u" "$rime" 2>/dev/null || true
 }
