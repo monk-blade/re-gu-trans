@@ -11,6 +11,9 @@ data/apple_probe.tsv
 data/probe_wordlist.txt
 eval/results.json
 eval/rank_results.json
+eval/apple_agree_summary.json
+eval/apple_disagree.jsonl
+eval/apple_disagree_clusters.json
 
 # Local scratch
 test.txt
@@ -27,5 +30,12 @@ dist/
 # Regenerable external wordlist caches (rebuild via build_gu_word_freq.py)
 data/external/
 
+# Local AI4Bharat IndicXlit dumps (never commit .pth)
+**/gu_101_model.pth
+**/gu_words_a4b.json
+
 # Large regenerable unique-quality TSV (summary JSON is tracked)
 data/quality/unique_gu_words.tsv
+
+# Local regenerable dumps
+data/ranker_train.jsonl

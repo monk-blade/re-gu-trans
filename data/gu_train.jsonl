@@ -627,6 +627,7 @@
 {"input": "ambar", "candidates": [{"text": "અંબર", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "ambel", "candidates": [{"text": "આંબેલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "ame", "candidates": [{"text": "અમે", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "america", "candidates": [{"text": "અમેરીકા", "type": 0, "label": 0}]}
 {"input": "amey", "candidates": [{"text": "અમે", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "ami", "candidates": [{"text": "અમી", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "amiba", "candidates": [{"text": "અમીબા", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -657,7 +658,7 @@
 {"input": "anamol", "candidates": [{"text": "અનમોલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "ananag", "candidates": [{"text": "અનંગ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "ananas", "candidates": [{"text": "અનાનસ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
-{"input": "anand", "candidates": [{"text": "આણંદ", "type": 0, "lm": "-15.65355977452702"}, {"text": "આનંદ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "anand", "candidates": [{"text": "આણંદ", "type": 0, "label": 0}, {"text": "આનંદ", "type": 0, "label": 1}]}
 {"input": "anang", "candidates": [{"text": "અનંગ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "ananta", "candidates": [{"text": "અનંત", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "anasar", "candidates": [{"text": "અણસાર", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -679,7 +680,7 @@
 {"input": "andaj", "candidates": [{"text": "અંદાજ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "andaje", "candidates": [{"text": "અંદાજે", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "andajo", "candidates": [{"text": "અંદાજો", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
-{"input": "andar", "candidates": [{"text": "અંદર", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "andar", "candidates": [{"text": "અંદર", "type": 0, "label": 0}]}
 {"input": "andaz", "candidates": [{"text": "અંદાજ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "andesh", "candidates": [{"text": "અંદેશ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "andher", "candidates": [{"text": "અંધેર", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -1287,6 +1288,7 @@
 {"input": "banavo", "candidates": [{"text": "બનાવો", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "banch", "candidates": [{"text": "બેન્ચ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "band", "candidates": [{"text": "બેન્ડ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "banda", "candidates": [{"text": "બાંદા", "type": 0, "label": 0}]}
 {"input": "bandal", "candidates": [{"text": "બંડલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "bandh", "candidates": [{"text": "બંધ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "bandhe", "candidates": [{"text": "બાંધે", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -1789,6 +1791,7 @@
 {"input": "chut", "candidates": [{"text": "છુટ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "chuti", "candidates": [{"text": "છૂટી", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "chuva", "candidates": [{"text": "ચુવા", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "college", "candidates": [{"text": "કોલેજ", "type": 0, "label": 0}]}
 {"input": "daal", "candidates": [{"text": "દાળ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "daam", "candidates": [{"text": "ડામ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "daan", "candidates": [{"text": "દાન", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -2097,6 +2100,7 @@
 {"input": "dizal", "candidates": [{"text": "ડીઝલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "do", "candidates": [{"text": "દો", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "dobo", "candidates": [{"text": "ડોબો", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "doctor", "candidates": [{"text": "ડૉક્ટર", "type": 1, "label": 0}, {"text": "ડોક્ટર", "type": 1, "label": 1}]}
 {"input": "dod", "candidates": [{"text": "દોડ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "dodha", "candidates": [{"text": "દોઢ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "dodhe", "candidates": [{"text": "દોઢે", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -2460,6 +2464,7 @@
 {"input": "frenk", "candidates": [{"text": "ફ્રેંક", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "fresh", "candidates": [{"text": "ફ્રેશ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "fri", "candidates": [{"text": "ફરી", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "friend", "candidates": [{"text": "ફ્રેંડ", "type": 0, "label": 0}]}
 {"input": "friz", "candidates": [{"text": "ફ્રીઝ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "frok", "candidates": [{"text": "ફ્રોક", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "frut", "candidates": [{"text": "ફ્રૂટ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -2932,10 +2937,12 @@
 {"input": "hika", "candidates": [{"text": "હિક", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hikka", "candidates": [{"text": "હિક્કા", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "himat", "candidates": [{"text": "હિંમત", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "himmat", "candidates": [{"text": "હિમ્મત", "type": 0, "label": 0}]}
 {"input": "hin", "candidates": [{"text": "હીન", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hind", "candidates": [{"text": "હિંદ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hindi", "candidates": [{"text": "હિન્દી", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hindu", "candidates": [{"text": "હિન્દુ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "hindustan", "candidates": [{"text": "હિન્દુસ્તાન", "type": 0, "label": 0}]}
 {"input": "hing", "candidates": [{"text": "હિંગ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hingu", "candidates": [{"text": "હિંગુ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hinun", "candidates": [{"text": "હિણું", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -2974,6 +2981,7 @@
 {"input": "hop", "candidates": [{"text": "હોપ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hora", "candidates": [{"text": "હોરા", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "horn", "candidates": [{"text": "હોર્ન", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "hospital", "candidates": [{"text": "હોસ્પિટલ", "type": 0, "label": 0}]}
 {"input": "host", "candidates": [{"text": "હોસ્ટ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hotal", "candidates": [{"text": "હોટલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "hotel", "candidates": [{"text": "હોટેલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -4189,6 +4197,7 @@
 {"input": "lonch", "candidates": [{"text": "લોન્ચ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "londa", "candidates": [{"text": "લોન્ડા", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "londo", "candidates": [{"text": "લોંદો", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "london", "candidates": [{"text": "લંડન", "type": 0, "label": 0}]}
 {"input": "lop", "candidates": [{"text": "લોપ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "lord", "candidates": [{"text": "લોર્ડ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "lorel", "candidates": [{"text": "લોરેલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -5735,6 +5744,7 @@
 {"input": "samas", "candidates": [{"text": "સમાસ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "samay", "candidates": [{"text": "સમય", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "samb", "candidates": [{"text": "સાંબ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "sambandh", "candidates": [{"text": "સંબંધ", "type": 0, "label": 0}]}
 {"input": "samel", "candidates": [{"text": "સામેલ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "samet", "candidates": [{"text": "સમેત", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "samir", "candidates": [{"text": "સમીર", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -5823,6 +5833,7 @@
 {"input": "savy", "candidates": [{"text": "સેવી", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "sayan", "candidates": [{"text": "સાયણ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "sayar", "candidates": [{"text": "સાયર", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "school", "candidates": [{"text": "સ્કૂલ", "type": 0, "label": 0}]}
 {"input": "sed", "candidates": [{"text": "સેડ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "sehat", "candidates": [{"text": "સેહત", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "sej", "candidates": [{"text": "સેજ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -5849,6 +5860,7 @@
 {"input": "shabd", "candidates": [{"text": "શબ્દ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "shadi", "candidates": [{"text": "શાદી", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "shag", "candidates": [{"text": "શગ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "shah", "candidates": [{"text": "શાહ", "type": 0, "label": 0}, {"text": "શહ", "type": 0, "label": 1}]}
 {"input": "shai", "candidates": [{"text": "શાઈ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "shaiv", "candidates": [{"text": "શૈવ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "shake", "candidates": [{"text": "શકે", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -6158,6 +6170,7 @@
 {"input": "svich", "candidates": [{"text": "સ્વિચ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "svis", "candidates": [{"text": "સ્વીસ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "svit", "candidates": [{"text": "સ્વીટ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "swagat", "candidates": [{"text": "સ્વાગત", "type": 0, "label": 0}]}
 {"input": "syut", "candidates": [{"text": "સ્યુટ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "tab", "candidates": [{"text": "ટબ", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "taba", "candidates": [{"text": "તાબા", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
@@ -7228,6 +7241,7 @@
 {"input": "zilo", "candidates": [{"text": "ઝીલો", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "zilun", "candidates": [{"text": "ઝીલું", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "zinan", "candidates": [{"text": "ઝીણાં", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
+{"input": "zindabad", "candidates": [{"text": "ઝિંદાબાદ", "type": 0, "label": 0}]}
 {"input": "zinga", "candidates": [{"text": "ઝીંગા", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "zini", "candidates": [{"text": "ઝીણી", "type": 0, "lm": "-15.65355977452702"}], "label": 0}
 {"input": "zink", "candidates": [{"text": "ઝીંક", "type": 0, "lm": "-15.65355977452702"}], "label": 0}

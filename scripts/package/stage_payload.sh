@@ -7,8 +7,6 @@
 #
 # Env:
 #   VERSION          package version (default: from tag / schema)
-#   ONNX_SOCKET      override onnx_socket in schema
-#   ONNX_HELPER      override onnx_helper in schema
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,31 +44,11 @@ cp -f "$RIME_SRC/gujarati_translator.js" "$OUT_DIR/rime/"
 cp -f "$RIME_SRC/commit_on_punct_processor.js" "$OUT_DIR/rime/"
 cp -f "$RIME_SRC/gu_lexicon_blob.json" "$OUT_DIR/rime/"
 
+# LM: only js/lm/ (do not stage obsolete rime/lm/ duplicate)
 cp -f "$RIME_SRC/js/lm/unigram.tsv" "$OUT_DIR/rime/js/lm/"
 cp -f "$RIME_SRC/js/lm/stems.json" "$OUT_DIR/rime/js/lm/"
 cp -f "$RIME_SRC/js/lm/attested.json" "$OUT_DIR/rime/js/lm/"
 cp -f "$RIME_SRC/js/emoji_keywords.json" "$OUT_DIR/rime/js/" 2>/dev/null || true
-
-# Default onnx paths per OS (packages do not ship the ranker; paths are harmless)
-case "$OS" in
-  macos)
-    SOCK="${ONNX_SOCKET:-~/Library/Rime/run/gu_ranker.sock}"
-    HELP="${ONNX_HELPER:-~/Library/Rime/run/gu_ranker_client}"
-    ;;
-  windows)
-    SOCK="${ONNX_SOCKET:-%APPDATA%/Rime/run/gu_ranker.sock}"
-    HELP="${ONNX_HELPER:-%APPDATA%/Rime/run/gu_ranker_client.bat}"
-    ;;
-  linux)
-    SOCK="${ONNX_SOCKET:-~/.local/share/fcitx5/rime/run/gu_ranker.sock}"
-    HELP="${ONNX_HELPER:-~/.local/share/fcitx5/rime/run/gu_ranker_client}"
-    ;;
-  *)
-    SOCK="${ONNX_SOCKET:-~/Library/Rime/run/gu_ranker.sock}"
-    HELP="${ONNX_HELPER:-~/Library/Rime/run/gu_ranker_client}"
-    ;;
-esac
-patch_onnx_paths "$OUT_DIR/rime/gujarati.schema.yaml" "$SOCK" "$HELP"
 
 cat > "$OUT_DIR/rime/default.custom.yaml" <<'EOF'
 # re-gu-trans: enable Gujarati schema

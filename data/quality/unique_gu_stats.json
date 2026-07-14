@@ -1,13 +1,13 @@
 {
-  "union": 1888022,
-  "wiki_only": 623593,
+  "union": 1975405,
+  "wiki_only": 578287,
   "wiki_union": 983293,
   "sources": {
     "apple": 135962,
     "google_ime": 0,
     "aspell": 82146,
     "hunspell": 168952,
-    "dakshina": 0,
+    "dakshina": 69515,
     "glossaries": 0,
     "wiki_kartikm": 20817,
     "wiki_dict": 19007,
@@ -16,15 +16,20 @@
     "google": 21829,
     "indic": 97392,
     "indiccorp": 120673,
-    "aksharantar": 1068987
+    "aksharantar": 1068987,
+    "a4b": 250000
   },
   "floors": {
     "spell": 50,
     "wiki": 40,
     "aksharantar": 50,
-    "google_ime": 80
+    "a4b": 100,
+    "google_ime": 80,
+    "unigram_soft_min": 100
   },
-  "unigram": 1888022,
-  "attested": 1106447,
+  "unigram": 651288,
+  "attested_full": 1126170,
+  "attested": 567907,
+  "attested_compact": true,
   "attested_excludes_aksharantar": true
 }

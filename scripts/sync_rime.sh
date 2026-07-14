@@ -41,14 +41,12 @@ cp -f "$ROOT/rime/gu_lexicon_blob.json" "$RIME/" 2>/dev/null || true
 cp -f "$ROOT/rime/gu_lexicon_blob.json" "$RIME/js/" 2>/dev/null || true
 cp -f "$ROOT/rime/js/emoji_keywords.json" "$RIME/js/" 2>/dev/null || true
 
+# Single source of truth: rime/js/lm/ — mirror into user lm/ for legacy path fallbacks.
 if [[ -d "$ROOT/rime/js/lm" ]]; then
   cp -f "$ROOT/rime/js/lm/"*.tsv "$RIME/js/lm/" 2>/dev/null || true
   cp -f "$ROOT/rime/js/lm/"*.json "$RIME/js/lm/" 2>/dev/null || true
   cp -f "$ROOT/rime/js/lm/"*.tsv "$RIME/lm/" 2>/dev/null || true
   cp -f "$ROOT/rime/js/lm/"*.json "$RIME/lm/" 2>/dev/null || true
-fi
-if [[ -d "$ROOT/rime/lm" ]]; then
-  cp -f "$ROOT/rime/lm/"* "$RIME/lm/" 2>/dev/null || true
 fi
 
 # Ensure schema is enabled
@@ -62,26 +60,6 @@ EOF
 elif ! grep -q 'schema: gujarati' "$DEFAULT_CUSTOM" 2>/dev/null; then
   echo "NOTE: add '- schema: gujarati' under patch.schema_list in $DEFAULT_CUSTOM"
 fi
-
-# Ranker helper wrapper (native binary when present; else python)
-mkdir -p "$RIME/run"
-if [[ -x "$ROOT/tools/gu_ranker_client_fast" ]]; then
-  cat > "$RIME/run/gu_ranker_client" << EOF
-#!/bin/bash
-exec "$ROOT/tools/gu_ranker_client_fast" "\$@"
-EOF
-elif [[ -x "$ROOT/tools/gu_ranker_client" ]]; then
-  cat > "$RIME/run/gu_ranker_client" << EOF
-#!/bin/bash
-exec "$ROOT/tools/gu_ranker_client" "\$@"
-EOF
-else
-  cat > "$RIME/run/gu_ranker_client" << EOF
-#!/bin/bash
-exec python3 "$ROOT/runtime/onnx_ranker/client.py" "\$@"
-EOF
-fi
-chmod +x "$RIME/run/gu_ranker_client"
 
 # Reload frontend if available
 if [[ -x "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]]; then

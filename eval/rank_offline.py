@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline ranking eval mirroring gujarati_translator.js policy (v2.7).
+"""Offline ranking eval mirroring gujarati_translator.js policy (v2.8).
 
 Loads lexicon blob + unigram + stems + attested. Checks smoke top-1 and a
 small OOV/fuzzy sample. Does not require Rime/Squirrel.
@@ -38,6 +38,10 @@ CONFUSION_MAP = {
     "L": ["l"],
     "f": ["ph"],
     "ph": ["f"],
+    "v": ["w"],
+    "w": ["v"],
+    "z": ["j"],
+    "j": ["z"],
 }
 ENDING_VARIANTS = {
     "i": ["ii", "ee"],
@@ -83,10 +87,12 @@ CONS = {
 VOW_IND = {
     "aa": "આ", "ii": "ઈ", "ee": "ઈ", "uu": "ઊ", "oo": "ઊ", "ai": "ઐ", "au": "ઔ",
     "a": "અ", "i": "ઇ", "u": "ઉ", "e": "એ", "o": "ઓ",
+    "M": "ં", "H": "ઃ",
 }
 VOW_MAT = {
     "aa": "ા", "ii": "ી", "ee": "ી", "uu": "ૂ", "oo": "ૂ", "ai": "ૈ", "au": "ૌ",
     "i": "િ", "u": "ુ", "e": "ે", "o": "ો",
+    "M": "ં", "H": "ઃ",
     # short a = inherent
 }
 
@@ -98,6 +104,18 @@ SMOKE = [
     ("mne", "મને"),
     ("parkhavyu", "પરખાવ્યું"),
     ("gai", "ગઈ"),
+    # Pattern-family guards (Apple-like; rules must stay general)
+    ("kyare", "ક્યારે"),  # a→aa lengthening must not demote strict exact
+    ("joi", "જોઈ"),  # oi diphthong split
+    ("avo", "આવો"),  # leading a↔aa
+    ("wikas", "વિકાસ"),  # v↔w + aa
+    ("hoi", "હોઈ"),  # oi family
+    ("kui", "કુઈ"),  # ui diphthong
+    ("zindabad", "ઝિંદાબાદ"),  # anusvara + long-a
+    ("himmat", "હિમ્મત"),  # geminate
+    ("swagat", "સ્વાગત"),  # mid a→aa over soft lex
+    ("shah", "શાહ"),  # typed sh
+    ("banda", "બાંદા"),  # soft-lex demotion
 ]
 
 
@@ -158,6 +176,34 @@ def with_mid_vowel(s: str) -> set[str]:
     return out
 
 
+def with_leading_vowel(s: str) -> set[str]:
+    out = {s}
+    if not s or len(s) < 2:
+        return out
+    if s.startswith("aa"):
+        out.add("a" + s[2:])
+    elif s.startswith("a") and s[1] != "a":
+        out.add("aa" + s[1:])
+    return out
+
+
+def with_retroflex_nasal(s: str) -> set[str]:
+    out = {s}
+    if not s or len(s) < 2:
+        return out
+    for stem in ("Th", "Dh", "T", "D"):
+        idx = 0
+        while idx <= len(s) - len(stem) - 1:
+            at = s.find(stem, idx)
+            if at < 0:
+                break
+            n_pos = at + len(stem)
+            if n_pos < len(s) and s[n_pos] == "n":
+                out.add(s[:n_pos] + "N" + s[n_pos + 1 :])
+            idx = at + 1
+    return out
+
+
 def apply_confusions(s: str) -> set[str]:
     out = {s}
     keys = sorted(CONFUSION_MAP.keys(), key=len, reverse=True)
@@ -204,53 +250,199 @@ def insert_a_between_cons(s: str) -> set[str]:
     return out
 
 
+def with_trailing_schwa(s: str) -> set[str]:
+    out = {s}
+    if not s or len(s) < 3:
+        return out
+    # rough: last char is a consonant letter used in CONS singles
+    last = s[-1]
+    if last in "kKgGcCjJTDdNtnNpPbBmMyrRlLvVwWshHzf" or last in CONS:
+        out.add(s + "a")
+    return out
+
+
+# Stops that take homorganic / simplified anusvara (ISO 15919 / ITRANS M)
+_ANUSVARA_STOPS = (
+    "kh", "gh", "chh", "ch", "jh", "Th", "th", "Dh", "dh", "ph", "bh",
+    "k", "g", "c", "j", "T", "t", "D", "d", "p", "b",
+)
+
+# Enable English loan digraph alts (gated; turn off if smoke regressions).
+ENABLE_LOAN_DIGRAPHS = True
+
+
+def with_anusvara_nasals(s: str) -> set[str]:
+    """n/m before stop → M (ં) alternate — zindabad→ziMdabad→ઝિં…"""
+    out = {s}
+    if not s:
+        return out
+    for nasal in ("n", "m"):
+        idx = 0
+        while idx < len(s):
+            at = s.find(nasal, idx)
+            if at < 0:
+                break
+            rest = s[at + 1 :]
+            for stop in _ANUSVARA_STOPS:
+                if rest.startswith(stop):
+                    out.add(s[:at] + "M" + rest)
+                    break
+            idx = at + 1
+    return out
+
+
+def with_geminates(s: str) -> set[str]:
+    """mm/nn/… → m+m (explicit virama) for હિમ્મત-style geminates."""
+    out = {s}
+    if not s or len(s) < 2:
+        return out
+    for d in ("mm", "nn", "tt", "kk", "ll", "pp", "bb", "dd", "gg", "jj", "ss"):
+        idx = 0
+        while idx <= len(s) - 2:
+            at = s.find(d, idx)
+            if at < 0:
+                break
+            out.add(s[:at] + d[0] + "+" + d[1] + s[at + 2 :])
+            idx = at + 1
+    return out
+
+
+def with_loan_digraphs(s: str) -> set[str]:
+    """Bounded English-loan roman rewrites (Surana / Aksharantar NEF style)."""
+    out = {s}
+    if not ENABLE_LOAN_DIGRAPHS or not s:
+        return out
+    lower = s.lower()
+    # Only rewrite clearly Latin-looking tokens (avoid mane→man, kyare→kayar).
+    loanish = bool(
+        re.search(r"(sch|tion|qu|ck|oo|ee|school|college|doctor|hospital|london)", lower)
+    )
+    if not loanish:
+        return out
+    reps = [
+        ("sch", "sk"),
+        ("tion", "shan"),
+        ("qu", "kv"),
+        ("ck", "k"),
+        ("oo", "uu"),
+        ("ee", "ii"),
+    ]
+    for a, b in reps:
+        idx = 0
+        while idx <= len(lower) - len(a):
+            at = lower.find(a, idx)
+            if at < 0:
+                break
+            out.add(lower[:at] + b + lower[at + len(a) :])
+            idx = at + 1
+    if len(lower) >= 5 and lower.endswith("e") and lower[-2] in "bcdfghjklmnpqrstvwxyz":
+        out.add(lower[:-1])
+    return out
+
+
+def with_double_aa(s: str) -> set[str]:
+    """Up to two interior a→aa (ziMdabad → ziMdaabaad)."""
+    out = {s}
+    for one in with_mid_vowel(s):
+        out.add(one)
+        out |= with_mid_vowel(one)
+    return out
+
+
 def expand_roman(input_s: str) -> set[str]:
     lower = input_s.lower()
     forms = {lower, input_s}
     seed = set(with_ending(lower)) | set(with_mid_vowel(lower)) | apply_confusions(lower)
+    seed |= with_leading_vowel(lower)
+    seed |= with_trailing_schwa(lower)
+    seed |= with_retroflex_nasal(lower)
+    seed |= with_anusvara_nasals(lower)
+    seed |= with_geminates(lower)
+    seed |= with_loan_digraphs(lower)
+    # Prioritize anusvara × double-aa before MAX_ALT fills with junk
+    for nas in list(with_anusvara_nasals(lower)):
+        seed |= with_double_aa(nas)
+        seed |= with_geminates(nas)
     seed |= insert_a_between_cons(lower)
     for s in list(seed)[:MAX_ALT]:
         forms |= with_ending(s)
         forms |= with_mid_vowel(s)
+        forms |= with_leading_vowel(s)
+        forms |= with_trailing_schwa(s)
+        forms |= with_retroflex_nasal(s)
+        forms |= with_anusvara_nasals(s)
+        forms |= with_geminates(s)
+        forms |= with_loan_digraphs(s)
         forms |= apply_confusions(s)
         forms |= insert_a_between_cons(s)
         if len(forms) >= MAX_ALT:
             break
-    # Second pass: endings / mid-vowels on newly inserted-a forms (ketli→keTali→keTalii)
+    # Second pass: endings / mid-vowels on newly inserted-a / anusvara forms
     extra: set[str] = set()
     for s in list(forms)[:MAX_ALT]:
         extra |= with_ending(s)
         extra |= with_mid_vowel(s)
+        extra |= with_leading_vowel(s)
+        extra |= with_trailing_schwa(s)
+        extra |= with_retroflex_nasal(s)
+        extra |= with_anusvara_nasals(s)
+        extra |= with_geminates(s)
         extra |= insert_a_between_cons(s)
     forms |= extra
+    # Cross anusvara × mid-vowel (ziMdabad → ziMdaabaad)
+    cross: set[str] = set()
+    for s in list(forms):
+        if "M" in s or "+" in s:
+            cross |= with_double_aa(s)
+        if len(cross) + len(forms) >= MAX_ALT * 2:
+            break
+    forms |= cross
     return forms
 
 
-def near_exact_suffix(suf: str) -> bool:
+def near_exact_suffix(suf: str, full_key: str | None = None) -> bool:
     if not suf:
         return False
-    return bool(re.fullmatch(r"(n|m|ng|un|um|h)", suf, flags=re.I))
+    if not re.fullmatch(r"(n|m|ng|un|um|h)", suf, flags=re.I):
+        return False
+    if full_key and re.fullmatch(r"(n|m)", suf, flags=re.I) and re.search(
+        r"(an|en|ian|ing|ers?|ors?|ly)$", full_key, flags=re.I
+    ):
+        return False
+    return True
 
 
 LEXICON_STRONG_WEIGHT = 100
 
 
 def is_a_insertion_only(typed: str, key: str) -> bool:
+    """Ephemeral schwa inserts only; a→aa lengthening is not weak."""
     if not typed or not key or key == typed or len(key) <= len(typed):
         return False
     i = j = 0
+    inserted = 0
     while i < len(typed) and j < len(key):
         if typed[i] == key[j]:
             i += 1
             j += 1
             continue
         if key[j] == "a":
+            if j > 0 and key[j - 1] == "a":
+                return False
             j += 1
+            inserted += 1
             continue
         return False
     if i != len(typed):
         return False
-    return all(c == "a" for c in key[j:])
+    while j < len(key):
+        if key[j] != "a":
+            return False
+        if j > 0 and key[j - 1] == "a":
+            return False
+        j += 1
+        inserted += 1
+    return inserted > 0
 
 
 def lexicon_hit_tier(source: str | None, weight: float, typed: str, hit_roman: str) -> int:
@@ -258,6 +450,9 @@ def lexicon_hit_tier(source: str | None, weight: float, typed: str, hit_roman: s
     if source == "strict" and not soft:
         return TIER_EXACT
     if soft:
+        return TIER_DICT
+    # Typed sh… must not promote s… fuzzy to EXACT (shah↛સહ)
+    if source == "fuzzy" and typed.startswith("sh") and hit_roman.startswith("s") and not hit_roman.startswith("sh"):
         return TIER_DICT
     if source == "fuzzy" and is_a_insertion_only(typed, hit_roman):
         return TIER_DICT
@@ -356,12 +551,12 @@ def _ends_with_gu_cons(s: str) -> bool:
 
 
 def diphthong_alternate_forms(roman: str) -> list[str]:
-    """Mirror JS: ai/ay → અઈ/ાઈ/ાય splits the matra transliterator cannot emit."""
+    """Mirror JS: ai/ay/oi/ui/ei → independent ઈ/ઇ splits."""
     out: list[str] = []
     if not roman:
         return out
     s = roman.lower()
-    for digraph in ("ai", "ay"):
+    for digraph in ("ai", "ay", "oi", "ui", "ei"):
         idx = 0
         added = 0
         while idx <= len(s) - len(digraph) and added < 3:
@@ -389,6 +584,14 @@ def diphthong_alternate_forms(roman: str) -> list[str]:
                     nuclei.append(prefix_gu + "ય")
                     with_aa = prefix_gu[:-1] + prefix_gu[-1] + VOW_MAT["aa"]
                     nuclei.append(with_aa + "ય")
+            elif digraph in ("oi", "ui", "ei"):
+                if _ends_with_gu_cons(prefix_gu):
+                    mat = {"oi": "o", "ui": "u", "ei": "e"}[digraph]
+                    with_matra = prefix_gu[:-1] + prefix_gu[-1] + VOW_MAT[mat]
+                    nuclei.extend([with_matra + "ઈ", with_matra + "ઇ"])
+                    if digraph == "ui":
+                        with_uu = prefix_gu[:-1] + prefix_gu[-1] + VOW_MAT["uu"]
+                        nuclei.extend([with_uu + "ઈ", with_uu + "ઇ"])
             for n in nuclei:
                 out.append(n + suffix_gu)
             if nuclei:
@@ -441,11 +644,18 @@ def dictionary_validity(text: str, uni: dict[str, int], stems: dict[str, int], a
                 stem_hit = max(stem_hit, floor)
     evidence = max(uni_c, stem_hit, spell_hit)
     virama = text.count(VIRAMA)
-    score = max(0.0, math.log1p(evidence) - virama * 0.25)
-    return {"score": score, "attested": evidence > 0 or spell_ok, "spell_ok": spell_ok, "evidence": evidence}
+    # Prefer full-word unigram over stem-only (વિકસ stem must not beat વિકાસ uni).
+    score = (
+        math.log1p(uni_c)
+        + math.log1p(spell_hit) * 0.35
+        + math.log1p(stem_hit) * (0.35 if uni_c > 0 else 0.7)
+        - virama * 0.25
+    )
+    return {"score": max(0.0, score), "attested": evidence > 0 or spell_ok, "spell_ok": spell_ok, "evidence": evidence}
 
 
-def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], floor: int) -> list[tuple[str, int, float]]:
+def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], floor: int,
+         prefix_index: dict[str, list[tuple[str, str]]] | None = None) -> list[tuple[str, int, float]]:
     lex = blob.get("lexicon") or {}
     weights = blob.get("weights") or {}
     exceptions = blob.get("exceptions") or {}
@@ -469,30 +679,51 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
         if q in lex:
             src = "strict" if q == lower else "fuzzy"
             exact_hits.append((q, lex[q], float(weights.get(q, 100)), src))
-    # near-exact: lexicon keys that start with query + weak suffix
+    # near-exact: lexicon keys that start with query + weak suffix (prefix index ≈ JS trie)
     for q in queries:
         if len(q) < 2:
             continue
-        for key, word in lex.items():
+        bucket = (
+            prefix_index.get(q[:2], [])
+            if prefix_index is not None
+            else [(k, lex[k]) for k in lex if k.startswith(q[:2])]
+        )
+        for key, word in bucket:
             if not key.startswith(q):
                 continue
             suf = key[len(q) :]
-            if near_exact_suffix(suf):
+            if near_exact_suffix(suf, key):
                 exact_hits.append((key, word, float(weights.get(key, 100)), "near_exact"))
 
-    exact_hits.sort(key=lambda x: (-x[2], len(x[0])))
+    exact_hits.sort(key=lambda x: (0 if x[3] == "strict" else 1, -x[2], len(x[0])))
     for roman, word, w, src in exact_hits:
         tier = lexicon_hit_tier(src, w, lower, roman)
+        # Upgrade if same native already pushed at a weaker tier
+        existing = next((c for c in cands if c["text"] == word), None)
+        if existing:
+            if tier < existing["tier"]:
+                existing["tier"] = tier
+                existing["source"] = src
+                existing["weight"] = max(existing["weight"], w)
+                existing["roman"] = roman
+            continue
         push(word, tier, w, src, roman)
 
     has_strict = any(c["source"] == "strict" for c in cands if c["tier"] == TIER_EXACT)
     exact_count = sum(1 for c in cands if c["tier"] == TIER_EXACT)
 
     phon_forms = []
-    # Prefer near-length fuzzy queries (parkhaavyu before paaaarkhavyu); mirrors JS
-    # iterating altForms while avoiding hash-order flakes in Python sets.
-    ordered_q = sorted(queries, key=lambda q: (abs(len(q) - len(lower)), q != lower, q))
-    for form in [input_s, *[q for q in ordered_q if q != input_s][:60]]:
+    # Prefer anusvara/geminate rewrites + near-length fuzzy queries
+    ordered_q = sorted(
+        queries,
+        key=lambda q: (
+            0 if ("M" in q or "+" in q) else 1,
+            abs(len(q) - len(lower)),
+            q != lower,
+            q,
+        ),
+    )
+    for form in [input_s, *[q for q in ordered_q if q != input_s][:80]]:
         for g in phonetic_forms(form):
             if g not in phon_forms:
                 phon_forms.append(g)
@@ -505,8 +736,17 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
         if exact_count > 0 and has_strict and not v["attested"] and not v["spell_ok"]:
             continue
         phon_scored.append((text, v))
-    phon_scored.sort(key=lambda x: (-int(x[1]["spell_ok"]), -int(x[1]["attested"]), -x[1]["score"]))
-    for text, v in phon_scored[:5]:
+    phon_scored.sort(
+        key=lambda x: (
+            -int(x[1]["spell_ok"]),
+            -int(x[1]["attested"]),
+            -x[1]["score"],
+            -uni.get(x[0], 0),
+            -x[0].count("ા"),
+            -x[0].count("ં"),
+        )
+    )
+    for text, v in phon_scored[:12]:
         tier = TIER_DICT if v["attested"] else TIER_PHONETIC
         push(text, tier, v["evidence"], None, lower)
 
@@ -514,13 +754,86 @@ def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], f
     for i, c in enumerate(cands):
         v = dictionary_validity(c["text"], uni, stems, attested, floor)
         dict_boost = v["score"] * 1.4 if v["attested"] else 0.0
+        # Prefer full-word unigram magnitude in ranking (wikas: વિકાસ@400 > વિકાશ@50)
+        uni_c = uni.get(c["text"], 0)
+        uni_boost = math.log1p(uni_c) * 0.55
         spell_boost = 0.35 if v["spell_ok"] else 0.0
         freq = math.log1p(c["weight"]) * 0.35
-        score = freq + dict_boost + spell_boost
-        scored.append((c["text"], c["tier"], score, c["weight"], i))
+        score = freq + dict_boost + uni_boost + spell_boost
+        # Soft-fill lexicon only (not phonetics — phon weight is uni evidence)
+        is_lex = c.get("source") in ("strict", "fuzzy", "near_exact")
+        if is_lex and 0 < c["weight"] < LEXICON_STRONG_WEIGHT and uni_c < 150:
+            score -= freq * 0.85 + 2.8
+        if is_lex and 0 < c["weight"] < LEXICON_STRONG_WEIGHT and "ય" in c["text"] and "y" not in lower:
+            score -= 4.0
+        # Inserted ya-phala not typed — any source
+        if "ય" in c["text"] and "y" not in lower:
+            score -= 4.0
+        # Typed dental d → prefer દ over ડ
+        if "d" in lower and not re.search(r"(^|[^a-z])D", lower):
+            if "ડ" in c["text"] and "દ" not in c["text"]:
+                score -= 1.2
+            if "દ" in c["text"]:
+                score += 0.5
+        # Typed sh → prefer શ over સ (claw back high-uni સહ)
+        if lower.startswith("sh"):
+            if c["text"].startswith("શ"):
+                score += 3.0
+            elif c["text"].startswith("સ"):
+                score -= 3.0 + uni_boost * 0.5
+        # Typed plain s (not sh) → prefer સ over શ
+        elif "sh" not in lower and "s" in lower:
+            if "શ" in c["text"] and "ષ" not in c["text"]:
+                score -= 0.55
+            if c["text"].count("સ") and "શ" not in c["text"]:
+                score += 0.2
+        # Typed z → prefer ઝ over જ
+        if "z" in lower and "j" not in lower:
+            if c["text"].startswith("ઝ"):
+                score += 0.5
+            elif c["text"].startswith("જ"):
+                score -= 0.35
+        # Geminate roman → prefer virama geminate; demote anusvara lexicon hits
+        if re.search(r"(mm|nn|tt|kk|ll)", lower):
+            if VIRAMA in c["text"]:
+                score += 3.0
+            if "ં" in c["text"] and VIRAMA not in c["text"]:
+                score -= 3.5 + uni_boost * 0.65
+                scored_tier = TIER_DICT if c["tier"] == TIER_EXACT else c["tier"]
+            else:
+                scored_tier = c["tier"]
+        else:
+            scored_tier = c["tier"]
+            if "ં" in c["text"] and re.search(r"n[kgcjtdTDpb]", lower):
+                score += 0.35
+        # Prefer long-a; ignore spurious trailing આ when roman doesn't end in a
+        a_vowels = len(re.findall(r"a+", lower))
+        aa_count = c["text"].count("ા")
+        effective_aa = aa_count
+        if c["text"].endswith("ા") and not lower.endswith(("a", "aa")):
+            effective_aa = max(0, effective_aa - 1)
+            score -= 1.6
+        if a_vowels >= 1 and "a" in lower[1:]:
+            score += 0.2 * effective_aa
+            if a_vowels >= 2 and effective_aa >= 2:
+                score += 2.5
+            elif a_vowels >= 2 and effective_aa < 2:
+                score -= 1.2
+        # Length: avoid dropping vowels to short anusvara junk (banda↛બંડ)
+        if len(c["text"]) < len(lower) * 0.7:
+            score -= 2.0
+        scored.append((c["text"], scored_tier, score, c["weight"], i))
 
     scored.sort(key=lambda x: (x[1], -x[2], -x[3], x[4]))
     return [(t, tier, sc) for t, tier, sc, _w, _i in scored]
+
+
+def build_prefix_index(lex: dict) -> dict[str, list[tuple[str, str]]]:
+    idx: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for k, v in lex.items():
+        if len(k) >= 2:
+            idx[k[:2]].append((k, v))
+    return idx
 
 
 def main() -> int:
@@ -533,12 +846,13 @@ def main() -> int:
     uni = load_unigram()
     stems = load_stems()
     attested, floor = load_attested()
+    prefix_index = build_prefix_index(blob.get("lexicon") or {})
     print(f"lex={len(blob.get('lexicon') or {})} uni={len(uni)} stems={len(stems)} attested={len(attested)}")
 
     smoke_results = []
     smoke_ok = 0
     for roman, expect in SMOKE:
-        ranked = rank(roman, blob, uni, stems, attested, floor)
+        ranked = rank(roman, blob, uni, stems, attested, floor, prefix_index)
         top = ranked[0][0] if ranked else None
         ok = top == expect
         smoke_ok += int(ok)
@@ -563,7 +877,7 @@ def main() -> int:
         if len(samples) >= 40:
             break
     for alt, word in samples:
-        ranked = rank(alt, blob, uni, stems, attested, floor)
+        ranked = rank(alt, blob, uni, stems, attested, floor, prefix_index)
         top = ranked[0][0] if ranked else None
         oov_n += 1
         oov_ok += int(top == word)

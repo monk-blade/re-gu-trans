@@ -1,4 +1,4 @@
-# Rime schema for Gujarati Transliteration (JS + ONNX via librime-qjs)
+# Rime schema for Gujarati Transliteration (JS via librime-qjs)
 # encoding: utf-8
 
 schema:
@@ -53,7 +53,7 @@ translator:
   encode_commit_history: false
   initial_quality: 0.5
   contextual_suggestions: false
-  # qjs / ONNX knobs
+  # qjs knobs
   enable_user_lm: true
   # Prefer attested lexicon; drop unknown phonetic inventions when exact hits exist
   lexicon_hard_gate: true
@@ -66,11 +66,6 @@ translator:
   # Keyword emoji suggestions (English + Gujarati-roman); always below script
   emoji_enable: true
   max_emoji: 3
-  onnx_enable: true
-  onnx_weight: 1.2
-  onnx_timeout_ms: 3
-  onnx_socket: "~/Library/Rime/run/gu_ranker.sock"
-  onnx_helper: "~/Library/Rime/run/gu_ranker_client"
   lm_unigram_weight: 0.6
   lm_bigram_weight: 0.9
   lm_user_weight: 0.6

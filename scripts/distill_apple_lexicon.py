@@ -93,7 +93,35 @@ def build_probe_wordlist() -> Path:
             if 1 <= len(roman) <= 40 and roman.isascii():
                 words.add(roman)
 
-    # Common Gujarati romanizations / Apple-style spellings
+    # Dakshina GU roman (natural typing) — data/external cache
+    dak = DATA / "external" / "dakshina_gu_natives.txt"
+    # Prefer paired roman file if present
+    for cand in (
+        DATA / "external" / "dakshina_gu_roman.txt",
+        DATA / "external" / "dakshina" / "gu" / "romanized.txt",
+    ):
+        if cand.exists():
+            for line in load_lines(cand)[:8000]:
+                w = line.split("\t")[0].strip().lower()
+                if w.isascii() and w.isalpha() and 2 <= len(w) <= 40:
+                    words.add(w)
+
+    # Soft-fill / lexicon roman keys (sample high-value)
+    blob_path = RIME_OUT / "gu_lexicon_blob.json"
+    if blob_path.exists():
+        try:
+            blob = json.loads(blob_path.read_text(encoding="utf-8"))
+            lex = blob.get("lexicon") or {}
+            weights = blob.get("weights") or {}
+            # Prefer heavier weights first
+            ranked = sorted(lex.keys(), key=lambda k: (-float(weights.get(k, 0)), len(k), k))
+            for k in ranked[:6000]:
+                if k.isascii() and k.isalpha() and 2 <= len(k) <= 40:
+                    words.add(k.lower())
+        except Exception:
+            pass
+
+    # Common Gujarati romanizations / Apple-style spellings + pattern families
     extras = """
     kem kemcho namaste gujarat aavjo madad bhai ben prem pyar
     tame hu chu chhe shu kyare dhanyavad mumbai ahmedabad saru majha
@@ -105,13 +133,24 @@ def build_probe_wordlist() -> Path:
     shubh prabhat shubh ratri kem chho majama
     laptop mobile phone email internet
     doctor hospital medicine university college
+    zindabad jindabad himmat himat sambandh sambhand
+    london england america hospital college school
+    banda swagat shah friend station thankyou
+    andar anand chandra pandar gandhi
     """.split()
     words.update(w.lower() for w in extras if w.isalpha())
 
+    # Pattern seeds: nd/nt/nk/ng + diphthong-ish
+    for stem in ("zin", "hin", "ban", "san", "man", "kan", "dan", "ran"):
+        for stop in ("d", "t", "k", "g", "b", "p"):
+            words.add(stem + stop + "a")
+            words.add(stem + "a" + stop)
+
     # Cap for Apple probe latency; prefer shorter / seed words first
     sorted_words = sorted(words, key=lambda w: (len(w), w))
-    if len(sorted_words) > 12000:
-        sorted_words = sorted_words[:12000]
+    cap = 20000
+    if len(sorted_words) > cap:
+        sorted_words = sorted_words[:cap]
     out = DATA / "probe_wordlist.txt"
     out.write_text("\n".join(sorted_words) + "\n", encoding="utf-8")
     print(f"probe wordlist: {len(sorted_words)} -> {out}")

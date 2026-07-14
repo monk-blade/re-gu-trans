@@ -836,14 +836,14 @@ let APPLE_WEIGHTS = new Map() // roman → corpus/Apple weight (general ranking)
 let KNOWN_WORDS = new Set()
 let LEXICON_LOADED = false
 
-// Candidate tiers — primary sort key (lower = better). Matches macOS-style lists:
-// exact lexicon → latin echo → phonetic → prefix completions.
+// Candidate tiers — primary sort key (lower = better).
 const TIER_EXACT = 0
 const TIER_DICT = 1   // phonetic form attested via native wordlist / stem (macOS-like)
 const TIER_PHONETIC = 2
 const TIER_LATIN = 3  // echo latin below script phonetics (Google/Apple-like)
 const TIER_PREFIX = 4
 const TIER_EMOJI = 5  // keyword emoji; always below script candidates
+const TIER_MAX = 5
 
 function rememberKnownWord(word) {
   if (word) KNOWN_WORDS.add(word)
@@ -1329,7 +1329,12 @@ function dictionaryValidity(text) {
   let virama = 0
   for (const ch of text) if (ch === '\u0ACD') virama += 1
   const viramaPenalty = virama * 0.25
-  const score = Math.log1p(evidence) - viramaPenalty
+  // Prefer full-word unigram over stem-only (વિકસ stem must not beat વિકાસ uni).
+  const score =
+    Math.log1p(uni) +
+    Math.log1p(spellHit) * 0.35 +
+    Math.log1p(stemHit) * (uni > 0 ? 0.35 : 0.7) -
+    viramaPenalty
   return {
     score: Math.max(0, score),
     attested: evidence > 0 || spellOk,
@@ -1595,15 +1600,15 @@ function transliterate(input) {
 }
 
 /**
- * Apple/Google-style diphthong splits: roman `ai`/`ay` often mean અઈ/ાઈ/ાય,
- * not only matra ૈ — and never bare ી (that comes from mistaken gai→gaee).
- * Constructs independent-vowel forms the matra transliterator cannot emit.
+ * Apple/Google-style diphthong splits: roman `ai`/`ay`/`oi`/`ui`/`ei` often mean
+ * independent ઈ/ઇ (કોઈ, જોઈ, થઈ) — not only matra ૈ / bare ી from i↔ii.
+ * Constructs forms the matra transliterator cannot emit.
  */
 function diphthongAlternateForms(roman) {
   const out = []
   if (!roman) return out
   const s = String(roman).toLowerCase()
-  const digraphs = ['ai', 'ay']
+  const digraphs = ['ai', 'ay', 'oi', 'ui', 'ei']
   for (const digraph of digraphs) {
     let idx = 0
     let added = 0
@@ -1636,6 +1641,17 @@ function diphthongAlternateForms(roman) {
           nuclei.push(prefixGu + 'ય')
           const withAa = prefixGu.slice(0, -1) + prefixGu.slice(-1) + VOWEL_MATRAS.aa
           nuclei.push(withAa + 'ય')
+        }
+      } else if (digraph === 'oi' || digraph === 'ui' || digraph === 'ei') {
+        // joi→જોઈ, kui→કુઈ, udhei→ઉધેઈ — vowel matra + independent ઈ/ઇ
+        if (endsWithConsonantWithImplicitA(prefixGu)) {
+          const matraKey = digraph === 'oi' ? 'o' : digraph === 'ui' ? 'u' : 'e'
+          const withMatra = prefixGu.slice(0, -1) + prefixGu.slice(-1) + VOWEL_MATRAS[matraKey]
+          nuclei.push(withMatra + 'ઈ', withMatra + 'ઇ')
+          if (digraph === 'ui') {
+            const withUu = prefixGu.slice(0, -1) + prefixGu.slice(-1) + VOWEL_MATRAS.uu
+            nuclei.push(withUu + 'ઈ', withUu + 'ઇ')
+          }
         }
       }
       for (const n of nuclei) out.push(n + suffixGu)
@@ -1693,6 +1709,12 @@ const CONFUSION_MAP = {
   'L': ['l'],
   'f': ['ph'],
   'ph': ['f'],
+  // Apple/Google treat w as વ (vikas↔wikas)
+  'v': ['w'],
+  'w': ['v'],
+  // Colloquial z↔j (zindabad / jindabad)
+  'z': ['j'],
+  'j': ['z'],
 }
 
 const ENDING_VARIANTS = {
@@ -1762,6 +1784,122 @@ function withMidVowelVariants(s) {
   return out
 }
 
+/** Leading a↔aa (avo→aavo→આવો). Mid-vowel pass skips index 0. */
+function withLeadingVowelVariants(s) {
+  const out = new Set([s])
+  if (!s || s.length < 2) return out
+  if (s.startsWith('aa')) out.add('a' + s.slice(2))
+  else if (s.startsWith('a') && s[1] !== 'a') out.add('aa' + s.slice(1))
+  return out
+}
+
+/** Optional final schwa letter for soft lexicon keys (vikas→vikasa). */
+function withTrailingSchwa(s) {
+  const out = new Set([s])
+  if (!s || s.length < 3) return out
+  const last = s[s.length - 1]
+  if (last in CONSONANTS) out.add(s + 'a')
+  return out
+}
+
+/** After retroflex T/Th/D/Dh, dental n is often typed for ણ (gothni→gothaNi). */
+function withRetroflexNasal(s) {
+  const out = new Set([s])
+  if (!s || s.length < 2) return out
+  const keys = ['Th', 'Dh', 'T', 'D']
+  for (const stem of keys) {
+    let idx = 0
+    while (idx <= s.length - stem.length - 1) {
+      const at = s.indexOf(stem, idx)
+      if (at < 0) break
+      const nPos = at + stem.length
+      if (nPos < s.length && s[nPos] === 'n') {
+        out.add(s.slice(0, nPos) + 'N' + s.slice(nPos + 1))
+      }
+      idx = at + 1
+    }
+  }
+  return out
+}
+
+/** Homorganic / simplified anusvara: n|m before stop → M (ં). ISO 15919 / ITRANS. */
+const ANUSVARA_STOPS = [
+  'kh', 'gh', 'chh', 'ch', 'jh', 'Th', 'th', 'Dh', 'dh', 'ph', 'bh',
+  'k', 'g', 'c', 'j', 'T', 't', 'D', 'd', 'p', 'b',
+]
+
+function withAnusvaraNasals(s) {
+  const out = new Set([s])
+  if (!s) return out
+  for (const nasal of ['n', 'm']) {
+    let idx = 0
+    while (idx < s.length) {
+      const at = s.indexOf(nasal, idx)
+      if (at < 0) break
+      const rest = s.slice(at + 1)
+      for (const stop of ANUSVARA_STOPS) {
+        if (rest.startsWith(stop)) {
+          out.add(s.slice(0, at) + 'M' + rest)
+          break
+        }
+      }
+      idx = at + 1
+    }
+  }
+  return out
+}
+
+/** Geminate doubles → explicit virama (himmat→him+mat→હિમ્મત). */
+function withGeminates(s) {
+  const out = new Set([s])
+  if (!s || s.length < 2) return out
+  const doubles = ['mm', 'nn', 'tt', 'kk', 'll', 'pp', 'bb', 'dd', 'gg', 'jj', 'ss']
+  for (const d of doubles) {
+    let idx = 0
+    while (idx <= s.length - 2) {
+      const at = s.indexOf(d, idx)
+      if (at < 0) break
+      out.add(s.slice(0, at) + d[0] + '+' + d[1] + s.slice(at + 2))
+      idx = at + 1
+    }
+  }
+  return out
+}
+
+/** Bounded English-loan digraph rewrites (gated). */
+const ENABLE_LOAN_DIGRAPHS = true
+
+function withLoanDigraphs(s) {
+  const out = new Set([s])
+  if (!ENABLE_LOAN_DIGRAPHS || !s) return out
+  const lower = s.toLowerCase()
+  // Only rewrite clearly Latin-looking tokens (avoid mane→man, kyare→kayar).
+  if (!/(sch|tion|qu|ck|oo|ee|school|college|doctor|hospital|london)/.test(lower)) {
+    return out
+  }
+  const reps = [
+    ['sch', 'sk'],
+    ['tion', 'shan'],
+    ['qu', 'kv'],
+    ['ck', 'k'],
+    ['oo', 'uu'],
+    ['ee', 'ii'],
+  ]
+  for (const [a, b] of reps) {
+    let idx = 0
+    while (idx <= lower.length - a.length) {
+      const at = lower.indexOf(a, idx)
+      if (at < 0) break
+      out.add(lower.slice(0, at) + b + lower.slice(at + a.length))
+      idx = at + 1
+    }
+  }
+  if (lower.length >= 5 && lower.endsWith('e') && /[bcdfghjklmnpqrstvwxyz]/.test(lower[lower.length - 2])) {
+    out.add(lower.slice(0, -1))
+  }
+  return out
+}
+
 /** Replace every occurrence position of digraph/char confusion (not only first). */
 function applyConfusionOnce(s, from, to) {
   const out = []
@@ -1779,9 +1917,15 @@ function generateAlternateForms(input) {
   const forms = new Set()
   forms.add(input)
 
-  // Prioritize seed ending + mid-vowel + one-step confusions before deep recursion
+  // Prioritize seed ending + vowel-length + one-step confusions before deep recursion
   for (const ended of withEndingVariants(input)) forms.add(ended)
   for (const mid of withMidVowelVariants(input)) forms.add(mid)
+  for (const lead of withLeadingVowelVariants(input)) forms.add(lead)
+  for (const trail of withTrailingSchwa(input)) forms.add(trail)
+  for (const ret of withRetroflexNasal(input)) forms.add(ret)
+  for (const nas of withAnusvaraNasals(input)) forms.add(nas)
+  for (const gem of withGeminates(input)) forms.add(gem)
+  for (const loan of withLoanDigraphs(input)) forms.add(loan)
   const keysFirst = Object.keys(CONFUSION_MAP).sort((a, b) => b.length - a.length)
   for (const from of keysFirst) {
     for (const to of CONFUSION_MAP[from]) {
@@ -1789,6 +1933,12 @@ function generateAlternateForms(input) {
         forms.add(replaced)
         for (const ended of withEndingVariants(replaced)) forms.add(ended)
         for (const mid of withMidVowelVariants(replaced)) forms.add(mid)
+        for (const lead of withLeadingVowelVariants(replaced)) forms.add(lead)
+        for (const trail of withTrailingSchwa(replaced)) forms.add(trail)
+        for (const ret of withRetroflexNasal(replaced)) forms.add(ret)
+        for (const nas of withAnusvaraNasals(replaced)) forms.add(nas)
+        for (const gem of withGeminates(replaced)) forms.add(gem)
+        for (const loan of withLoanDigraphs(replaced)) forms.add(loan)
         if (forms.size >= MAX_ALT_FORMS) break
       }
       if (forms.size >= MAX_ALT_FORMS) break
@@ -1844,33 +1994,73 @@ function generateAlternateForms(input) {
         forms.add(mid)
       }
     }
+    for (const nas of withAnusvaraNasals(s)) {
+      if (forms.size < MAX_ALT_FORMS && !forms.has(nas)) {
+        forms.add(nas)
+        if (nas !== s) expand(nas, depth + 1)
+      }
+    }
+    for (const gem of withGeminates(s)) {
+      if (forms.size < MAX_ALT_FORMS && !forms.has(gem)) forms.add(gem)
+    }
   }
 
   expand(input, 0)
   for (const ended of withEndingVariants(input)) forms.add(ended)
   for (const mid of withMidVowelVariants(input)) forms.add(mid)
+  for (const lead of withLeadingVowelVariants(input)) {
+    forms.add(lead)
+    for (const ended of withEndingVariants(lead)) forms.add(ended)
+    for (const mid of withMidVowelVariants(lead)) forms.add(mid)
+  }
+  for (const ret of withRetroflexNasal(input)) {
+    forms.add(ret)
+    for (const ended of withEndingVariants(ret)) forms.add(ended)
+  }
+  for (const nas of withAnusvaraNasals(input)) {
+    forms.add(nas)
+    for (const mid of withMidVowelVariants(nas)) {
+      forms.add(mid)
+      for (const mid2 of withMidVowelVariants(mid)) forms.add(mid2)
+    }
+  }
+  for (const gem of withGeminates(input)) forms.add(gem)
+  for (const loan of withLoanDigraphs(input)) forms.add(loan)
+  // Retroflex nasal on t→T confusions (gothni→goThni→goThNi)
+  for (const form of Array.from(forms).slice(0, MAX_ALT_FORMS)) {
+    for (const ret of withRetroflexNasal(form)) forms.add(ret)
+    for (const nas of withAnusvaraNasals(form)) forms.add(nas)
+    if (forms.size >= MAX_ALT_FORMS) break
+  }
   return forms
 }
 
 /** Suffixes that are spelling noise, not real extra morphology (poshatu + n).
  * Keep nasal/visarga-like only — single vowels are too permissive (mane+i → manei). */
-function isNearExactRomanSuffix(suf) {
+function isNearExactRomanSuffix(suf, fullKey) {
   if (!suf) return false
-  return /^(n|m|ng|un|um|h)$/i.test(suf)
+  if (!/^(n|m|ng|un|um|h)$/i.test(suf)) return false
+  // Block English morphology completions (america→american, doctor→doctors)
+  if (fullKey && /^(n|m)$/i.test(suf) && /(an|en|ian|ing|ers?|ors?|ly)$/i.test(fullKey)) {
+    return false
+  }
+  return true
 }
 
 /** Soft-fill / weak lexicon weights must not outrank attested phonetics (Aksharantar=75). */
 const LEXICON_STRONG_WEIGHT = 100
 
 /**
- * True when `key` is `typed` with only ephemeral 'a' vowels inserted between letters.
+ * True when `key` is `typed` with only ephemeral schwa 'a' inserted between consonants.
  * mne→mane is weak evidence; do not treat as TIER_EXACT.
+ * a→aa lengthening (kyare→kyaare, avo→aavo) is NOT ephemeral — keep strong / exact.
  */
 function isAInsertionOnly(typed, key) {
   if (!typed || !key || key === typed) return false
   if (key.length <= typed.length) return false
   let i = 0
   let j = 0
+  let inserted = 0
   while (i < typed.length && j < key.length) {
     if (typed[i] === key[j]) {
       i += 1
@@ -1878,7 +2068,10 @@ function isAInsertionOnly(typed, key) {
       continue
     }
     if (key[j] === 'a') {
+      // Extra a adjacent to an already-matched a is vowel lengthening, not schwa insert.
+      if (j > 0 && key[j - 1] === 'a') return false
       j += 1
+      inserted += 1
       continue
     }
     return false
@@ -1886,9 +2079,11 @@ function isAInsertionOnly(typed, key) {
   if (i !== typed.length) return false
   while (j < key.length) {
     if (key[j] !== 'a') return false
+    if (j > 0 && key[j - 1] === 'a') return false
     j += 1
+    inserted += 1
   }
-  return true
+  return inserted > 0
 }
 
 /** Map lexicon hit → tier. Soft / a-insertion fuzzy never get TIER_EXACT. */
@@ -1897,6 +2092,14 @@ function lexiconHitTier(source, weight, typedRoman, hitRoman) {
   const soft = w > 0 && w < LEXICON_STRONG_WEIGHT
   if (source === 'strict' && !soft) return TIER_EXACT
   if (soft) return TIER_DICT
+  if (
+    source === 'fuzzy' &&
+    typedRoman.startsWith('sh') &&
+    hitRoman.startsWith('s') &&
+    !hitRoman.startsWith('sh')
+  ) {
+    return TIER_DICT
+  }
   if (source === 'fuzzy' && isAInsertionOnly(typedRoman, hitRoman)) return TIER_DICT
   if (source === 'near_exact' || source === 'fuzzy' || source === 'strict') return TIER_EXACT
   return TIER_DICT
@@ -2061,105 +2264,6 @@ function romanCloseness(a, b) {
 
 
 // ---------------------------------------------------------------------------
-// Local ONNX ranker client (Unix socket via external helper)
-// Never blocks typing: timeout / failure falls back to n-gram scores.
-// ---------------------------------------------------------------------------
-
-const ONNX_DEFAULT_SOCK = '~/Library/Rime/run/gu_ranker.sock'
-const ONNX_CACHE = new Map()
-const ONNX_CACHE_LIMIT = 400
-
-function onnxCacheGet(key) {
-  if (!ONNX_CACHE.has(key)) return null
-  return ONNX_CACHE.get(key)
-}
-
-function onnxCacheSet(key, value) {
-  if (ONNX_CACHE.size >= ONNX_CACHE_LIMIT) {
-    const first = ONNX_CACHE.keys().next().value
-    ONNX_CACHE.delete(first)
-  }
-  ONNX_CACHE.set(key, value)
-}
-
-function rankWithOnnx(input, candTexts, prev, env) {
-  const enable = getEnvBool(env, 'translator/onnx_enable', true)
-  if (!enable || !candTexts || candTexts.length === 0) return null
-  const cacheKey = input + '||' + prev + '||' + candTexts.join('\u0001')
-  const cached = onnxCacheGet(cacheKey)
-  if (cached) return cached
-
-  // librime-qjs may expose system() or not; try best-effort helper CLI.
-  const helper = getEnvString(env, 'translator/onnx_helper', resolveUserPath('~/Library/Rime/run/gu_ranker_client'))
-  const sock = resolveUserPath(getEnvString(env, 'translator/onnx_socket', ONNX_DEFAULT_SOCK))
-  const timeoutMs = getEnvNumber(env, 'translator/onnx_timeout_ms', 3)
-  if (typeof system !== 'function' && typeof os === 'undefined') {
-    return null
-  }
-
-  const payload = JSON.stringify({ input: input, cands: candTexts, prev: prev || '', timeout_ms: timeoutMs })
-  // Write temp request via helper stdin protocol: gu_ranker_client --sock PATH --json PAYLOAD
-  try {
-    let out = null
-    if (typeof system === 'function') {
-      // system() returns exit code only in many embeds; prefer os.exec if present
-      out = null
-    }
-    if (typeof os !== 'undefined' && typeof os.exec === 'function') {
-      // QuickJS os.exec is not always available; skip
-      out = null
-    }
-    // Pipe through a tiny sync helper that prints JSON scores
-    if (typeof std !== 'undefined' && std.popen) {
-      const cmd = helper + ' --sock ' + JSON.stringify(sock) + ' --stdin'
-      const pipe = std.popen(cmd, 'w+')
-      if (pipe) {
-        pipe.puts(payload)
-        pipe.close(false) // keep read side? depends on impl
-      }
-    }
-    // Fallback: look for precomputed scores file written by sidecar watcher (optional)
-    const scorePath = resolveUserPath('~/Library/Rime/run/last_scores.json')
-    // Direct TCP/unix not available in qjs sandbox — call helper that reads argv
-    if (typeof std !== 'undefined' && std.popen) {
-      const escaped = payload.replace(/'/g, "'\\''")
-      const cmd = helper + ' --sock ' + sock + " --json '" + escaped + "'"
-      const pipe = std.popen(cmd, 'r')
-      if (pipe) {
-        out = pipe.readAsString()
-        pipe.close()
-      }
-    }
-    if (!out) return null
-    const parsed = JSON.parse(out)
-    const scores = parsed.scores || parsed
-    if (!Array.isArray(scores) || scores.length !== candTexts.length) return null
-    onnxCacheSet(cacheKey, scores)
-    return scores
-  } catch (e) {
-    return null
-  }
-}
-
-function getEnvString(env, key, fallback) {
-  try {
-    if (env && env.engine && env.engine.schema && env.engine.schema.config) {
-      const config = env.engine.schema.config
-      if (typeof config.get_string === 'function') {
-        return config.get_string(key) || fallback
-      }
-      if (typeof config.getString === 'function') {
-        return config.getString(key) || fallback
-      }
-    }
-  } catch (e) {
-    return fallback
-  }
-  return fallback
-}
-
-
-// ---------------------------------------------------------------------------
 // Rime Translator
 // ---------------------------------------------------------------------------
 
@@ -2200,7 +2304,7 @@ export class GujaratiTranslator {
       const includeLatin = getEnvBool(env, 'translator/include_latin', true)
       const emojiEnable = getEnvBool(env, 'translator/emoji_enable', true)
       const maxPrefix = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_prefix', 6)))
-      const maxPhonetic = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_phonetic', 5)))
+      const maxPhonetic = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_phonetic', 8)))
       const maxEmoji = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_emoji', 3)))
       LM_WEIGHTS.unigram = getEnvNumber(env, 'translator/lm_unigram_weight', LM_WEIGHTS.unigram)
       LM_WEIGHTS.bigram = getEnvNumber(env, 'translator/lm_bigram_weight', LM_WEIGHTS.bigram)
@@ -2213,7 +2317,25 @@ export class GujaratiTranslator {
       const items = []
 
       function pushCand(text, comment, quality, tier, isPhonetic, romanKey, exactSource) {
-        if (!text || seen.has(text)) return false
+        if (!text) return false
+        if (seen.has(text)) {
+          // Upgrade tier if a stronger source rediscovers the same native form.
+          for (let i = 0; i < items.length; i++) {
+            const it = items[i]
+            if (it.candidate.text !== text) continue
+            if (tier < it.tier) {
+              it.tier = tier
+              it.exactSource = exactSource || it.exactSource
+              it.romanKey = romanKey || it.romanKey
+              it.weight = Math.max(it.weight || 0, tier === TIER_EMOJI ? quality : lexiconWeight(romanKey || lower))
+              it.closeness = Math.max(it.closeness || 0, romanCloseness(lower, romanKey || lower))
+              it.candidate.comment = comment || it.candidate.comment
+              return true
+            }
+            return false
+          }
+          return false
+        }
         seen.add(text)
         const kind = tier === TIER_EMOJI ? 'emoji' : 'gujarati'
         const cand = new Candidate(kind, segment.start, segment.end, text, comment || '', quality)
@@ -2252,7 +2374,13 @@ export class GujaratiTranslator {
           source,
         })
       }
-      exactHits.sort((a, b) => b.weight - a.weight || a.roman.length - b.roman.length)
+      exactHits.sort((a, b) => {
+        // Prefer typed exact over fuzzy so a→aa soft keys cannot hide strict (kyare).
+        const as = a.source === 'strict' ? 0 : 1
+        const bs = b.source === 'strict' ? 0 : 1
+        if (as !== bs) return as - bs
+        return b.weight - a.weight || a.roman.length - b.roman.length
+      })
       for (const hit of exactHits) {
         const q = hit.roman === lower ? 950 : 880
         const tier = lexiconHitTier(hit.source, hit.weight, lower, hit.roman)
@@ -2274,7 +2402,7 @@ export class GujaratiTranslator {
           if (!entry || !entry.value) continue
           if (!entry.key.startsWith(seed)) continue
           const suf = entry.key.slice(seed.length)
-          if (!isNearExactRomanSuffix(suf)) continue
+          if (!isNearExactRomanSuffix(suf, entry.key)) continue
           const w = lexiconWeight(entry.key)
           const tier = lexiconHitTier('near_exact', w, lower, entry.key)
           pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), tier, false, entry.key, 'near_exact')
@@ -2380,7 +2508,7 @@ export class GujaratiTranslator {
             suffix = entry.key.length > lower.length ? entry.key.slice(lower.length) : ''
           }
           const w = lexiconWeight(entry.key)
-          if (entry.key.startsWith(lower) && isNearExactRomanSuffix(suffix)) {
+          if (entry.key.startsWith(lower) && isNearExactRomanSuffix(suffix, entry.key)) {
             const tier = lexiconHitTier('near_exact', w, lower, entry.key)
             if (pushCand(entry.value, input, 860 + Math.min(40, Math.log1p(w) * 5), tier, false, entry.key, 'near_exact')) {
               prefixAdded += 1
@@ -2430,36 +2558,66 @@ export class GujaratiTranslator {
       if (items.length === 0) return []
 
       const scored = items.map((item, index) => {
+        const text = item.candidate.text || ''
         const lm = item.tier === TIER_EMOJI
           ? Math.log1p(item.weight || 0) * 0.2
-          : scoreCandidateWithContext(item.candidate.text, prevWords, item.isPhonetic)
+          : scoreCandidateWithContext(text, prevWords, item.isPhonetic)
         const freq = Math.log1p(item.weight || 0) * 0.35
         const validity = item.tier === TIER_EMOJI
           ? { score: 0, attested: false, evidence: 0, spellOk: false }
-          : dictionaryValidity(item.candidate.text)
+          : dictionaryValidity(text)
         const dictBoost = validity.attested ? validity.score * 1.4 : 0
         const spellBoost = validity.spellOk ? 0.35 : 0
         const closeBoost = (item.closeness || 0) * 0.01
-        return { ...item, score: lm + freq + dictBoost + spellBoost + closeBoost, validity, index }
-      })
-
-      const topForOnnx = scored
-        .filter((x) => x.tier !== TIER_EMOJI)
-        .slice()
-        .sort((a, b) => (a.tier !== b.tier ? a.tier - b.tier : b.score - a.score))
-        .slice(0, 8)
-      const onnxScores = rankWithOnnx(
-        lower,
-        topForOnnx.map((x) => x.candidate.text),
-        prevWord,
-        env
-      )
-      if (onnxScores) {
-        const onnxWeight = getEnvNumber(env, 'translator/onnx_weight', 1.2)
-        for (let i = 0; i < topForOnnx.length; i++) {
-          topForOnnx[i].score += onnxWeight * Number(onnxScores[i] || 0)
+        const unigramCount = UNIGRAM_LM.map.get(text) || 0
+        const uniBoost = Math.log1p(unigramCount) * 0.55
+        let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost
+        let tier = item.tier
+        const isLex = item.exactSource === 'strict' || item.exactSource === 'fuzzy' || item.exactSource === 'near_exact'
+        if (isLex && (item.weight || 0) > 0 && (item.weight || 0) < LEXICON_STRONG_WEIGHT && unigramCount < 150) {
+          score -= freq * 0.85 + 2.8
         }
-      }
+        if (text.includes('ય') && !lower.includes('y')) score -= 4.0
+        if (lower.includes('d') && !/(^|[^a-z])D/.test(lower)) {
+          if (text.includes('ડ') && !text.includes('દ')) score -= 1.2
+          if (text.includes('દ')) score += 0.5
+        }
+        if (lower.startsWith('sh')) {
+          if (text.startsWith('શ')) score += 3.0
+          else if (text.startsWith('સ')) score -= 3.0 + uniBoost * 0.5
+        } else if (!lower.includes('sh') && lower.includes('s')) {
+          if (text.includes('શ') && !text.includes('ષ')) score -= 0.55
+          if (text.includes('સ') && !text.includes('શ')) score += 0.15
+        }
+        if (lower.includes('z') && !lower.includes('j')) {
+          if (text.startsWith('ઝ')) score += 0.5
+          else if (text.startsWith('જ')) score -= 0.35
+        }
+        if (/(mm|nn|tt|kk|ll)/.test(lower)) {
+          if (text.includes('\u0ACD')) score += 3.0
+          if (text.includes(ANUSVARA) && !text.includes('\u0ACD')) {
+            score -= 3.5 + uniBoost * 0.65
+            if (tier === TIER_EXACT) tier = TIER_DICT
+          }
+        } else if (text.includes(ANUSVARA) && /n[kgcjtdTDpb]/.test(lower)) {
+          score += 0.35
+        }
+        const aVowels = (lower.match(/a+/g) || []).length
+        let aa = 0
+        for (const ch of text) if (ch === 'ા') aa += 1
+        let effectiveAa = aa
+        if (text.endsWith('ા') && !lower.endsWith('a') && !lower.endsWith('aa')) {
+          effectiveAa = Math.max(0, effectiveAa - 1)
+          score -= 1.6
+        }
+        if (aVowels >= 1 && lower.slice(1).includes('a')) {
+          score += 0.2 * effectiveAa
+          if (aVowels >= 2 && effectiveAa >= 2) score += 2.5
+          else if (aVowels >= 2 && effectiveAa < 2) score -= 1.2
+        }
+        if (text.length < lower.length * 0.7) score -= 2.0
+        return { ...item, score, validity, index, tier }
+      })
 
       scored.sort((a, b) => {
         if (a.tier !== b.tier) return a.tier - b.tier
@@ -2474,8 +2632,8 @@ export class GujaratiTranslator {
 
       const sortedCandidates = scored.map((item, rank) => {
         const c = item.candidate
-        // TIER_EMOJI=5 → base 0 so script candidates always outrank emoji in Rime quality.
-        c.quality = (5 - item.tier) * 200 + Math.max(0, 180 - rank)
+        // TIER_EMOJI=TIER_MAX → base 0 so script candidates always outrank emoji.
+        c.quality = (TIER_MAX - item.tier) * 200 + Math.max(0, 180 - rank)
         return c
       })
 

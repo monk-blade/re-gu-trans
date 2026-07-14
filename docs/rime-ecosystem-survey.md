@@ -20,6 +20,17 @@ There is **no mature upstream Gujarati Rime schema** in [rime/plum](https://gith
 | [AI4Bharat/IndicXlit](https://github.com/AI4Bharat/IndicXlit) + [Aksharantar](https://huggingface.co/datasets/ai4bharat/Aksharantar) | Translit model + parallel data | **Adopt data:** soft-fill OOV roman→native + native freq; **reject** full transformer in hot path |
 | [shankarmishra/openhinglish](https://github.com/shankarmishra/openhinglish) | Hinglish lexicons | **Defer:** SMS/abbrev gazetteer needs GU-specific data first |
 
+## Phonetic rule sources (IME ranking)
+
+Scalable roman→GU rules in `rime/gujarati_translator.js` / `eval/rank_offline.py` (no per-word baking):
+
+- **ISO 15919 / LOC GU** — homorganic anusvara (`n`/`m` before stop → `ં`)
+- **ITRANS / Keyman GU / Quillpad** — `M`→`ં`, `sh`/`Sh`, geminate via virama, `v`/`w`
+- **IndicXlit** — dictionary rescoring; Aksharantar soft-fill at low weight only
+- **MS Indic Phonetic** — schwa-default between consonants; productive conjuncts only
+
+Eval harness: `python3 eval/apple_agree.py` then `python3 eval/cluster_apple_disagree.py`.
+
 ## Non-negotiables (unchanged)
 
 - No per-word hand-baked roman→script exceptions for ranking fixes

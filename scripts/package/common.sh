@@ -167,30 +167,6 @@ PY
   )
 }
 
-patch_onnx_paths() {
-  local schema="$1"
-  local socket="$2"
-  local helper="$3"
-  # portable in-place edit
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$schema" "$socket" "$helper" <<'PY'
-import sys
-path, sock, helper = sys.argv[1], sys.argv[2], sys.argv[3]
-text = open(path, encoding="utf-8").read()
-import re
-text = re.sub(r'(?m)^(\s*onnx_socket:\s*).*$', r'\1"' + sock + '"', text)
-text = re.sub(r'(?m)^(\s*onnx_helper:\s*).*$', r'\1"' + helper + '"', text)
-open(path, "w", encoding="utf-8").write(text)
-PY
-  else
-    sed -i.bak \
-      -e "s|^[[:space:]]*onnx_socket:.*|  onnx_socket: \"${socket}\"|" \
-      -e "s|^[[:space:]]*onnx_helper:.*|  onnx_helper: \"${helper}\"|" \
-      "$schema"
-    rm -f "${schema}.bak"
-  fi
-}
-
 require_file() {
   local f="$1"
   if [[ ! -f "$f" ]]; then

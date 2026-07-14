@@ -52,7 +52,7 @@ python3 scripts/build_gu_word_freq.py
 | `rime/commit_on_punct_processor.js` | Commit on Space / punctuation |
 | `rime/gujarati.schema.yaml` | Schema + engine wiring |
 | `rime/gu_lexicon_blob.json` | Lexicon + weights for qjs |
-| `rime/js/lm/` | `unigram.tsv` + `stems.json` |
+| `rime/js/lm/` | `unigram.tsv` + `stems.json` + `attested.json` (qjs LM; sole packaged copy) |
 | `scripts/package/` | Cross-platform package builders |
 | `packaging/` | nfpm (deb/rpm) + Linux enable helper |
 | `.github/workflows/release-packages.yml` | Tag → GitHub Release assets |

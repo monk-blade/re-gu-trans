@@ -9,7 +9,6 @@ Guidance for coding agents working in this repository.
 - Distilled Apple lexicon (~96k roman→native pairs + weights)
 - Phonetic generation with fuzzy roman confusions (`sh↔Sh`, `t↔T`, `i↔ii`, `u↔un`, …)
 - Native-script word-frequency + stem rescoring (IndicXlit-style dictionary rescoring)
-- Optional local ONNX ranker over a Unix socket
 - QuickJS plugins via **librime-qjs** (`gujarati_translator.js`, `commit_on_punct_processor.js`)
 
 User data live-sync target: `~/Library/Rime/` (never commit that directory).
@@ -19,7 +18,7 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 1. **No per-word baking** for ranking fixes. Prefer lexicon weights, fuzzy roman expansion, near-exact suffix promotion, and unigram/stem rescoring.
 2. **Do not commit secrets**, Apple private binaries, or full Marisa dumps (`gu_unified_marisa_keys.txt` is gitignored).
 3. **Do not force-push** or rewrite published history unless the user explicitly asks.
-4. Keep the hot path fast: lexicon/trie lookups + cheap rescoring; ONNX budget ≤ ~3ms and must fail open.
+4. Keep the hot path fast: lexicon/trie lookups + cheap unigram/stem rescoring.
 
 ## Layout
 
@@ -29,8 +28,9 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 | `rime/gujarati_translator.js` | Main qjs translator |
 | `rime/commit_on_punct_processor.js` | Space / `.,;'` commit selected candidate |
 | `rime/gu_lexicon_blob.json` | `{exceptions,lexicon,weights}` for qjs |
-| `rime/js/lm/unigram.tsv` | Native word frequencies |
+| `rime/js/lm/unigram.tsv` | Native word frequencies (sole LM path; no `rime/lm/` duplicate) |
 | `rime/js/lm/stems.json` | Stem → frequency for morphology |
+| `rime/js/lm/attested.json` | Quality-attested natives for dict rescoring |
 | `scripts/sync_rime.sh` | Copy assets → Rime user dir (macOS / Linux) + reload |
 | `scripts/package/` | Stage payload; build macOS pkg/zip, Windows zip, Linux deb/rpm |
 | `packaging/` | nfpm config + `re-gu-trans-enable` |
@@ -39,8 +39,6 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 | `scripts/build_gu_word_freq.py` | Rebuild unigram/stems from Apple+Google+Indic |
 | `scripts/distill_apple_lexicon.py` | Rebuild lexicon blob / dict from probe extracts |
 | `scripts/install_librime_qjs.sh` | Install `librime-qjs.dylib` into Squirrel |
-| `runtime/onnx_ranker/` | Socket ranker server/client |
-| `models/gu_ranker.onnx` | Tiny ranker model |
 | `data/` | Distill outputs + cached external wordcounts |
 
 ## Candidate ranking contract

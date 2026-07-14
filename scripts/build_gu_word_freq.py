@@ -7,11 +7,14 @@ Provenance tiers:
   T1  Spell/NLP  — aspell, hunspell, Dakshina, Indic-Glossaries (floor 50)
   T2  Wiki       — kartikm, wikidict, wipfli wiki/wikidata (floor 40)
   T3  Corpus     — Google wordcounts, Indic Keyboard, IndicCorp-v2 unigrams (freq)
-  T4  Soft       — Aksharantar natives: unigram floor 50 only (NOT attested)
+  T4  Soft       — Aksharantar + AI4Bharat IndicXlit wordlist: unigram floor only (NOT attested)
 
 Output:
-  rime/js/lm/unigram.tsv, stems.json, attested.json
+  rime/js/lm/unigram.tsv, stems.json, attested.json  (single source of truth for qjs)
   data/quality/unique_gu_words.tsv, unique_gu_stats.json
+
+Soft unigram prune: UNIGRAM_SOFT_MIN (default 100) drops Aksharantar-floor-only rows.
+Attested compact: ATTESTED_COMPACT=1 (default) drops wipfli-only floor words.
 
 Caches under data/external/ (gitignored). Never commit proprietary binaries.
 """
@@ -43,9 +46,12 @@ WIKI_DICT_URL = "https://raw.githubusercontent.com/open-dict-data/wikidict-wordl
 WIPFLI_WIKI_URL = "https://pub-726b01260c98468a9387cc0dfcb7386b.r2.dev/wikipedia-gujarati-corpus.txt.zip"
 WIPFLI_WIKIDATA_URL = "https://pub-726b01260c98468a9387cc0dfcb7386b.r2.dev/wikidata-gujarati-corpus.txt.zip"
 DAKSHINA_TAR_URL = "https://storage.googleapis.com/gresearch/dakshina/dakshina_dataset_v1.0.tar"
+# AI4Bharat S3 often 403 from CI/home nets — place zips under data/external/ if blocked.
 GLOSSARY_URLS = [
     "https://anuvaad-raw-datasets.s3-us-west-2.amazonaws.com/glossary-dataset-indoword.zip",
     "https://anuvaad-raw-datasets.s3-us-west-2.amazonaws.com/glossary-dataset-bharatvani.zip",
+    "https://anuvaad-raw-datasets.s3-us-west-2.amazonaws.com/glossary-dataset-cstt.zip",
+    "https://anuvaad-raw-datasets.s3-us-west-2.amazonaws.com/glossary-dataset-osf.zip",
 ]
 INDICCORP_GU_URL = "https://huggingface.co/datasets/ai4bharat/IndicCorpV2/resolve/main/data/gu.txt"
 
@@ -53,8 +59,22 @@ FLOOR_SPELL = 50
 FLOOR_WIKI = 40
 FLOOR_AKSHA = 50
 FLOOR_GOOGLE_IME = 80
+# Soft (non-attested / Aksharantar-floor) unigram entries need real corpus mass.
+UNIGRAM_SOFT_MIN = int(os.environ.get("UNIGRAM_SOFT_MIN", "100"))
+# AI4Bharat IndicXlit vocab — soft unigram only; floor ≥ soft-min so rows survive prune
+FLOOR_A4B = max(UNIGRAM_SOFT_MIN, int(os.environ.get("FLOOR_A4B", str(UNIGRAM_SOFT_MIN))))
+# Drop wipfli-only floor words from attested (kartikm/wikidict + T0/T1 kept).
+ATTESTED_COMPACT = os.environ.get("ATTESTED_COMPACT", "1") != "0"
 INDICCORP_TOP_N = 500_000
 INDICCORP_MAX_BYTES = int(os.environ.get("INDICCORP_MAX_BYTES", str(80 * 1024 * 1024)))
+
+# Strong attested floors — always kept in unigram + attested.
+HIGH_ATTESTED = frozenset(
+    {"apple", "google_ime", "aspell", "hunspell", "dakshina", "glossaries"}
+)
+CURATED_WIKI = frozenset({"wiki_kartikm", "wiki_dict"})
+WIPFLI_WIKI = frozenset({"wipfli_wiki", "wipfli_wikidata"})
+CORPUS_SRC = frozenset({"google", "indic", "indiccorp"})
 
 SUFFIXES = [
     "વાળાઓ", "વાળીઓ", "વાળું", "વાળી", "વાળા", "વાળો",
@@ -213,6 +233,26 @@ def load_hunspell_words() -> set[str]:
 
 def load_aksharantar_natives() -> set[str]:
     return load_native_list(EXT / "aksharantar_gu_native.txt")
+
+
+def load_a4b_natives() -> set[str]:
+    """AI4Bharat IndicXlit GU wordlist (filtered). Run scripts/ingest_a4b_gu_words.py first."""
+    cache = EXT / "a4b_gu_natives.txt"
+    if not cache.exists() or cache.stat().st_size < 100:
+        # Auto-ingest from Downloads if present
+        helper = ROOT / "scripts" / "ingest_a4b_gu_words.py"
+        if helper.exists():
+            try:
+                import importlib.util
+
+                spec = importlib.util.spec_from_file_location("ingest_a4b_gu_words", helper)
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    mod.main()
+            except Exception as e:
+                print(f"WARN: a4b ingest helper: {e}")
+    return load_native_list(cache)
 
 
 def load_wipfli_words() -> tuple[set[str], set[str]]:
@@ -431,6 +471,62 @@ def build_stems(word_counts: dict[str, int]) -> dict[str, int]:
     return dict(stems)
 
 
+def prune_unigram(
+    merged: dict[str, int],
+    attested: set[str],
+    prov: dict[str, set[str]],
+) -> dict[str, int]:
+    """Drop soft-floor / pure wiki-floor unigram rows; keep strong attested + corpus mass."""
+    out: dict[str, int] = {}
+    dropped_soft = 0
+    dropped_wiki_floor = 0
+    for w, c in merged.items():
+        sources = prov.get(w, set())
+        if sources & HIGH_ATTESTED:
+            out[w] = c
+            continue
+        if w in attested:
+            # Wiki/other attested: keep unigram row only with above-floor evidence.
+            if c > FLOOR_WIKI or sources & CORPUS_SRC:
+                out[w] = c
+            else:
+                dropped_wiki_floor += 1
+            continue
+        if c >= UNIGRAM_SOFT_MIN:
+            out[w] = c
+        else:
+            dropped_soft += 1
+    print(
+        f"unigram prune: {len(merged)} → {len(out)} "
+        f"(soft_min={UNIGRAM_SOFT_MIN} dropped_soft={dropped_soft} "
+        f"dropped_wiki_floor={dropped_wiki_floor})"
+    )
+    return out
+
+
+def compact_attested(attested: set[str], prov: dict[str, set[str]], merged: dict[str, int]) -> set[str]:
+    """Keep T0/T1 + curated wiki; drop wipfli-only floor words when ATTESTED_COMPACT=1."""
+    if not ATTESTED_COMPACT:
+        return attested
+    out: set[str] = set()
+    dropped = 0
+    for w in attested:
+        sources = prov.get(w, set())
+        if sources & HIGH_ATTESTED or sources & CURATED_WIKI:
+            out.add(w)
+            continue
+        if sources & WIPFLI_WIKI:
+            # Keep wipfli when also seen in corpus / curated / high tiers.
+            if sources & (HIGH_ATTESTED | CURATED_WIKI | CORPUS_SRC) or merged.get(w, 0) > FLOOR_WIKI:
+                out.add(w)
+            else:
+                dropped += 1
+            continue
+        out.add(w)
+    print(f"attested compact: {len(attested)} → {len(out)} (dropped_wipfli_floor={dropped})")
+    return out
+
+
 def best_tier(sources: set[str]) -> str:
     order = [
         "apple",
@@ -447,6 +543,7 @@ def best_tier(sources: set[str]) -> str:
         "indic",
         "indiccorp",
         "aksharantar",
+        "a4b",
     ]
     for s in order:
         if s not in sources:
@@ -461,7 +558,7 @@ def best_tier(sources: set[str]) -> str:
             return "T2"
         if s in ("google", "indic", "indiccorp"):
             return "T3"
-        if s == "aksharantar":
+        if s == "aksharantar" or s == "a4b":
             return "T4"
     return "T3"
 
@@ -499,11 +596,12 @@ def main() -> None:
     glossaries = load_glossary_natives()
     indiccorp = load_indiccorp_counts()
     aksha = load_aksharantar_natives()
+    a4b = load_a4b_natives()
 
     wiki = wiki_k | wiki_d | wipfli_w | wipfli_wd
     spell = aspell | hunspell
-    # Attested: quality floors — exclude Aksharantar (T4 unigram only)
-    attested = apple_set | google_ime | spell | wiki | dakshina | glossaries
+    # Attested: quality floors — exclude Aksharantar / A4B soft vocab (T4 unigram only)
+    attested_full = apple_set | google_ime | spell | wiki | dakshina | glossaries
 
     print(
         f"apple={len(apple_set)} google_ime={len(google_ime)} "
@@ -512,7 +610,7 @@ def main() -> None:
         f"wiki_kartikm={len(wiki_k)} wiki_dict={len(wiki_d)} "
         f"wipfli_wiki={len(wipfli_w)} wipfli_wikidata={len(wipfli_wd)} "
         f"google={len(google)} indic={len(indic)} indiccorp={len(indiccorp)} "
-        f"aksharantar={len(aksha)} attested={len(attested)}"
+        f"aksharantar={len(aksha)} a4b={len(a4b)} attested_full={len(attested_full)}"
     )
 
     prov: dict[str, set[str]] = defaultdict(set)
@@ -544,6 +642,8 @@ def main() -> None:
         prov[w].add("indiccorp")
     for w in aksha:
         prov[w].add("aksharantar")
+    for w in a4b:
+        prov[w].add("a4b")
 
     merged: dict[str, int] = {}
     for w, c in google.items():
@@ -564,6 +664,11 @@ def main() -> None:
         merged[w] = max(merged.get(w, 0), FLOOR_WIKI)
     for w in aksha:
         merged[w] = max(merged.get(w, 0), FLOOR_AKSHA)
+    for w in a4b:
+        merged[w] = max(merged.get(w, 0), FLOOR_A4B)
+
+    attested = compact_attested(attested_full, prov, merged)
+    merged = prune_unigram(merged, attested, prov)
 
     uniq_lines = []
     wiki_only = 0
@@ -595,15 +700,20 @@ def main() -> None:
             "indic": len(indic),
             "indiccorp": len(indiccorp),
             "aksharantar": len(aksha),
+            "a4b": len(a4b),
         },
         "floors": {
             "spell": FLOOR_SPELL,
             "wiki": FLOOR_WIKI,
             "aksharantar": FLOOR_AKSHA,
+            "a4b": FLOOR_A4B,
             "google_ime": FLOOR_GOOGLE_IME,
+            "unigram_soft_min": UNIGRAM_SOFT_MIN,
         },
         "unigram": len(merged),
+        "attested_full": len(attested_full),
         "attested": len(attested),
+        "attested_compact": ATTESTED_COMPACT,
         "attested_excludes_aksharantar": True,
     }
     stats_path = QUALITY / "unique_gu_stats.json"
@@ -626,10 +736,10 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    (ROOT / "rime" / "lm").mkdir(exist_ok=True)
-    (ROOT / "rime" / "lm" / "unigram.tsv").write_text(uni.read_text(encoding="utf-8"), encoding="utf-8")
-    (ROOT / "rime" / "lm" / "stems.json").write_bytes(stem_path.read_bytes())
-    (ROOT / "rime" / "lm" / "attested.json").write_bytes(attested_path.read_bytes())
+    # Single source of truth for qjs: rime/js/lm/ (do not dual-write rime/lm/)
+    legacy_lm = ROOT / "rime" / "lm"
+    if legacy_lm.exists():
+        print(f"NOTE: remove obsolete duplicate {legacy_lm} (qjs reads js/lm/)")
 
     for probe in ["જમીન", "કેમ", "ફાવે", "ફાવશે", "ગુજરાત", "કેટલી", "પરખાવ્યું"]:
         print(f"  {probe}: count={merged.get(probe, 0)} attested={probe in attested}")

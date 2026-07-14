@@ -12,7 +12,7 @@ End-to-end setup for the Gujarati Rime IME (lexicon ranking + QuickJS plugins).
 
 Pinned plugin for Release packages: **librime-qjs v1.3.0** (librime **1.16.1**). Use a recent Squirrel / Weasel build.
 
-Optional: Python 3 + ONNX Runtime for the local ranker sidecar (not required for ranking).
+Optional: Python 3 for LM rebuild / offline eval scripts.
 
 ---
 
@@ -80,6 +80,7 @@ cd re-gu-trans
 ./scripts/install_librime_qjs.sh   # macOS admin; or use Release packages
 python3 scripts/build_gu_word_freq.py
 python3 scripts/ingest_aksharantar_gu.py   # optional Aksharantar GU soft-fill
+python3 scripts/ingest_a4b_gu_words.py     # optional AI4Bharat IndicXlit wordlist (~Downloads/gujarati)
 ./scripts/install_recipe.sh                # same as sync_rime.sh
 ```
 
@@ -172,7 +173,7 @@ Native-script rescoring merges into one **unique-quality** set (NFC, Gujarati-on
 | T1 | [aspell-gu](https://github.com/kartikm/gu-wordlist), [hunspell gu_IN](https://github.com/elastic/hunspell/tree/master/dicts/gu_IN), [Dakshina GU](https://github.com/google-research-datasets/dakshina), [Indic-Glossaries](https://github.com/AI4Bharat/Indic-Glossaries) | attested floor 50 |
 | T2 | [kartikm wikipedia-wordlist](https://github.com/kartikm/gu-wordlist), [wikidict GU](https://github.com/open-dict-data/wikidict-wordlist), [wipfli GU wiki/wikidata](https://github.com/wipfli/word-corpus) | wiki-attested floor 40 |
 | T3 | [Google i18n wordcounts](http://www.gstatic.com/i18n/corpora/wordcounts/gu.txt), [Indic Keyboard](https://github.com/jishnu7/dictionaries), [IndicCorp v2](https://huggingface.co/datasets/ai4bharat/IndicCorpV2) unigrams | corpus frequency |
-| T4 | [Aksharantar guj](https://huggingface.co/datasets/ai4bharat/Aksharantar) | **unigram floor only** (not attested); soft roman→native weight 75 if roman ∉ Apple |
+| T4 | [Aksharantar guj](https://huggingface.co/datasets/ai4bharat/Aksharantar) + AI4Bharat `gu_words_a4b.json` | **unigram floor only** (not attested); soft roman→native weight 75 if roman ∉ Apple |
 
 Artifacts: `data/quality/unique_gu_stats.json` (committed summary), `data/quality/unique_gu_words.tsv` (regenerable).
 
@@ -190,11 +191,14 @@ python3 scripts/ingest_aksharantar_gu.py           # soft-fill OOV; does not exp
 | Google Input Tools GU dump | `GOOGLE_IME_GU_DICT` or `data/external/google_ime_gu.*` | `data/external/google_ime_native_words.txt` |
 | Dakshina (optional full) | `FETCH_DAKSHINA=1` or place `dakshina_gu_natives.txt` | `data/external/dakshina_gu_natives.txt` |
 | IndicCorp v2 sample | `FETCH_INDICCORP=1` (capped stream) | `data/external/gu_indiccorp_v2_unigrams.tsv` |
-| Indic-Glossaries zips | place under `data/external/glossary-dataset-*.zip` if S3 is blocked | `data/external/indic_glossary_gu_natives.txt` |
+| Indic-Glossaries zips | place under `data/external/glossary-dataset-*.zip` if S3 is blocked (often 403) | `data/external/indic_glossary_gu_natives.txt` |
+| AI4Bharat IndicXlit GU words | `~/Downloads/gujarati/gu_words_a4b.json` via `ingest_a4b_gu_words.py` | `data/external/a4b_gu_natives.txt` (`.pth` never committed) |
+
+Env knobs for LM size: `UNIGRAM_SOFT_MIN` (default 100), `ATTESTED_COMPACT=1` (drop wipfli-only floor from attested).
 
 **Never commit or redistribute** Apple private frameworks, full Marisa dumps, or Google Input Tools binaries.
 
-→ `rime/js/lm/{unigram.tsv,stems.json,attested.json}`.
+→ `rime/js/lm/{unigram.tsv,stems.json,attested.json}` (single source of truth; packages stage this path only).
 
 ### Emoji suggestions
 
@@ -217,15 +221,6 @@ Roman→script follows Apple / Google / Microsoft phonetic conventions (not Sans
 - **Final `-u` → optional `ું`** (past participles: `parkhavyu` → પરખાવ્યું)
 - Mid-vowel `a`↔`aa` + attested rescoring pick the dictionary form
 - Latin echo ranks **below** script phonetics
-
-## Optional ONNX ranker
-
-```bash
-# Linux example
-python3 runtime/onnx_ranker/server.py --sock "$HOME/.local/share/fcitx5/rime/run/gu_ranker.sock"
-```
-
-Ranking still works without the sidecar (lexicon + unigram only).
 
 ---
 
