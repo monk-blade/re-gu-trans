@@ -133,8 +133,16 @@ const CONSONANTS = {
   'x':   '\u0A95\u0ACD\u0AB7', // ક્ષ
   'ksh': '\u0A95\u0ACD\u0AB7', // ક્ષ
   'gy':  '\u0A9C\u0ACD\u0A9E', // જ્ઞ
+  'gn':  '\u0A9C\u0ACD\u0A9E', // જ્ઞ (gnan)
+  'gny': '\u0A9C\u0ACD\u0A9E', // જ્ઞ
+  'jny': '\u0A9C\u0ACD\u0A9E', // જ્ઞ
   'dv':  '\u0AA6\u0ACD\u0AB5', // દ્વ
+  'shr': '\u0AB6\u0ACD\u0AB0', // શ્ર
+  'tr':  '\u0AA4\u0ACD\u0AB0', // ત્ર
+  'sth': '\u0AB8\u0ACD\u0AA5', // સ્થ
+  'str': '\u0AB8\u0ACD\u0AA4\u0ACD\u0AB0', // સ્ત્ર
   'z':   '\u0A9D', // ઝ
+  'om':  '\u0AD0', // ૐ
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,7 +1077,8 @@ function loadUserLM(path) {
   const text = readFileText(path)
   const wordCounts = new Map()
   const bigramCounts = new Map()
-  if (!text) return { wordCounts, bigramCounts }
+  const romanChoices = new Map()
+  if (!text) return { wordCounts, bigramCounts, romanChoices }
   const lines = text.split(/\r?\n/)
   for (const line of lines) {
     if (!line) continue
@@ -1079,18 +1088,25 @@ function loadUserLM(path) {
       const count = Number(parts[1])
       if (!word || !Number.isFinite(count)) continue
       wordCounts.set(word, count)
+    } else if (parts.length >= 4 && parts[0] === '@') {
+      const roman = String(parts[1] || '').toLowerCase()
+      const native = parts[2]
+      const count = Number(parts[3])
+      if (!roman || !native || !Number.isFinite(count)) continue
+      if (!romanChoices.has(roman)) romanChoices.set(roman, new Map())
+      romanChoices.get(roman).set(native, count)
     } else if (parts.length >= 3) {
       const prev = parts[0]
       const word = parts[1]
       const count = Number(parts[2])
-      if (!prev || !word || !Number.isFinite(count)) continue
+      if (!prev || !word || !Number.isFinite(count) || prev === '@') continue
       bigramCounts.set(prev + '|' + word, count)
     }
   }
-  return { wordCounts, bigramCounts }
+  return { wordCounts, bigramCounts, romanChoices }
 }
 
-function writeUserLM(path, wordCounts, bigramCounts) {
+function writeUserLM(path, wordCounts, bigramCounts, romanChoices) {
   if (typeof write !== 'function') return false
   const lines = []
   for (const [word, count] of wordCounts.entries()) {
@@ -1099,6 +1115,13 @@ function writeUserLM(path, wordCounts, bigramCounts) {
   for (const [key, count] of bigramCounts.entries()) {
     const [prev, word] = key.split('|')
     lines.push(prev + '\t' + word + '\t' + count)
+  }
+  if (romanChoices) {
+    for (const [roman, nest] of romanChoices.entries()) {
+      for (const [native, count] of nest.entries()) {
+        lines.push('@\t' + roman + '\t' + native + '\t' + count)
+      }
+    }
   }
   const content = lines.join('\n') + '\n'
   try {
@@ -1293,7 +1316,7 @@ function loadUnigramLMFromText(text) {
     if (!line) continue
     const parts = line.split('\t')
     if (parts.length < 2) continue
-    const word = parts[0]
+    const word = toNfc(parts[0])
     const count = Number(parts[1])
     if (!word || !Number.isFinite(count)) continue
     map.set(word, count)
@@ -1302,34 +1325,68 @@ function loadUnigramLMFromText(text) {
   return { map, max }
 }
 
+/** Soft NFC for GU natives (NFC may be unavailable in some qjs builds). */
+function toNfc(text) {
+  if (!text) return text
+  try {
+    if (typeof text.normalize === 'function') return text.normalize('NFC')
+  } catch (e) { /* ignore */ }
+  return text
+}
+
+/** Soft demotion for illegal GU combining piles (not a full syllable rejector). */
+function guOrthographyPenalty(text) {
+  if (!text) return 0
+  let pen = 0
+  const matra = /[\u0ABE-\u0ACC\u0AE2\u0AE3]/
+  const virama = '\u0ACD'
+  if (matra.test(text[0])) pen += 3.0
+  for (let i = 0; i < text.length - 1; i++) {
+    const a = text[i]
+    const b = text[i + 1]
+    if (a === virama && b === virama) pen += 2.5
+    if (matra.test(a) && matra.test(b)) pen += 2.0
+  }
+  return pen
+}
+
 /** Native-dict / stem / spell-dict validity — IndicXlit-style rescoring signal. */
 function dictionaryValidity(text) {
-  if (!text) return { score: 0, attested: false, evidence: 0, spellOk: false }
+  if (!text) return { score: 0, attested: false, evidence: 0, spellOk: false, uniStrong: false }
+  text = toNfc(text)
   const uni = UNIGRAM_LM.map.get(text) || 0
   const spellOk = ATTESTED.has(text)
   let spellHit = spellOk ? ATTESTED_FLOOR : 0
   let stemHit = STEM_FREQ.get(text) || 0
+  let stemReal = STEM_FREQ.get(text) || 0
   if (ATTESTED.has(text)) stemHit = Math.max(stemHit, ATTESTED_FLOOR)
   for (const suf of GU_SUFFIXES) {
     if (text.length <= suf.length + 1) continue
     if (!text.endsWith(suf)) continue
     const stem = text.slice(0, -suf.length)
     if (!stem) continue
-    stemHit = Math.max(stemHit, STEM_FREQ.get(stem) || 0)
+    const stemFreq = STEM_FREQ.get(stem) || 0
+    stemReal = Math.max(stemReal, stemFreq)
+    stemHit = Math.max(stemHit, stemFreq)
     if (ATTESTED.has(stem)) stemHit = Math.max(stemHit, ATTESTED_FLOOR)
-    // attested conjugations of the same stem (ફાવે / ફાવો / ફાવવું)
     for (const ext of ['ે', 'ો', 'ા', 'ી', 'ું', 'વું', 'તું', 'વા', 'શે', 'શો']) {
       const form = stem + ext
-      stemHit = Math.max(stemHit, UNIGRAM_LM.map.get(form) || 0, STEM_FREQ.get(form) || 0)
+      const fu = UNIGRAM_LM.map.get(form) || 0
+      const fs = STEM_FREQ.get(form) || 0
+      stemHit = Math.max(stemHit, fu, fs)
+      stemReal = Math.max(stemReal, fu > ATTESTED_FLOOR ? fu : 0, fs)
       if (ATTESTED.has(form)) stemHit = Math.max(stemHit, ATTESTED_FLOOR)
     }
   }
   const evidence = Math.max(uni, stemHit, spellHit)
-  // Penalize awkward virama clusters for pure inventions
+  const uniStrong = uni > ATTESTED_FLOOR
+  // Sole membership in attested.json with only floor padding (no uni/stem) ≠ DICT.
+  // Any direct unigram hit (including soft floor 50) still counts — otherwise soft LM is inert.
+  const attested =
+    uni > 0 || stemReal > 0 || (spellOk && uniStrong)
   let virama = 0
   for (const ch of text) if (ch === '\u0ACD') virama += 1
-  const viramaPenalty = virama * 0.25
-  // Prefer full-word unigram over stem-only (વિકસ stem must not beat વિકાસ uni).
+  const viramaPenalty = virama * 0.25 + guOrthographyPenalty(text)
   const score =
     Math.log1p(uni) +
     Math.log1p(spellHit) * 0.35 +
@@ -1337,9 +1394,10 @@ function dictionaryValidity(text) {
     viramaPenalty
   return {
     score: Math.max(0, score),
-    attested: evidence > 0 || spellOk,
+    attested,
     evidence,
     spellOk,
+    uniStrong,
   }
 }
 
@@ -1350,7 +1408,24 @@ function normalizedScore(count, max) {
 
 function userBoost(count) {
   if (!count) return 0
-  return Math.min(LM_WEIGHTS.user, Math.log1p(count) / 5)
+  return Math.min(LM_WEIGHTS.user * 1.5, Math.log1p(count) / 3.5)
+}
+
+/** Extra boost when user previously committed this native for this typed roman.
+ * After 2+ commits, return a ceiling boost so the pick becomes top. */
+function userRomanCount(typedRoman, native) {
+  if (!typedRoman || !native || !USER_LM.romanChoices) return 0
+  const nest = USER_LM.romanChoices.get(String(typedRoman).toLowerCase())
+  if (!nest) return 0
+  return nest.get(native) || 0
+}
+
+function userRomanBoost(typedRoman, native) {
+  const c = userRomanCount(typedRoman, native)
+  if (!c) return 0
+  // Two repeats → dominate menu (beats typical EXACT/DICT score gaps).
+  if (c >= 2) return 80
+  return Math.min(8.0, 2.4 * Math.log1p(c * 3))
 }
 
 function cachedScore(key) {
@@ -1432,11 +1507,11 @@ function getContextPrevWords(env) {
 
 const TOKEN_SET = new Set([
   // Length 3
-  'chh', 'ksh',
+  'chh', 'ksh', 'gny', 'jny', 'sth', 'str', 'shr',
   // Length 2
-  'kh', 'gh', 'ng', 'ch', 'Th', 'Dh', 'Sh', 'ph', 'bh', 'dv', 'gy', 'ny', 'jh',
+  'kh', 'gh', 'ng', 'ch', 'Th', 'Dh', 'Sh', 'ph', 'bh', 'dv', 'gy', 'gn', 'ny', 'jh',
   'aa', 'ee', 'ii', 'oo', 'uu', 'ai', 'au', 'RR',
-  'th', 'dh', 'sh',
+  'th', 'dh', 'sh', 'tr', 'om',
   // Length 1
   'a', 'i', 'u', 'e', 'o',
   'k', 'g', 'j', 'T', 'D', 'N', 't', 'd', 'n', 'p', 'b', 'm', 'y', 'r', 'l', 'v', 's', 'h', 'L',
@@ -1460,8 +1535,8 @@ const PRODUCTIVE_CONJUNCTS = new Set([
   'p|r', 't|r', 'k|r', 'g|r', 'd|r', 'b|r', 's|r', 'sh|y', 'sh|r', 'f|r', 'ph|r',
   // va clusters
   'k|v', 't|v', 'd|v', 's|v', 'n|v', 'dh|v',
-  // misc common
-  't|n', 's|n', 's|t', 's|k',
+  // misc common (doc §7)
+  't|n', 's|n', 's|t', 's|k', 's|th', 'd|y', 't|th',
 ])
 
 function conjunctKey(a, b) {
@@ -1715,6 +1790,11 @@ const CONFUSION_MAP = {
   // Colloquial z↔j (zindabad / jindabad)
   'z': ['j'],
   'j': ['z'],
+  // jñā conjunct aliases (gnan / gyaan / gnyan)
+  'gn': ['gy', 'gny', 'jny'],
+  'gy': ['gn', 'gny', 'jny'],
+  'gny': ['gy', 'gn', 'jny'],
+  'jny': ['gy', 'gn', 'gny'],
 }
 
 const ENDING_VARIANTS = {
@@ -1752,7 +1832,7 @@ function withEndingVariants(s) {
   return out
 }
 
-/** Mid-string vowel length variants (bounded) — i↔ii, a↔aa. */
+/** Mid-string vowel length variants (bounded) — i↔ii, a↔aa, u↔oo. */
 function withMidVowelVariants(s) {
   const out = new Set([s])
   if (!s || s.length < 3) return out
@@ -1761,6 +1841,10 @@ function withMidVowelVariants(s) {
     ['ii', 'i'],
     ['a', 'aa'],
     ['aa', 'a'],
+    ['oo', 'u'],
+    ['u', 'oo'],
+    ['uu', 'oo'],
+    ['oo', 'uu'],
   ]
   for (const [from, to] of pairs) {
     let idx = 0
@@ -1772,6 +1856,11 @@ function withMidVowelVariants(s) {
       if (at > 0) {
         // Skip ai→aii (and oi/ui/ei); diphthongs use split phonetics instead.
         if ((from === 'i' || from === 'ii') && isDiphthongI(s, at)) {
+          idx = at + 1
+          continue
+        }
+        // Avoid oui→ooi noise: don't expand bare u inside diphthong-ish ou/au.
+        if (from === 'u' && (s[at - 1] === 'o' || s[at - 1] === 'a')) {
           idx = at + 1
           continue
         }
@@ -1845,6 +1934,21 @@ function withAnusvaraNasals(s) {
       }
       idx = at + 1
     }
+  }
+  return out
+}
+
+/** Visarga alias: h↔H before a consonant (dukh↔duHkh). */
+function withVisargaH(s) {
+  const out = new Set([s])
+  if (!s) return out
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (ch !== 'h' && ch !== 'H') continue
+    const rest = s.slice(i + 1)
+    if (!rest || !/^[kKgGcCjJTDdNtnNpPbBmyrRlLvVwsShzfx]/.test(rest)) continue
+    const other = ch === 'h' ? 'H' : 'h'
+    out.add(s.slice(0, i) + other + rest)
   }
   return out
 }
@@ -2026,20 +2130,28 @@ function generateAlternateForms(input) {
   }
   for (const gem of withGeminates(input)) forms.add(gem)
   for (const loan of withLoanDigraphs(input)) forms.add(loan)
+  for (const vis of withVisargaH(input)) forms.add(vis)
   // Retroflex nasal on t→T confusions (gothni→goThni→goThNi)
   for (const form of Array.from(forms).slice(0, MAX_ALT_FORMS)) {
     for (const ret of withRetroflexNasal(form)) forms.add(ret)
     for (const nas of withAnusvaraNasals(form)) forms.add(nas)
+    for (const vis of withVisargaH(form)) forms.add(vis)
     if (forms.size >= MAX_ALT_FORMS) break
   }
   return forms
 }
 
 /** Suffixes that are spelling noise, not real extra morphology (poshatu + n).
- * Keep nasal/visarga-like only — single vowels are too permissive (mane+i → manei). */
-function isNearExactRomanSuffix(suf, fullKey) {
+ * Keep nasal/visarga-like only — single vowels are too permissive (mane+i → manei).
+ * Require a real stem (≥4): mi+n→min otherwise steals EXACT over phonetic મી/મિ. */
+function isNearExactRomanSuffix(suf, fullKey, typedLen) {
   if (!suf) return false
   if (!/^(n|m|ng|un|um|h)$/i.test(suf)) return false
+  if (typeof typedLen === 'number' && typedLen < 4) return false
+  // Hit may only add the weak suffix (aad↛aadame via near-exact).
+  if (typeof typedLen === 'number' && fullKey && fullKey.length > typedLen + suf.length) {
+    return false
+  }
   // Block English morphology completions (america→american, doctor→doctors)
   if (fullKey && /^(n|m)$/i.test(suf) && /(an|en|ian|ing|ers?|ors?|ly)$/i.test(fullKey)) {
     return false
@@ -2049,6 +2161,17 @@ function isNearExactRomanSuffix(suf, fullKey) {
 
 /** Soft-fill / weak lexicon weights must not outrank attested phonetics (Aksharantar=75). */
 const LEXICON_STRONG_WEIGHT = 100
+
+/**
+ * Native is a longer morph of `baseNative` (આચાર → આચારાંગ / આડ → આડું).
+ * Used to demote soft/exact morph steals over bare stems.
+ */
+function isNativeMorphExtension(baseNative, native) {
+  if (!baseNative || !native || native === baseNative) return false
+  if (!native.startsWith(baseNative)) return false
+  if (native.length <= baseNative.length) return false
+  return true
+}
 
 /**
  * True when `key` is `typed` with only ephemeral schwa 'a' inserted between consonants.
@@ -2086,12 +2209,25 @@ function isAInsertionOnly(typed, key) {
   return inserted > 0
 }
 
+/** IAST place-of-articulation pairs: dental ↔ retroflex (n/N, t/T, d/D, l/L). */
+const IAST_PLACE_PAIR = {
+  n: 'N', N: 'n', t: 'T', T: 't', d: 'D', D: 'd', l: 'L', L: 'l',
+}
+
 /** Map lexicon hit → tier. Soft / a-insertion fuzzy never get TIER_EXACT. */
 function lexiconHitTier(source, weight, typedRoman, hitRoman) {
   const w = Number(weight) || 0
   const soft = w > 0 && w < LEXICON_STRONG_WEIGHT
+  // Bare consonant: Apple soft-maps n→ણ etc. Keep DICT so IAST phonetics (ન/ત/…) compete.
+  if (typedRoman && typedRoman.length === 1 && IAST_PLACE_PAIR[typedRoman]) {
+    return TIER_DICT
+  }
   if (source === 'strict' && !soft) return TIER_EXACT
   if (soft) return TIER_DICT
+  // Digraph strip (vinash→vinas via sh→s) must not EXACT-steal over typed soft/long forms.
+  if (source === 'fuzzy' && typedRoman && hitRoman && isDigraphStripFuzzy(typedRoman, hitRoman)) {
+    return TIER_DICT
+  }
   if (
     source === 'fuzzy' &&
     typedRoman.startsWith('sh') &&
@@ -2101,8 +2237,165 @@ function lexiconHitTier(source, weight, typedRoman, hitRoman) {
     return TIER_DICT
   }
   if (source === 'fuzzy' && isAInsertionOnly(typedRoman, hitRoman)) return TIER_DICT
-  if (source === 'near_exact' || source === 'fuzzy' || source === 'strict') return TIER_EXACT
+  // Fuzzy with aa-lengthening + inserts (ank→aanak/aanka) must not EXACT-steal.
+  if (source === 'fuzzy' && hitRoman && typedRoman && hitRoman.length > typedRoman.length + 1) {
+    return TIER_DICT
+  }
+  if (source === 'stem_matra' || source === 'stem_postfix') {
+    return w >= LEXICON_STRONG_WEIGHT ? TIER_EXACT : TIER_DICT
+  }
+  // Near-exact weak suffixes: EXACT only when typed has no lexicon entry.
+  if (source === 'near_exact') {
+    if (typedRoman && (APPLE_LEXICON.has(typedRoman) || DICT_TRIE.findExact(typedRoman))) {
+      return TIER_DICT
+    }
+    return TIER_EXACT
+  }
+  if (source === 'fuzzy' || source === 'strict') return TIER_EXACT
   return TIER_DICT
+}
+
+/** True when hit is typed with a digraph collapsed (sh→s, th→t, …). */
+function isDigraphStripFuzzy(typed, hit) {
+  if (!typed || !hit || hit.length >= typed.length) return false
+  const pairs = [
+    ['chh', 'ch'], ['chh', 'c'], ['kh', 'k'], ['gh', 'g'], ['th', 't'], ['dh', 'd'],
+    ['ph', 'p'], ['bh', 'b'], ['sh', 's'], ['Sh', 's'], ['Sh', 'sh'], ['jh', 'j'],
+  ]
+  const t = String(typed).toLowerCase()
+  const h = String(hit).toLowerCase()
+  for (const [long, short] of pairs) {
+    if (!t.includes(long)) continue
+    // Rebuild: replace one occurrence of long with short → equals hit
+    let idx = 0
+    while (idx <= t.length - long.length) {
+      const at = t.indexOf(long, idx)
+      if (at < 0) break
+      if (t.slice(0, at) + short + t.slice(at + long.length) === h) return true
+      idx = at + 1
+    }
+  }
+  return false
+}
+
+/**
+ * Lexicon stem + vowel matra (shabd+o → શબ્દો). Scalable for all vowel signs.
+ * Stem must be a lexicon roman key ending in an inherent-a consonant native.
+ */
+const STEM_MATRA_SUFFIXES = [
+  ['aa', '\u0ABE'], // ા
+  ['ii', '\u0AC0'], // ી
+  ['ee', '\u0AC0'],
+  ['uu', '\u0AC2'], // ૂ
+  ['oo', '\u0AC2'],
+  ['ai', '\u0AC8'], // ૈ
+  ['au', '\u0ACC'], // ૌ
+  // bare trailing 'a' omitted — peels gharma→gharm / false stems
+  ['i', '\u0ABF'], // િ
+  ['u', '\u0AC1'], // ુ
+  ['e', '\u0AC7'], // ે
+  ['o', '\u0ACB'], // ો
+]
+
+/** Roman postpositions / morph suffixes → GU (mulya+maa → મૂલ્યમાં). Longest first. */
+const STEM_POSTFIX_SUFFIXES = [
+  ['maanthi', 'માંથી'],
+  ['maan', 'માં'],
+  ['maa', 'માં'],
+  ['man', 'માં'],
+  ['ma', 'માં'], // gharma → ઘરમાં; moolyama → મૂલ્યમાં
+  ['valun', 'વાળું'],
+  ['vali', 'વાળી'],
+  ['vala', 'વાળા'],
+  ['valo', 'વાળો'],
+  ['thi', 'થી'],
+  ['nee', 'ની'],
+  ['nii', 'ની'],
+  ['noo', 'નું'],
+  ['nuu', 'નું'],
+  ['naa', 'ના'],
+  ['ni', 'ની'],
+  ['nu', 'નું'],
+  ['na', 'ના'],
+  ['no', 'નો'],
+  ['ne', 'ને'],
+]
+
+function lexiconStemMatraHits(typed) {
+  const out = []
+  const lower = String(typed || '').toLowerCase()
+  if (lower.length < 3) return out
+  for (const [suf, matra] of STEM_MATRA_SUFFIXES) {
+    if (lower.length <= suf.length + 1) continue
+    if (!lower.endsWith(suf)) continue
+    // Don't peel vowel if preceding char is also a vowel carrier (kyaare≠kyaar+e).
+    const stem = lower.slice(0, -suf.length)
+    if (!stem || stem.length < 2) continue
+    const last = stem[stem.length - 1]
+    if ('aeiou'.includes(last)) continue
+    const word = APPLE_LEXICON.get(stem) || DICT_TRIE.findExact(stem)
+    if (!word) continue
+    const w = lexiconWeight(stem)
+    if (matra === null) {
+      out.push({ roman: stem, word, weight: w, source: 'stem_matra' })
+    } else if (endsWithConsonantWithImplicitA(word)) {
+      out.push({ roman: stem + suf, word: word + matra, weight: Math.max(w, 100), source: 'stem_matra' })
+    }
+  }
+  return out
+}
+
+function lookupLexiconStem(stem) {
+  let word = APPLE_LEXICON.get(stem) || DICT_TRIE.findExact(stem)
+  let bestRoman = stem
+  let w = word ? lexiconWeight(stem) : 0
+  if (word) return { word, roman: bestRoman, weight: w }
+  // Fuzzy stem (mulya → moolya) without baking per word.
+  for (const alt of generateAlternateForms(stem)) {
+    const hit = APPLE_LEXICON.get(alt) || DICT_TRIE.findExact(alt)
+    if (!hit) continue
+    const ww = lexiconWeight(alt)
+    if (!word || ww > w) {
+      word = hit
+      bestRoman = alt
+      w = ww
+    }
+  }
+  return word ? { word, roman: bestRoman, weight: w } : null
+}
+
+/** Stem + postposition (mulyama → મૂલ્ય + માં). Skips if roman stem ends in a vowel letter. */
+function lexiconStemPostfixHits(typed) {
+  const out = []
+  const lower = String(typed || '').toLowerCase()
+  if (lower.length < 4) return out
+  for (const [suf, guSuf] of STEM_POSTFIX_SUFFIXES) {
+    if (lower.length <= suf.length + 2) continue
+    if (!lower.endsWith(suf)) continue
+    const stem = lower.slice(0, -suf.length)
+    if (!stem || stem.length < 2) continue
+    // Allow inherent-a roman stems (moolya); reject other vowel endings (mane↛ma+ne).
+    const last = stem[stem.length - 1]
+    if ('eiou'.includes(last)) continue
+    if (/(aa|ii|ee|uu|oo|ai|au)$/.test(stem)) continue
+    const hit = lookupLexiconStem(stem)
+    if (!hit) continue
+    // Prefer bare inherent-a stems; allow nasal/matra stems (હિંમતમાં).
+    if (
+      !endsWithConsonantWithImplicitA(hit.word) &&
+      !/[\u0ABE\u0AC0\u0AC1\u0AC2\u0AC7\u0AC8\u0ACB\u0ACC\u0A82]$/.test(hit.word)
+    ) {
+      continue
+    }
+    out.push({
+      roman: hit.roman + suf,
+      word: hit.word + guSuf,
+      weight: Math.max(hit.weight, 120),
+      source: 'stem_postfix',
+    })
+    break // longest matching postfix only
+  }
+  return out
 }
 
 /**
@@ -2192,9 +2485,10 @@ function scoreCandidateWithContext(text, prevWords, isPhonetic) {
   return unigramScore + bigramScore + trigramScore + userScore + phoneticPenalty
 }
 
-function recordUserChoice(path, word, prevWord, enableUserLm) {
+function recordUserChoice(path, word, prevWord, enableUserLm, typedRoman) {
   if (!enableUserLm || !word) return
   ensureUserLM(path)
+  if (!USER_LM.romanChoices) USER_LM.romanChoices = new Map()
   const nextWordCount = (USER_LM.wordCounts.get(word) || 0) + 1
   USER_LM.wordCounts.set(word, nextWordCount)
   if (prevWord) {
@@ -2202,11 +2496,17 @@ function recordUserChoice(path, word, prevWord, enableUserLm) {
     const nextBigramCount = (USER_LM.bigramCounts.get(key) || 0) + 1
     USER_LM.bigramCounts.set(key, nextBigramCount)
   }
+  const roman = typedRoman ? String(typedRoman).toLowerCase() : ''
+  if (roman) {
+    if (!USER_LM.romanChoices.has(roman)) USER_LM.romanChoices.set(roman, new Map())
+    const nest = USER_LM.romanChoices.get(roman)
+    nest.set(word, (nest.get(word) || 0) + 1)
+  }
   USER_LM_DIRTY = true
   USER_LM_PENDING_WRITES += 1
   if (USER_LM_PENDING_WRITES >= USER_FLUSH_THRESHOLD) {
     const resolvedPath = resolveUserPath(path)
-    writeUserLM(resolvedPath, USER_LM.wordCounts, USER_LM.bigramCounts)
+    writeUserLM(resolvedPath, USER_LM.wordCounts, USER_LM.bigramCounts, USER_LM.romanChoices)
     USER_LM_DIRTY = false
     USER_LM_PENDING_WRITES = 0
   }
@@ -2217,8 +2517,9 @@ function recordUserChoice(path, word, prevWord, enableUserLm) {
  * Flushes immediately so personalization survives process restarts.
  * @param {Environment} env
  * @param {string} word
+ * @param {string} [typedRoman]
  */
-export function learnCommittedChoice(env, word) {
+export function learnCommittedChoice(env, word, typedRoman) {
   try {
     if (!word) return
     const enableUserLm = getEnvBool(env, 'translator/enable_user_lm', true)
@@ -2232,15 +2533,33 @@ export function learnCommittedChoice(env, word) {
     } else if (prevWords.length >= 1 && prevWords[prevWords.length - 1] !== word) {
       prevWord = prevWords[prevWords.length - 1]
     }
-    recordUserChoice(USER_LM_DEFAULT_PATH, word, prevWord, true)
+    const roman = typedRoman || getCompositionRoman(env)
+    recordUserChoice(USER_LM_DEFAULT_PATH, word, prevWord, true, roman)
     if (USER_LM_DIRTY) {
-      writeUserLM(resolveUserPath(USER_LM_DEFAULT_PATH), USER_LM.wordCounts, USER_LM.bigramCounts)
+      writeUserLM(resolveUserPath(USER_LM_DEFAULT_PATH), USER_LM.wordCounts, USER_LM.bigramCounts, USER_LM.romanChoices)
       USER_LM_DIRTY = false
       USER_LM_PENDING_WRITES = 0
     }
   } catch (e) {
     console.error('$qjs$ learnCommittedChoice error:', e && e.message)
   }
+}
+
+function getCompositionRoman(env) {
+  try {
+    if (env && env.engine && env.engine.context) {
+      const ctx = env.engine.context
+      if (typeof ctx.input === 'string' && ctx.input) return String(ctx.input)
+      if (typeof ctx.get_input === 'function') {
+        const v = ctx.get_input()
+        if (v) return String(v)
+      }
+      if (ctx.composition && typeof ctx.composition.input === 'string') {
+        return String(ctx.composition.input)
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return ''
 }
 
 /** Cheap roman distance for soft-gate ranking (prefer closer fuzzy hits). */
@@ -2260,6 +2579,12 @@ function romanCloseness(a, b) {
     else break
   }
   return Math.max(0, shared * 6 - Math.abs(x.length - y.length) * 4)
+}
+
+/** URL / email / host-looking roman → Latin-only (no script suggest). */
+function looksLikeLatinLiteral(s) {
+  if (!s) return false
+  return /@|:\/\/|(^|\.)(com|org|net|edu|io|gov)(\b|$)/i.test(s) || /^https?:\/\//i.test(s)
 }
 
 
@@ -2294,6 +2619,12 @@ export class GujaratiTranslator {
         return []
       }
 
+      if (looksLikeLatinLiteral(input)) {
+        const cand = new Candidate('latin', segment.start, segment.end, input, '', 100)
+        cand.quality = 100
+        return [cand]
+      }
+
       loadLexiconBlob(env)
       loadLanguageModels(env)
       loadEmojiKeywords(env)
@@ -2303,9 +2634,10 @@ export class GujaratiTranslator {
       const fuzzyExactSoft = getEnvBool(env, 'translator/fuzzy_exact_soft', true)
       const includeLatin = getEnvBool(env, 'translator/include_latin', true)
       const emojiEnable = getEnvBool(env, 'translator/emoji_enable', true)
-      const maxPrefix = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_prefix', 6)))
-      const maxPhonetic = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_phonetic', 8)))
-      const maxEmoji = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_emoji', 3)))
+      const maxPrefix = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_prefix', 3)))
+      const maxPhonetic = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_phonetic', 4)))
+      const maxEmoji = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_emoji', 2)))
+      const maxCandidates = Math.max(1, Math.floor(getEnvNumber(env, 'translator/max_candidates', 6)))
       LM_WEIGHTS.unigram = getEnvNumber(env, 'translator/lm_unigram_weight', LM_WEIGHTS.unigram)
       LM_WEIGHTS.bigram = getEnvNumber(env, 'translator/lm_bigram_weight', LM_WEIGHTS.bigram)
       LM_WEIGHTS.user = getEnvNumber(env, 'translator/lm_user_weight', LM_WEIGHTS.user)
@@ -2381,9 +2713,10 @@ export class GujaratiTranslator {
         if (as !== bs) return as - bs
         return b.weight - a.weight || a.roman.length - b.roman.length
       })
+      const typedForTier = input.length === 1 ? input : lower
       for (const hit of exactHits) {
         const q = hit.roman === lower ? 950 : 880
-        const tier = lexiconHitTier(hit.source, hit.weight, lower, hit.roman)
+        const tier = lexiconHitTier(hit.source, hit.weight, typedForTier, hit.roman)
         pushCand(
           hit.word,
           hit.roman === lower ? input : hit.roman,
@@ -2395,17 +2728,37 @@ export class GujaratiTranslator {
         )
       }
 
-      // Near-exact lexicon: typed roman is a prefix of a lexicon key by only n/m/… (poshatu→poshatun)
-      for (const seed of romanQueries) {
-        if (seed.length < 2) continue
-        for (const entry of DICT_TRIE.findPrefixEntries(seed, 12)) {
-          if (!entry || !entry.value) continue
-          if (!entry.key.startsWith(seed)) continue
-          const suf = entry.key.slice(seed.length)
-          if (!isNearExactRomanSuffix(suf, entry.key)) continue
-          const w = lexiconWeight(entry.key)
-          const tier = lexiconHitTier('near_exact', w, lower, entry.key)
-          pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), tier, false, entry.key, 'near_exact')
+      // Lexicon stem + vowel matra (shabd+o → શબ્દો) for all vowel signs.
+      for (const hit of lexiconStemMatraHits(lower)) {
+        const tier = lexiconHitTier('stem_matra', hit.weight, typedForTier, hit.roman)
+        pushCand(hit.word, input, 920 + Math.min(40, Math.log1p(hit.weight) * 5), tier, false, hit.roman, 'stem_matra')
+      }
+      // Lexicon stem + postposition (mulyamaa → મૂલ્યમાં).
+      for (const hit of lexiconStemPostfixHits(lower)) {
+        const tier = lexiconHitTier('stem_postfix', hit.weight, typedForTier, hit.roman)
+        pushCand(hit.word, input, 930 + Math.min(40, Math.log1p(hit.weight) * 5), tier, false, hit.roman, 'stem_postfix')
+      }
+
+      // Near-exact lexicon: typed + weak suffix (poshatu→poshatun).
+      // Only from the typed roman (not a→aa expansions: ank↛aankh), and only when
+      // typed has no lexicon entry — otherwise ghar+m/gnan+m steal EXACT over घર/જ્ઞાન.
+      const typedInLex =
+        APPLE_LEXICON.has(lower) ||
+        APPLE_LEXICON.has(input) ||
+        !!DICT_TRIE.findExact(lower) ||
+        !!DICT_TRIE.findExact(input)
+      if (!typedInLex) {
+        for (const seed of [lower, input]) {
+          if (!seed || seed.length < 2) continue
+          for (const entry of DICT_TRIE.findPrefixEntries(seed, 12)) {
+            if (!entry || !entry.value) continue
+            if (!entry.key.startsWith(seed)) continue
+            const suf = entry.key.slice(seed.length)
+            if (!isNearExactRomanSuffix(suf, entry.key, seed.length)) continue
+            const w = lexiconWeight(entry.key)
+            const tier = lexiconHitTier('near_exact', w, typedForTier, entry.key)
+            pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), tier, false, entry.key, 'near_exact')
+          }
         }
       }
 
@@ -2434,6 +2787,12 @@ export class GujaratiTranslator {
         phoneticForms.push(g)
       }
       for (const g of phoneticFormsForRoman(input)) addPhon(g)
+      // IAST place twin for bare consonants (n↔N → ન and ણ both in menu).
+      if (input.length === 1 && IAST_PLACE_PAIR[input]) {
+        for (const g of phoneticFormsForRoman(IAST_PLACE_PAIR[input])) addPhon(g)
+      } else if (lower.length === 1 && IAST_PLACE_PAIR[lower]) {
+        for (const g of phoneticFormsForRoman(IAST_PLACE_PAIR[lower])) addPhon(g)
+      }
       for (const form of altForms) {
         if (form.toLowerCase() === lower) continue
         for (const g of phoneticFormsForRoman(form)) addPhon(g)
@@ -2444,15 +2803,12 @@ export class GujaratiTranslator {
         if (seen.has(text)) continue
         const known = KNOWN_WORDS.has(text)
         const validity = dictionaryValidity(text)
-        // Hard-gate: with a strict lexicon exact, drop invented phonetics (classic).
-        // Soft: fuzzy/near-exact-only (low weight) still allows attested / spell-dict forms.
+        // Hard-gate: drop invented phonetics when lexicon EXACT exists; still keep
+        // attested / spell-dict forms (n→ણ exact must not hide dental ન).
         // Soft-fill / a-insertion hits are TIER_DICT (not EXACT), so exactCount stays 0 and
         // high-frequency phonetics can outrank them (mne → મને over soft mane→માને).
         if (hardGate && exactCount > 0 && !known) {
-          if (hasStrictExact) {
-            continue
-          }
-          if (softExactOnly) {
+          if (hasStrictExact || softExactOnly) {
             if (!validity.attested && !validity.spellOk) continue
           } else {
             continue
@@ -2461,20 +2817,40 @@ export class GujaratiTranslator {
         phonScored.push({ text, known, validity })
       }
       phonScored.sort((a, b) => {
+        // Direct unigram hit beats stem-only / floor-attested phonetic cousins.
+        const uniA = UNIGRAM_LM.map.get(a.text) || 0
+        const uniB = UNIGRAM_LM.map.get(b.text) || 0
+        if ((uniA > 0) !== (uniB > 0)) return uniA > 0 ? -1 : 1
         if (a.validity.spellOk !== b.validity.spellOk) return a.validity.spellOk ? -1 : 1
         if (a.validity.attested !== b.validity.attested) return a.validity.attested ? -1 : 1
+        if (uniB !== uniA) return uniB - uniA
         if (b.validity.score !== a.validity.score) return b.validity.score - a.validity.score
         return 0
       })
 
+      let phoneticCap = maxPhonetic
+      const hasStrongExact = exactItems.some(
+        (x) => (x.weight || 0) >= LEXICON_STRONG_WEIGHT && x.exactSource === 'strict'
+      )
+      if (hasStrongExact) phoneticCap = Math.min(phoneticCap, 2)
+
       let phoneticAdded = 0
+      let uniBackedPhon = 0
       for (const item of phonScored) {
-        if (phoneticAdded >= maxPhonetic) break
+        if (phoneticAdded >= phoneticCap) break
+        const uniHit = UNIGRAM_LM.map.get(item.text) || 0
+        // Once we have uni-backed DICT phonetics, skip stem-only floor cousins.
+        if (uniBackedPhon >= 2 && uniHit <= ATTESTED_FLOOR && !item.validity.uniStrong) {
+          continue
+        }
         const tier = item.validity.attested ? TIER_DICT : TIER_PHONETIC
         const q = item.validity.attested
           ? 700 + Math.min(99, item.validity.score * 12)
           : (item.known ? 300 : 200)
-        if (pushCand(item.text, input, q, tier, true, lower, null)) phoneticAdded += 1
+        if (pushCand(item.text, input, q, tier, true, lower, null)) {
+          phoneticAdded += 1
+          if (item.validity.uniStrong || uniHit > ATTESTED_FLOOR) uniBackedPhon += 1
+        }
       }
 
       if (exactCount === 0 && phoneticAdded === 0) {
@@ -2508,7 +2884,7 @@ export class GujaratiTranslator {
             suffix = entry.key.length > lower.length ? entry.key.slice(lower.length) : ''
           }
           const w = lexiconWeight(entry.key)
-          if (entry.key.startsWith(lower) && isNearExactRomanSuffix(suffix, entry.key)) {
+          if (entry.key.startsWith(lower) && !typedInLex && isNearExactRomanSuffix(suffix, entry.key, lower.length)) {
             const tier = lexiconHitTier('near_exact', w, lower, entry.key)
             if (pushCand(entry.value, input, 860 + Math.min(40, Math.log1p(w) * 5), tier, false, entry.key, 'near_exact')) {
               prefixAdded += 1
@@ -2573,11 +2949,80 @@ export class GujaratiTranslator {
         const uniBoost = Math.log1p(unigramCount) * 0.55
         let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost
         let tier = item.tier
-        const isLex = item.exactSource === 'strict' || item.exactSource === 'fuzzy' || item.exactSource === 'near_exact'
+        const isLex =
+          item.exactSource === 'strict' ||
+          item.exactSource === 'fuzzy' ||
+          item.exactSource === 'near_exact' ||
+          item.exactSource === 'stem_matra' ||
+          item.exactSource === 'stem_postfix'
         if (isLex && (item.weight || 0) > 0 && (item.weight || 0) < LEXICON_STRONG_WEIGHT && unigramCount < 150) {
           score -= freq * 0.85 + 2.8
         }
+        // Soft typed lexicon only when a digraph-strip fuzzy competes (vinash vs vinas).
+        const typedLex = APPLE_LEXICON.get(lower) || APPLE_EXCEPTIONS.get(lower) || DICT_TRIE.findExact(lower)
+        const typedW = lexiconWeight(lower)
+        if (typedLex === text && typedW > 0 && typedW < LEXICON_STRONG_WEIGHT) {
+          let hasStrip = false
+          for (const it of items) {
+            if (it.romanKey && isDigraphStripFuzzy(lower, it.romanKey)) {
+              hasStrip = true
+              break
+            }
+          }
+          if (hasStrip) score += 3.2
+        }
+        // Prefer Apple bare stems over morph extensions (aachar→આચાર vs આચારાંગ).
+        // Do not boost soft typed keys (swagat) or bare IAST letters (n→ણ).
+        const bareIast = input.length === 1 && IAST_PLACE_PAIR[input]
+        if (typedLex && typedW >= LEXICON_STRONG_WEIGHT && !bareIast) {
+          let competingMorph = false
+          for (const it of items) {
+            if (isNativeMorphExtension(typedLex, it.candidate.text)) {
+              competingMorph = true
+              break
+            }
+          }
+          if (text === typedLex && competingMorph) {
+            score += 6.5
+          } else if (isNativeMorphExtension(typedLex, text)) {
+            score -= 8.5
+            if (tier === TIER_EXACT) tier = TIER_DICT
+          }
+        }
+        // Near-exact nasal morph (aad→aadun→આડું) loses to bare typed stem when present.
+        if (
+          item.exactSource === 'near_exact' &&
+          typedLex &&
+          typedW >= LEXICON_STRONG_WEIGHT &&
+          text !== typedLex &&
+          item.romanKey &&
+          item.romanKey.length > lower.length
+        ) {
+          score -= 7.0
+          if (tier === TIER_EXACT) tier = TIER_DICT
+        }
+        // Closeness: prefer lexicon romans equal to typed over longer fuzzy keys.
+        if (isLex && item.romanKey === lower && typedW >= LEXICON_STRONG_WEIGHT) score += 2.0
+        else if (isLex && item.romanKey && item.romanKey.length > lower.length + 1) score -= 1.5
+        // Personalization: 2+ commits for this roman → force top tier + huge score.
+        if (enableUserLm) {
+          const uc = userRomanCount(lower, text)
+          if (uc >= 2) {
+            tier = TIER_EXACT
+            score += userRomanBoost(lower, text)
+          } else if (uc > 0) {
+            score += userRomanBoost(lower, text)
+          }
+        }
         if (text.includes('ય') && !lower.includes('y')) score -= 4.0
+        // IAST case for bare place-contrast letters: n→ન over ણ, N→ણ over ન (same for t/d/l).
+        if (input.length === 1 && IAST_PLACE_PAIR[input]) {
+          const dental = { n: 'ન', t: 'ત', d: 'દ', l: 'લ', N: 'ણ', T: 'ટ', D: 'ડ', L: 'ળ' }
+          const prefer = dental[input]
+          const twin = dental[IAST_PLACE_PAIR[input]]
+          if (prefer && text === prefer) score += 2.5
+          else if (twin && text === twin) score -= 0.35
+        }
         if (lower.includes('d') && !/(^|[^a-z])D/.test(lower)) {
           if (text.includes('ડ') && !text.includes('દ')) score -= 1.2
           if (text.includes('દ')) score += 0.5
@@ -2594,9 +3039,9 @@ export class GujaratiTranslator {
           else if (text.startsWith('જ')) score -= 0.35
         }
         if (/(mm|nn|tt|kk|ll)/.test(lower)) {
-          if (text.includes('\u0ACD')) score += 3.0
+          if (text.includes('\u0ACD')) score += 5.5
           if (text.includes(ANUSVARA) && !text.includes('\u0ACD')) {
-            score -= 3.5 + uniBoost * 0.65
+            score -= 6.5 + uniBoost * 1.15
             if (tier === TIER_EXACT) tier = TIER_DICT
           }
         } else if (text.includes(ANUSVARA) && /n[kgcjtdTDpb]/.test(lower)) {
@@ -2637,7 +3082,10 @@ export class GujaratiTranslator {
         return c
       })
 
-      return sortedCandidates
+      // Hard cap menu size (page_size alone still allows paging past soft limits).
+      return sortedCandidates.length > maxCandidates
+        ? sortedCandidates.slice(0, maxCandidates)
+        : sortedCandidates
     } catch (e) {
       console.error('$qjs$ translate error:', e.message)
       return []

@@ -37,6 +37,7 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 | `GUIDE.md` | Install walkthrough (Releases + from-source) |
 | `.github/workflows/release-packages.yml` | Tag `v*` → publish packages |
 | `scripts/build_gu_word_freq.py` | Rebuild unigram/stems from Apple+Google+Indic |
+| `scripts/filter_lexicon_quality.py` | Drop soft postfix/morph noise from lexicon blob |
 | `scripts/distill_apple_lexicon.py` | Rebuild lexicon blob / dict from probe extracts |
 | `scripts/install_librime_qjs.sh` | Install `librime-qjs.dylib` into Squirrel |
 | `data/` | Distill outputs + cached external wordcounts |
@@ -70,7 +71,9 @@ Ranking regression check (no Rime required):
 ```bash
 python3 scripts/build_gu_word_freq.py   # aspell-gu + hunspell + Google/Indic
 python3 scripts/ingest_aksharantar_gu.py  # optional: soft-fill OOV from Aksharantar GU
-python3 eval/rank_offline.py            # smoke: jamin/favshe/poshatu/ketli
+python3 scripts/filter_lexicon_quality.py # drop soft postfix/morph noise (stem+માં etc.)
+python3 eval/rank_offline.py            # smoke: jamin/favshe/poshatu/ketli/mulya/aachar
+python3 eval/apple_agree.py             # optional: Apple top-1 regression
 ./scripts/install_recipe.sh             # or ./scripts/sync_rime.sh
 ```
 

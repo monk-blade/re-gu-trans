@@ -33,13 +33,14 @@ export class CommitOnPunctProcessor {
       }
 
       const committed = selectedCandidateText(ctx)
+      const typedRoman = compositionInput(ctx)
 
       if (typeof ctx.commit === 'function') {
         ctx.commit()
       }
 
       if (committed) {
-        learnUserWord(env, committed)
+        learnUserWord(env, committed, typedRoman)
       }
 
       if (punct !== '' && engine && typeof engine.commitText === 'function') {
@@ -67,6 +68,20 @@ function selectedCandidateText(ctx) {
   return ''
 }
 
+function compositionInput(ctx) {
+  try {
+    if (typeof ctx.input === 'string' && ctx.input) return String(ctx.input)
+    if (typeof ctx.get_input === 'function') {
+      const v = ctx.get_input()
+      if (v) return String(v)
+    }
+    if (ctx.composition && typeof ctx.composition.input === 'string') {
+      return String(ctx.composition.input)
+    }
+  } catch (_e) {}
+  return ''
+}
+
 function resolveUserPath(path) {
   if (!path || typeof path !== 'string') return path
   if (path.startsWith('~/') && typeof os !== 'undefined' && os.homedir) {
@@ -89,7 +104,7 @@ function getEnvBool(env, key, fallback) {
 }
 
 /** Append-only personalization on commit (same TSV shape as translator user LM). */
-function learnUserWord(env, word) {
+function learnUserWord(env, word, typedRoman) {
   try {
     if (!getEnvBool(env, 'translator/enable_user_lm', true)) return
     if (!word || typeof word !== 'string') return
@@ -110,6 +125,7 @@ function learnUserWord(env, word) {
     }
     const wordCounts = new Map()
     const bigramCounts = new Map()
+    const romanChoices = new Map()
     for (const line of String(text).split(/\r?\n/)) {
       if (!line) continue
       const parts = line.split('\t')
@@ -117,20 +133,36 @@ function learnUserWord(env, word) {
         const w = parts[0]
         const c = Number(parts[1])
         if (w && Number.isFinite(c)) wordCounts.set(w, c)
+      } else if (parts.length >= 4 && parts[0] === '@') {
+        const roman = String(parts[1] || '').toLowerCase()
+        const nat = parts[2]
+        const c = Number(parts[3])
+        if (!roman || !nat || !Number.isFinite(c)) continue
+        if (!romanChoices.has(roman)) romanChoices.set(roman, new Map())
+        romanChoices.get(roman).set(nat, c)
       } else if (parts.length >= 3) {
         const prev = parts[0]
         const w = parts[1]
         const c = Number(parts[2])
-        if (prev && w && Number.isFinite(c)) bigramCounts.set(prev + '|' + w, c)
+        if (prev && w && Number.isFinite(c) && prev !== '@') bigramCounts.set(prev + '|' + w, c)
       }
     }
     wordCounts.set(word, (wordCounts.get(word) || 0) + 1)
+    const roman = typedRoman ? String(typedRoman).toLowerCase() : ''
+    if (roman) {
+      if (!romanChoices.has(roman)) romanChoices.set(roman, new Map())
+      const nest = romanChoices.get(roman)
+      nest.set(word, (nest.get(word) || 0) + 1)
+    }
     const lines = []
     for (const [w, c] of wordCounts) lines.push(w + '\t' + c)
     for (const [k, c] of bigramCounts) {
       const idx = k.indexOf('|')
       if (idx < 0) continue
       lines.push(k.slice(0, idx) + '\t' + k.slice(idx + 1) + '\t' + c)
+    }
+    for (const [rom, nest] of romanChoices) {
+      for (const [nat, c] of nest) lines.push('@\t' + rom + '\t' + nat + '\t' + c)
     }
     const out = lines.join('\n') + (lines.length ? '\n' : '')
     try {

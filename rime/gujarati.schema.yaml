@@ -42,7 +42,7 @@ speller:
   max_code_length: 0
 
 menu:
-  page_size: 9
+  page_size: 6
 
 translator:
   dictionary: gujarati
@@ -61,11 +61,13 @@ translator:
   # high-validity / spell-dict phonetics into the menu.
   fuzzy_exact_soft: true
   include_latin: true
-  max_prefix: 6
-  max_phonetic: 5
+  # Hard cap returned candidates (page_size alone still pages extras).
+  max_candidates: 6
+  max_prefix: 3
+  max_phonetic: 4
   # Keyword emoji suggestions (English + Gujarati-roman); always below script
   emoji_enable: true
-  max_emoji: 3
+  max_emoji: 2
   lm_unigram_weight: 0.6
   lm_bigram_weight: 0.9
   lm_user_weight: 0.6
