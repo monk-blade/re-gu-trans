@@ -2,8 +2,8 @@
 """Extract Gujarati natives from local proprietary IME assets (never committed).
 
 Apple:
-  - gu_unified_marisa_keys.txt (repo root, gitignored)
-  - data/apple_probe.tsv, data/gu_lexicon.tsv, rime/gu_lexicon_blob.json
+  - archive/apple-extracts/gu_unified_marisa_keys.txt (or repo root; gitignored)
+  - data/apple_probe.tsv, data/gu_lexicon.tsv, rime/js/gu_lexicon_blob.json
 
 Google Input Tools:
   - Env GOOGLE_IME_GU_DICT or data/external/google_ime_gu.*
@@ -64,10 +64,12 @@ def load_lines_gu(path: Path) -> set[str]:
 def extract_apple() -> set[str]:
     out: set[str] = set()
     candidates = [
+        ROOT / "archive" / "apple-extracts" / "gu_unified_marisa_keys.txt",
         ROOT / "gu_unified_marisa_keys.txt",
         DATA / "apple_probe.tsv",
         DATA / "gu_lexicon.tsv",
         DATA / "gu_lexicon_blob.json",
+        ROOT / "rime" / "js" / "gu_lexicon_blob.json",
         ROOT / "rime" / "gu_lexicon_blob.json",
         EXT / "apple_native_words.txt",
     ]

@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-JS = ROOT / "rime" / "gujarati_translator.js"
+JS = ROOT / "rime" / "js" / "gujarati_translator.js"
 RULES = ROOT / "data" / "gu_phonetic_rules.json"
 
 # Map Apple roman keys -> which JS table + preferred glyph

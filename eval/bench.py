@@ -16,7 +16,11 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROBE = ROOT / "tools" / "probe_tl"
+_PROBE_CANDIDATES = (
+    ROOT / "archive" / "tools" / "probe_tl",
+    ROOT / "tools" / "probe_tl",
+)
+PROBE = next((p for p in _PROBE_CANDIDATES if p.exists()), _PROBE_CANDIDATES[0])
 TRAIN = ROOT / "data" / "gu_train.jsonl"
 OUT = ROOT / "eval" / "results.json"
 

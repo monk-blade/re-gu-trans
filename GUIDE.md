@@ -1,6 +1,8 @@
-# GUIDE.md — Install re-gu-trans on macOS, Windows & Linux
+# GUIDE.md — Install Akshar GU (`re-gu-trans`)
 
 End-to-end setup for the Gujarati Rime IME (lexicon ranking + QuickJS plugins).
+
+**Daily typing** (menu order, Space/`.` commit, Latin #2, numerals): **[USAGE.md](./USAGE.md)**.
 
 ## Requirements
 
@@ -188,7 +190,7 @@ python3 scripts/ingest_aksharantar_gu.py           # soft-fill OOV; does not exp
 
 | Asset | Path / env | Output (gitignored) |
 |-------|------------|---------------------|
-| Apple Marisa / probe / lexicon | `gu_unified_marisa_keys.txt`, `data/apple_probe.tsv`, blob | `data/external/apple_native_words.txt` |
+| Apple Marisa / probe / lexicon | `archive/apple-extracts/gu_unified_marisa_keys.txt`, `data/apple_probe.tsv`, blob | `data/external/apple_native_words.txt` |
 | Google Input Tools GU dump | `GOOGLE_IME_GU_DICT` or `data/external/google_ime_gu.*` | `data/external/google_ime_native_words.txt` |
 | Dakshina (optional full) | `FETCH_DAKSHINA=1` or place `dakshina_gu_natives.txt` | `data/external/dakshina_gu_natives.txt` |
 | IndicCorp v2 sample | `FETCH_INDICCORP=1` (capped stream) | `data/external/gu_indiccorp_v2_unigrams.tsv` |

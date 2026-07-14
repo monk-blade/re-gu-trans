@@ -1,24 +1,27 @@
-# AGENTS.md — re-gu-trans
+# AGENTS.md — Akshar GU (`re-gu-trans`)
 
-Guidance for coding agents working in this repository.
+Guidance for coding agents in this repository.
 
 ## Project
 
-**re-gu-trans** is a macOS **Squirrel/Rime** Gujarati roman→script IME that aims to match Apple TransliterationIM quality:
+**Akshar GU** (repo/package id **`re-gu-trans`**) is a **Squirrel / Weasel / Fcitx5-Rime** Gujarati roman→script IME that aims to match Apple TransliterationIM quality:
 
 - Distilled Apple lexicon (~96k roman→native pairs + weights)
 - Phonetic generation with fuzzy roman confusions (`sh↔Sh`, `t↔T`, `i↔ii`, `u↔un`, …)
 - Native-script word-frequency + stem rescoring (IndicXlit-style dictionary rescoring)
-- QuickJS plugins via **librime-qjs** (`gujarati_translator.js`, `commit_on_punct_processor.js`)
+- QuickJS plugins via **librime-qjs** (`rime/js/gujarati_translator.js`, `commit_on_punct_processor.js`)
 
-User data live-sync target: `~/Library/Rime/` (never commit that directory).
+Live-sync target: `~/Library/Rime/` (macOS) — never commit that directory.
+
+End-user typing: **[USAGE.md](./USAGE.md)**. Install: **[GUIDE.md](./GUIDE.md)**.
 
 ## Non-negotiables
 
 1. **No per-word baking** for ranking fixes. Prefer lexicon weights, fuzzy roman expansion, near-exact suffix promotion, and unigram/stem rescoring.
-2. **Do not commit secrets**, Apple private binaries, or full Marisa dumps (`gu_unified_marisa_keys.txt` is gitignored).
+2. **Do not commit secrets**, Apple private binaries, or full Marisa dumps (`archive/apple-extracts/gu_unified_marisa_keys.txt` is gitignored).
 3. **Do not force-push** or rewrite published history unless the user explicitly asks.
-4. Keep the hot path fast: lexicon/trie lookups + cheap unigram/stem rescoring.
+4. Keep the hot path fast: lexicon/trie lookups + cheap unigram/stem rescoring; fail open if optional extras break.
+5. **Do not move** active `rime/js/**`, schema, or CI datasets into `archive/` without updating every consumer. Archive is for unused leftovers only.
 
 ## Layout
 
@@ -37,6 +40,8 @@ User data live-sync target: `~/Library/Rime/` (never commit that directory).
 | `scripts/build_qjs_tries.py` | Emit text + platform `.trie.bin` |
 | `scripts/package/` | Stage payload; build macOS/Windows/Linux packages |
 | `vendor/librime-qjs/` | Pinned plugin + `writeFileAtomic` overlay |
+| `archive/` | Inactive Apple extracts, legacy table dicts, research tools |
+| `USAGE.md` | End-user typing guide |
 | `GUIDE.md` | Install walkthrough |
 | `.github/workflows/ci.yml` | PR/main gates (leakage, smoke, held-out, gold, budgets) |
 
@@ -50,8 +55,9 @@ Linguistic order (lower tier wins), then **display layout**:
 4. Prefix
 5. Emoji
 
-Display: Gujarati #1 → Latin echo #2 (`include_latin`, fixed slot) → remaining GU → prefix → emoji.
-Assign `candidate.quality` **after** layout. Soft-fill never overrides Apple ≥100 by weight alone.
+Display: Gujarati #1 → Latin echo #2 (`include_latin`, fixed slot) → remaining GU → prefix → emoji.  
+Assign `candidate.quality` **after** layout. Soft-fill never overrides Apple ≥100 by weight alone.  
+ASCII numerals / decimals stay Latin (`looksLikeAsciiNumber`).
 
 ## Day-to-day commands
 
@@ -60,19 +66,19 @@ python3 scripts/build_gu_word_freq.py
 ./scripts/sync_rime.sh          # macOS ~/Library/Rime or Linux fcitx5/ibus dir
 ```
 
-Install / Linux walkthrough: **[GUIDE.md](./GUIDE.md)**.
-Ecosystem survey (Rime-ice, plum, Aksharantar, …): **[docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md)**.
+Install: **[GUIDE.md](./GUIDE.md)**. Typing: **[USAGE.md](./USAGE.md)**.  
+Ecosystem survey: **[docs/rime-ecosystem-survey.md](./docs/rime-ecosystem-survey.md)**.
 
 Schema processor order is critical for `.` commit: `commit_on_punct` must run **before** `key_binder` (default maps `period` → `Page_Down` when `has_menu`).
 
 Ranking regression check (no Rime required):
 
 ```bash
-python3 scripts/build_gu_word_freq.py   # aspell-gu + hunspell + Google/Indic
-python3 scripts/ingest_aksharantar_gu.py --from-cache --max-soft 300000  # bare-stem OOV bands 75/80/85
-python3 scripts/ingest_dakshina_gu_pairs.py --from-cache   # Dakshina roman↔GU soft stems
-python3 scripts/extract_proprietary_gu_natives.py          # Google IME natives when available
-python3 scripts/filter_lexicon_quality.py # drop residual soft postfix/long noise
+python3 scripts/build_gu_word_freq.py
+python3 scripts/ingest_aksharantar_gu.py --from-cache --max-soft 300000
+python3 scripts/ingest_dakshina_gu_pairs.py --from-cache
+python3 scripts/extract_proprietary_gu_natives.py
+python3 scripts/filter_lexicon_quality.py
 python3 eval/rank_offline.py
 python3 eval/apple_agree.py
 python3 eval/soft_oov_agree.py
@@ -82,24 +88,23 @@ python3 eval/soft_oov_agree.py
 Verify in `$TMPDIR/rime.squirrel/rime.squirrel.INFO`:
 
 ```text
-$qjs$ lexicon loaded entries=...
-$qjs$ unigram loaded entries=...
-$qjs$ stems loaded entries=...
+$qjs$ lexicon trie binary loaded
 loaded plugin: qjs
 ```
 
-Smoke tests after ranking changes: `jamin`, `favshe`, `poshatu`, `ketli`, then Space / `.` commit.
+Smoke after ranking changes: `jamin`, `favshe`, `poshatu`, `ketli`, `padi`, then Space / `.` commit. Numerals: `2026`, `2.9` stay ASCII.
 
 ## Editing rules
 
-- Prefer small, focused diffs in `rime/*.js` + `rime/gujarati.schema.yaml`.
+- Prefer small, focused diffs in `rime/js/*.js` + `rime/gujarati.schema.yaml`.
 - After JS/schema/data changes that affect the IME, run `./scripts/sync_rime.sh`.
 - When extending fuzzy matching, put rules in `CONFUSION_MAP` / `ENDING_VARIANTS` / `isNearExactRomanSuffix` — not special-case word lists.
 - Schema processor order matters: `qjs_processor@commit_on_punct_processor` must sit **before** `punctuator` / `speller` consumers that would eat Space/`.` .
 - Keep comments short; explain *why* (ranking policy), not what the next line does.
+- Rebuild scripts may read `archive/apple-extracts/`; do not resurrect table dicts under `rime/` for packaging.
 
 ## Out of scope / caution
 
 - Reverse-engineering notes may reference Apple private frameworks; do not redistribute Apple assets.
 - `.venv/` is local only.
-- GitHub `gh` requires a valid login (`gh auth login` / `gh auth refresh`) before `gh repo create` / push.
+- GitHub `gh` requires a valid login before `gh repo create` / push.

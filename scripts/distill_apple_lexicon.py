@@ -13,9 +13,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 RIME_OUT = ROOT / "rime"
+JS_OUT = RIME_OUT / "js"
+ARCHIVE_EXTRACTS = ROOT / "archive" / "apple-extracts"
+ARCHIVE_LEGACY = ROOT / "archive" / "legacy-rime"
 HOME_RIME = Path.home() / "Library" / "Rime"
 
 GU_RE = re.compile(r"[\u0A80-\u0AFF]+")
+
+
+def find_extract(name: str) -> Path:
+    """Prefer archive/apple-extracts; fall back to repo root for older checkouts."""
+    for base in (ARCHIVE_EXTRACTS, ROOT):
+        path = base / name
+        if path.exists():
+            return path
+    return ARCHIVE_EXTRACTS / name
 
 
 def load_lines(path: Path) -> list[str]:
@@ -159,7 +171,7 @@ def build_probe_wordlist() -> Path:
 
 def compile_and_run_probe(wordlist: Path) -> Path:
     src = ROOT / "scripts" / "probe_tl.m"
-    bin_path = ROOT / "tools" / "probe_tl"
+    bin_path = ROOT / "archive" / "tools" / "probe_tl"
     bin_path.parent.mkdir(parents=True, exist_ok=True)
     subprocess.check_call(
         [
@@ -181,7 +193,10 @@ def compile_and_run_probe(wordlist: Path) -> Path:
 
 
 def distill_phonetic_rules() -> Path:
-    mappings = json.loads((ROOT / "gu-Mappings.json").read_text(encoding="utf-8"))
+    mappings_path = find_extract("gu-Mappings.json")
+    if not mappings_path.exists():
+        raise FileNotFoundError(f"missing Apple mappings extract: {mappings_path}")
+    mappings = json.loads(mappings_path.read_text(encoding="utf-8"))
     # Prefer first non-empty Gujarati mapping per key; keep all variants
     rules: dict[str, list[str]] = {}
     for key, vals in mappings.items():
@@ -207,6 +222,8 @@ def distill_phonetic_rules() -> Path:
 def distill_all() -> None:
     DATA.mkdir(parents=True, exist_ok=True)
     RIME_OUT.mkdir(parents=True, exist_ok=True)
+    JS_OUT.mkdir(parents=True, exist_ok=True)
+    ARCHIVE_LEGACY.mkdir(parents=True, exist_ok=True)
 
     distill_phonetic_rules()
     wordlist = build_probe_wordlist()
@@ -248,7 +265,7 @@ def distill_all() -> None:
                 lexicon[roman] = (gu, 900)
 
     # sp.dat surface forms — no roman; skip pairing (used as gu-only boost list)
-    sp_words = load_lines(ROOT / "gu_sp_lexicon.txt")
+    sp_words = load_lines(find_extract("gu_sp_lexicon.txt"))
 
     # Rime extra dict
     for name in ("gujarati_extra.dict.yaml", "gujarati.dict.yaml", "gujarati_learned.dict.yaml"):
@@ -285,13 +302,13 @@ def distill_all() -> None:
     blob_path.write_text(json.dumps(trie_blob, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"lexicon blob: {blob_path} ({blob_path.stat().st_size} bytes)")
 
-    # Rime dict yaml
-    dict_yaml = RIME_OUT / "gujarati_apple.dict.yaml"
+    # Legacy Rime table dict (archived; packages do not ship this)
+    dict_yaml = ARCHIVE_LEGACY / "gujarati_apple.dict.yaml"
     body = ["# Apple-distilled Gujarati lexicon", "---", "name: gujarati_apple", 'version: "1.0"', "sort: by_weight", "...", ""]
     for roman, (gu, w) in sorted(lexicon.items(), key=lambda x: (-x[1][1], x[0])):
         body.append(f"{gu}\t{roman}\t{w}")
     dict_yaml.write_text("\n".join(body) + "\n", encoding="utf-8")
-    print(f"rime dict: {dict_yaml}")
+    print(f"legacy rime dict: {dict_yaml}")
 
     # Training jsonl from Apple ranked lists
     train_path = DATA / "gu_train.jsonl"
@@ -317,11 +334,13 @@ def distill_all() -> None:
             train_rows.append(row)
     print(f"train jsonl: {len(train_rows)} -> {train_path}")
 
-    # Copy blob next to rime package
-    (RIME_OUT / "gu_lexicon_blob.json").write_text(blob_path.read_text(encoding="utf-8"), encoding="utf-8")
-    (RIME_OUT / "gu_phonetic_rules.json").write_bytes((DATA / "gu_phonetic_rules.json").read_bytes())
-    (RIME_OUT / "gu_exceptions.tsv").write_bytes(exc_path.read_bytes())
-    (RIME_OUT / "gu_lexicon.tsv").write_bytes(lex_path.read_bytes())
+    # Hot-path + compat blob mirrors; other TSV/rules stay under data/ + archive
+    blob_text = blob_path.read_text(encoding="utf-8")
+    (JS_OUT / "gu_lexicon_blob.json").write_text(blob_text, encoding="utf-8")
+    (RIME_OUT / "gu_lexicon_blob.json").write_text(blob_text, encoding="utf-8")
+    (ARCHIVE_LEGACY / "gu_phonetic_rules.json").write_bytes((DATA / "gu_phonetic_rules.json").read_bytes())
+    (ARCHIVE_LEGACY / "gu_exceptions.tsv").write_bytes(exc_path.read_bytes())
+    (ARCHIVE_LEGACY / "gu_lexicon.tsv").write_bytes(lex_path.read_bytes())
 
 
 if __name__ == "__main__":

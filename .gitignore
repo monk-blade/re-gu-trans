@@ -7,6 +7,8 @@ __pycache__/
 
 # Large / regenerable Apple extracts
 gu_unified_marisa_keys.txt
+archive/apple-extracts/gu_unified_marisa_keys.txt
+archive/apple-extracts/test.txt
 data/apple_probe.tsv
 data/probe_wordlist.txt
 eval/results.json
@@ -69,6 +71,7 @@ data/apple_captures/
 data/ltr/
 eval/ltr_*.json
 
-# Local regenerable dumps
+# Local regenerable dumps (also under archive/onnx-era when parked)
 data/ranker_train.jsonl
+archive/onnx-era/ranker_train.jsonl
 .cache/

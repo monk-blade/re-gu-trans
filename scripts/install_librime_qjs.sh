@@ -30,10 +30,11 @@ if [[ -d "$USER_APP" ]]; then
   codesign --force --deep --sign - "$USER_APP" || true
 fi
 
-# User JS assets
+# User JS assets (prefer sync_rime.sh for a full deploy)
 mkdir -p "$HOME/Library/Rime/js"
-cp -f "$ROOT/rime/gujarati_translator.js" "$HOME/Library/Rime/js/" 2>/dev/null || true
-cp -f "$ROOT/rime/gu_lexicon_blob.json" "$HOME/Library/Rime/js/" 2>/dev/null || true
+cp -f "$ROOT/rime/js/gujarati_translator.js" "$HOME/Library/Rime/js/" 2>/dev/null || true
+cp -f "$ROOT/rime/js/gu_lexicon_blob.json" "$HOME/Library/Rime/js/" 2>/dev/null || \
+  cp -f "$ROOT/rime/gu_lexicon_blob.json" "$HOME/Library/Rime/js/" 2>/dev/null || true
 cp -f "$ROOT/rime/gujarati.schema.yaml" "$HOME/Library/Rime/" 2>/dev/null || true
 cp -f "$ROOT/vendor/librime-qjs/qjs" "$HOME/Library/Rime/js/qjs" 2>/dev/null || true
 chmod +x "$HOME/Library/Rime/js/qjs" 2>/dev/null || true
