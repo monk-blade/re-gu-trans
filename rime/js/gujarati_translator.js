@@ -1445,6 +1445,8 @@ function diphthongAlternateForms(roman) {
 
 /** All phonetic script forms to consider for one roman string (base + nasal -u + diphthongs). */
 function phoneticFormsForRoman(roman) {
+  // Western digits stay Arabic (2.9 / 2026), never ૨.૯.
+  if (/^\d+(\.\d*)?$/.test(roman) || /^\d*\.\d+$/.test(roman)) return [String(roman)]
   const out = []
   const seen = new Set()
   function add(g) {
@@ -2317,6 +2319,16 @@ function looksLikeLatinLiteral(s) {
   return /@|:\/\/|(^|\.)(com|org|net|edu|io|gov)(\b|$)/i.test(s) || /^https?:\/\//i.test(s)
 }
 
+/**
+ * Numbers should stay Western/Arabic digits (2.9 → 2.9, not 2.૯ / ૨.૯).
+ * Pure digit strings and decimals are Latin-first.
+ */
+function looksLikeAsciiNumber(s) {
+  if (!s) return false
+  if (/^\d+\.\d*$/.test(s) || /^\d*\.\d+$/.test(s) || /\d\.\d/.test(s)) return true
+  if (/^\d+$/.test(s)) return true
+  return false
+}
 
 // ---------------------------------------------------------------------------
 // Rime Translator
@@ -2413,7 +2425,7 @@ export class GujaratiTranslator {
         return []
       }
 
-      if (looksLikeLatinLiteral(input)) {
+      if (looksLikeLatinLiteral(input) || looksLikeAsciiNumber(input)) {
         const cand = new Candidate('latin', segment.start, segment.end, input, '', 100)
         cand.quality = 100
         return [cand]

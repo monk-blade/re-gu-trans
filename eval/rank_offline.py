@@ -147,7 +147,7 @@ SMOKE = [
     ("a", "અ"),
     ("aa", "આ"),
     ("kh", "ખ"),
-    ("2026", "૨૦૨૬"),
+    ("2026", "2026"),
     ("vinash", "વિનાશ"),  # sh→s fuzzy must not steal over soft typed lex
     ("shabdo", "શબ્દો"),  # lexicon stem shabd + matra ો
     ("moolya", "મૂલ્ય"),
@@ -843,7 +843,18 @@ def diphthong_alternate_forms(roman: str) -> list[str]:
     return out
 
 
+def looks_like_ascii_number(s: str) -> bool:
+    if not s:
+        return False
+    if re.fullmatch(r"\d+\.\d*", s) or re.fullmatch(r"\d*\.\d+", s) or re.search(r"\d\.\d", s):
+        return True
+    return bool(re.fullmatch(r"\d+", s))
+
+
 def phonetic_forms(roman: str) -> list[str]:
+    # Keep Western digits for numeric literals (2.9 → 2.9, not ૨.૯).
+    if looks_like_ascii_number(roman):
+        return [roman]
     seen: set[str] = set()
     out: list[str] = []
 
@@ -938,6 +949,10 @@ def dictionary_validity(text: str, uni: dict[str, int], stems: dict[str, int], a
 
 def rank(input_s: str, blob: dict, uni: dict, stems: dict, attested: set[str], floor: int,
          prefix_index: dict[str, list[tuple[str, str]]] | None = None) -> list[tuple[str, int, float]]:
+    # Numbers: Western digits only (avoid 2.૯ / ૨.૯). Latin slot is the value itself.
+    if looks_like_ascii_number(input_s):
+        return [(input_s, TIER_LATIN, 1000.0)]
+
     lex = blob.get("lexicon") or {}
     weights = blob.get("weights") or {}
     exceptions = blob.get("exceptions") or {}
