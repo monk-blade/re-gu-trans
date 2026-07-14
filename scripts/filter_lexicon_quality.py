@@ -138,6 +138,10 @@ def main() -> int:
         "lexicon": dict(sorted(lex.items())),
         "weights": {k: weights[k] for k in sorted(weights) if k in lex},
     }
+    # Preserve ingest metadata (aksharantar_soft_* etc.).
+    for k, v in blob.items():
+        if k not in out:
+            out[k] = v
     args.blob.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"wrote {args.blob}")
     return 0

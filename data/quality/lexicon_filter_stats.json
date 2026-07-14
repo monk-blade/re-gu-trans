@@ -1,211 +1,209 @@
 {
-  "before": 216327,
-  "after": 179769,
-  "dropped": 36558,
+  "before": 276326,
+  "after": 275859,
+  "dropped": 467,
   "reasons": {
-    "space": 1,
-    "soft_postfix_dup": 36386,
-    "soft_long": 171
+    "soft_postfix_dup": 467
   },
   "sample_drop": [
     [
-      "subh-raatr",
-      "શુભ રાત્રિ",
-      "space"
-    ],
-    [
-      "khaataamaanthi",
-      "ખાતામાંથી",
+      "aaarogvaano",
+      "આરોગવાનો",
       "soft_postfix_dup"
     ],
     [
-      "premikane",
-      "પ્રેમિકાને",
+      "aacharavaamaa",
+      "આચરવામાં",
       "soft_postfix_dup"
     ],
     [
-      "choontanine",
-      "ચૂંટણીને",
+      "aacharavama",
+      "આચરવામાં",
       "soft_postfix_dup"
     ],
     [
-      "petrolamaanthee",
-      "પેટ્રોલમાંથી",
+      "aacharvaamaa",
+      "આચરવામાં",
       "soft_postfix_dup"
     ],
     [
-      "karyakaromam",
-      "કાર્યકરોમાં",
+      "aacharvama",
+      "આચરવામાં",
       "soft_postfix_dup"
     ],
     [
-      "praymikaanay",
-      "પ્રેમિકાને",
+      "aacharvamaa",
+      "આચરવામાં",
       "soft_postfix_dup"
     ],
     [
-      "ukaalavaamaam",
-      "ઉકાળવામાં",
+      "aacharvaman",
+      "આચરવામાં",
       "soft_postfix_dup"
     ],
     [
-      "somno",
-      "સોમનો",
+      "aacharwama",
+      "આચરવામાં",
       "soft_postfix_dup"
     ],
     [
-      "garbhaashayanee",
-      "ગર્ભાશયની",
+      "aadamana",
+      "આદમના",
       "soft_postfix_dup"
     ],
     [
-      "avyavasthani",
-      "અવ્યવસ્થાની",
+      "aadamna",
+      "આદમના",
       "soft_postfix_dup"
     ],
     [
-      "aatmavishwaasano",
-      "આત્મવિશ્વાસનો",
+      "aadamnaa",
+      "આદમના",
       "soft_postfix_dup"
     ],
     [
-      "aankhonee",
-      "આંખોની",
+      "aadamne",
+      "આદમને",
       "soft_postfix_dup"
     ],
     [
-      "preyaramaam",
-      "પ્રેયરમાં",
+      "aagevaani",
+      "આગેવાની",
       "soft_postfix_dup"
     ],
     [
-      "nadimanthee",
-      "નદીમાંથી",
+      "aagevaano",
+      "આગેવાનો",
       "soft_postfix_dup"
     ],
     [
-      "streerogavignaanee",
-      "સ્ત્રીરોગવિજ્ઞાની",
-      "soft_long"
-    ],
-    [
-      "districtsnaa",
-      "ડિસ્ટ્રિક્ટ્સના",
+      "aagevani",
+      "આગેવાની",
       "soft_postfix_dup"
     ],
     [
-      "glandmanthi",
-      "ગ્લેન્ડમાંથી",
+      "aagevano",
+      "આગેવાનો",
       "soft_postfix_dup"
     ],
     [
-      "bharavaano",
-      "ભરવાનો",
+      "aaheerone",
+      "આહીરોને",
       "soft_postfix_dup"
     ],
     [
-      "raajyapaalaney",
-      "રાજ્યપાલને",
+      "aahirone",
+      "આહીરોને",
       "soft_postfix_dup"
     ],
     [
-      "vibhaagona",
-      "વિભાગોના",
+      "aalekhavaamaa",
+      "આલેખવામાં",
       "soft_postfix_dup"
     ],
     [
-      "khaamionay",
-      "ખામીઓને",
+      "aalekhavaamaan",
+      "આલેખવામાં",
       "soft_postfix_dup"
     ],
     [
-      "deshavaaseeomaam",
-      "દેશવાસીઓમાં",
+      "aalekhvama",
+      "આલેખવામાં",
       "soft_postfix_dup"
     ],
     [
-      "beejamanthee",
-      "બીજમાંથી",
+      "aalekhwama",
+      "આલેખવામાં",
       "soft_postfix_dup"
     ],
     [
-      "daantanay",
-      "દાંતને",
+      "aalochana",
+      "આલોચના",
       "soft_postfix_dup"
     ],
     [
-      "rastaathi",
-      "રસ્તાથી",
+      "aalochanaa",
+      "આલોચના",
       "soft_postfix_dup"
     ],
     [
-      "eraspesamaanthee",
-      "એરસ્પેસમાંથી",
+      "aalochna",
+      "આલોચના",
       "soft_postfix_dup"
     ],
     [
-      "galimaam",
-      "ગલીમાં",
+      "aalochnaa",
+      "આલોચના",
       "soft_postfix_dup"
     ],
     [
-      "wipakshana",
-      "વિપક્ષના",
+      "aantakavaadeeone",
+      "આંતકવાદીઓને",
       "soft_postfix_dup"
     ],
     [
-      "daantaney",
-      "દાંતને",
+      "aantakvaadione",
+      "આંતકવાદીઓને",
       "soft_postfix_dup"
     ],
     [
-      "malikiwala",
-      "માલિકીવાળા",
+      "aantakvadeeone",
+      "આંતકવાદીઓને",
       "soft_postfix_dup"
     ],
     [
-      "kriyani",
-      "ક્રિયાની",
+      "aantakvadione",
+      "આંતકવાદીઓને",
       "soft_postfix_dup"
     ],
     [
-      "chaamadinay",
-      "ચામડીને",
+      "aantarakriyaane",
+      "આંતરક્રિયાને",
       "soft_postfix_dup"
     ],
     [
-      "sportmanthee",
-      "સ્પોર્ટમાંથી",
+      "aantarakriyane",
+      "આંતરક્રિયાને",
       "soft_postfix_dup"
     ],
     [
-      "parinamamanthee",
-      "પરિણામમાંથી",
+      "aarogavaano",
+      "આરોગવાનો",
       "soft_postfix_dup"
     ],
     [
-      "beythakaney",
-      "બેઠકને",
+      "aarogavano",
+      "આરોગવાનો",
       "soft_postfix_dup"
     ],
     [
-      "glayndamanthi",
-      "ગ્લેન્ડમાંથી",
+      "aarogawaano",
+      "આરોગવાનો",
       "soft_postfix_dup"
     ],
     [
-      "pariwaranam",
-      "પરિવારનાં",
+      "aarogawano",
+      "આરોગવાનો",
       "soft_postfix_dup"
     ],
     [
-      "kezyualane",
-      "કેઝ્યુઅલને",
+      "aarogvano",
+      "આરોગવાનો",
       "soft_postfix_dup"
     ],
     [
-      "prasanganey",
-      "પ્રસંગને",
+      "aarogwano",
+      "આરોગવાનો",
+      "soft_postfix_dup"
+    ],
+    [
+      "aatmakathaaomaam",
+      "આત્મકથાઓમાં",
+      "soft_postfix_dup"
+    ],
+    [
+      "aatmakathaomam",
+      "આત્મકથાઓમાં",
       "soft_postfix_dup"
     ]
   ]

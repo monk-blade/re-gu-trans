@@ -70,8 +70,9 @@ Ranking regression check (no Rime required):
 
 ```bash
 python3 scripts/build_gu_word_freq.py   # aspell-gu + hunspell + Google/Indic
-python3 scripts/ingest_aksharantar_gu.py  # optional: soft-fill OOV from Aksharantar GU
-python3 scripts/filter_lexicon_quality.py # drop soft postfix/morph noise (stem+માં etc.)
+python3 scripts/ingest_aksharantar_gu.py --from-cache  # soft-fill bare-stem OOV (cap 180k; never override Apple)
+python3 scripts/filter_lexicon_quality.py # drop residual soft postfix/long noise
+
 python3 eval/rank_offline.py            # smoke: jamin/favshe/poshatu/ketli/mulya/aachar
 python3 eval/apple_agree.py             # optional: Apple top-1 regression
 ./scripts/install_recipe.sh             # or ./scripts/sync_rime.sh

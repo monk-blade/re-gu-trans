@@ -1,0 +1,13 @@
+{
+  "lexicon_total": 275859,
+  "soft": 179533,
+  "strong": 96326,
+  "soft_cap": 180000,
+  "filter_dropped": 467,
+  "filter_reasons": {
+    "soft_postfix_dup": 467
+  },
+  "apple_agree_pct": 99.56,
+  "apple_disagree": 32,
+  "delta_vs_prior_179769": 96090
+}
