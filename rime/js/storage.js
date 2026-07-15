@@ -89,13 +89,24 @@ function loadExceptions(load, paths) {
   return out
 }
 
-function rememberEmoji(map, key, emoji, weight) {
+function rememberEmoji(map, key, emoji, weight, metadata) {
   if (!key || !emoji) return
   const list = map.get(key) || []
   const existing = list.find((item) => item.e === emoji)
-  if (existing) existing.w = Math.max(existing.w, weight)
-  else list.push({ e: emoji, w: weight })
-  list.sort((a, b) => b.w - a.w)
+  const confidence = Math.max(0, Math.min(1, Number(metadata && metadata.confidence) || 0))
+  if (existing) {
+    existing.w = Math.max(existing.w, weight)
+    existing.confidence = Math.max(existing.confidence || 0, confidence)
+  } else {
+    list.push({
+      e: emoji,
+      w: weight,
+      confidence,
+      source: String((metadata && metadata.source) || 'legacy'),
+      category: String((metadata && metadata.category) || 'semantic'),
+    })
+  }
+  list.sort((a, b) => b.confidence - a.confidence || b.w - a.w)
   map.set(key, list)
 }
 
@@ -114,7 +125,8 @@ function loadEmojiStorage(load, paths, lexicon) {
   const byRoman = new Map()
   const byNative = new Map()
   const data = loadJson(load, paths)
-  for (const [code, items] of Object.entries(data || {})) {
+  const keywords = data && data.version === 2 ? data.keywords : data
+  for (const [code, items] of Object.entries(keywords || {})) {
     const roman = String(code || '').toLowerCase()
     if (!roman || !Array.isArray(items)) continue
     for (const item of items) {
@@ -122,9 +134,17 @@ function loadEmojiStorage(load, paths, lexicon) {
       const rawWeight = Number((item && (item.w || item.weight || item[1])) || 100)
       const weight = Number.isFinite(rawWeight) ? rawWeight : 100
       if (!emoji) continue
-      rememberEmoji(byRoman, roman, String(emoji), weight)
+      rememberEmoji(byRoman, roman, String(emoji), weight, item)
       const native = lexiconNative(lexicon, roman)
-      if (native) rememberEmoji(byNative, native, String(emoji), weight)
+      // Reverse native lookup is safe only for Gujarati-curated semantics.
+      // English aliases such as club/art can collide with unrelated Gujarati
+      // lexicon forms and create surprising emoji on ordinary roman input.
+      if (native && (!item || item.source === 'curated_gu' || item.source === 'gu_extra')) {
+        rememberEmoji(byNative, native, String(emoji), weight, item)
+      }
+      for (const nativeKeyword of (item && item.native_keywords) || []) {
+        rememberEmoji(byNative, String(nativeKeyword), String(emoji), weight, item)
+      }
     }
   }
   return { byRoman, byNative }

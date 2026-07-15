@@ -1,6 +1,9 @@
 # Extra Gujarati-roman → emoji (tab-separated: code\temoji[\tweight])
 # Merged by scripts/build_emoji_keywords.py with curated dict + emojilib + CLDR en.
 khushi	😊	980
+wah	🤩	990
+wah	🥳	970
+wah	😮	940
 dukhi	😢	980
 rodo	😭	960
 pyar	❤️	970
