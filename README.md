@@ -32,9 +32,9 @@ roman input
    │    1. Strong exact / exceptions
    │    2. Evidence pool (soft exact, fuzzy, stem_derived, attested phonetics)
    │    3. Unattested raw phonetics
-   │    4. Prefix
-   │    5. Emoji
-   └─ display layout: GU #1 → Latin #2 → remaining GU → prefix → emoji
+   │    4. Prefix completion
+   │    5. Confidence-scored emoji
+   └─ display: GU #1 → Latin #2 → up to 2 GU → strong emoji → remaining/prefix
 ```
 
 Runtime assets live under `rime/js/`: ESM modules + **binary Tries** (`*.trie.bin`).  
@@ -56,7 +56,7 @@ python3 scripts/build_qjs_tries.py --bin --exceptions
 | Path | Purpose |
 |------|---------|
 | `rime/js/gujarati_translator.js` | Thin qjs translator |
-| `rime/js/{ranking,phonetic,storage,learning}.js` | Ranking / lattice / Tries / learning |
+| `rime/js/{ranking,phonetic,storage,learning,neural}.js` | Ranking / lattice / Tries / learning / optional model bridge |
 | `rime/js/*.trie.bin` | Platform binary Tries (hot path) |
 | `rime/gujarati.schema.yaml` | Schema 2.9+ (`latin_position: 2`) |
 | `scripts/package/` | Stage payload + OS builders |

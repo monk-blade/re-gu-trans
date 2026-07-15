@@ -32,6 +32,14 @@ jobs:
         run: python3 eval/held_out_agree.py
       - name: Gold
         run: python3 eval/gold_agree.py
+      - name: Apple-class reference and large production suite
+        run: |
+          python3 eval/apple_class_reference.py
+          node eval/neural_bridge_test.js
+          node eval/ranking_primitives_test.js
+          python3 eval/emoji_quality.py
+          python3 eval/apple_class_benchmark.py --stress 10000
+          python3 eval/menu_baseline_check.py
       - name: Budgets
         run: |
           python3 scripts/build_qjs_tries.py --bin --exceptions

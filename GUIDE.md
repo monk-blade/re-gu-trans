@@ -206,15 +206,19 @@ Env knobs for LM size: `UNIGRAM_SOFT_MIN` (default 100), `ATTESTED_COMPACT=1` (d
 
 ### Emoji suggestions
 
-Keyword emoji for English and Gujarati-roman input (e.g. `smile` → 🙂, `prem` → 😍) appear **below** script candidates. Built into `rime/js/emoji_keywords.json` by:
+Keyword emoji for English and Gujarati-roman input use source confidence and Unicode validation. The first page keeps Gujarati #1 and Latin #2, allows two more strong Gujarati results, then may show two high-confidence emoji before prefix completion (`wah` → 🤩 / 🥳).
 
 ```bash
 python3 scripts/build_emoji_keywords.py
 ```
 
-Sources (merged; ASCII codes only): curated `data/gujarati_emoji.dict.yaml`, extra GU-roman `data/emoji_gu_roman_extra.tsv`, [muan/emojilib](https://github.com/muan/emojilib) EN keywords, Unicode CLDR en annotations. (CLDR Gujarati is native-script, not typeable here.)
+Sources (merged; ASCII codes only): curated `data/gujarati_emoji.dict.yaml`, extra GU-roman `data/emoji_gu_roman_extra.tsv`, [muan/emojilib](https://github.com/muan/emojilib) EN keywords, and Unicode CLDR en annotations. Uncurated one/two-letter aliases and malformed emoji sequences are rejected.
 
 Toggle: `translator/emoji_enable` / `translator/max_emoji` in schema or `gujarati.custom.yaml`.
+
+### Optional offline model pack
+
+`translator/neural_mode: auto` uses `env.transliterateNBest()` when a separately validated model pack is installed and otherwise preserves the deterministic engine. `off` disables it; `required` logs a deployment capability error when absent. Model packs are staged with `scripts/package/stage_neural_model_pack.sh` and are rejected if the model, plugin, licenses, measured metrics, or checksums are missing. No model or network service is required for normal typing.
 
 ### Phonetic grammar (Indic IME-style)
 
@@ -247,6 +251,9 @@ Smoke tests:
 | `favshe` | ફાવશે |
 | `poshatu` | પોષતું |
 | `ketli` | કેટલી |
+| `chalshe` | ચાલશે |
+| `ko` / `to` | કો / તો |
+| `wah` | વાહ; high-confidence emoji on page one |
 | `smile` / `prem` | script first; emoji (🙂 / 😍) lower in the menu |
 
 Then press **Space** or **`.`** — should commit the highlighted candidate and insert the mark.

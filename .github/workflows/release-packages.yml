@@ -74,7 +74,11 @@ jobs:
         run: |
           python3 eval/rank_offline.py
           python3 eval/apple_integrity.py
-          python3 eval/quality_report.py
+          python3 eval/apple_class_reference.py
+          node eval/neural_bridge_test.js
+          python3 eval/emoji_quality.py
+          python3 eval/apple_class_benchmark.py --stress 250000 --require-full --enforce-targets
+          REQUIRE_APPLE_CLASS=1 python3 eval/quality_report.py
 
   linux:
     needs: stage
