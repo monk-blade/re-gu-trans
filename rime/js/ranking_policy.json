@@ -15,6 +15,9 @@
     "user_roman_boost_at_threshold": 80,
     "lm_unigram": 0.6,
     "lm_user": 0.6,
+    "transform_cost": 1.35,
+    "neural_log_probability": 0.35,
+    "neural_source_boost": 3.0,
     "onset_only_long_a_penalty": 3.8,
     "typed_aa_prefer_aa": 3.5,
     "typed_aa_demote_a": 4.0,
@@ -31,6 +34,8 @@
     "max_prefix": 3,
     "max_phonetic": 4,
     "max_emoji": 2,
+    "max_gujarati_before_emoji": 3,
+    "emoji_min_confidence": 0.9,
     "latin_position": 2,
     "include_latin": true
   },
@@ -38,6 +43,11 @@
     "beam": 64,
     "passes": 2,
     "max_unattested_cost": 6,
+    "length_budgets": {
+      "short": {"beam": 16, "passes": 1, "max_cost": 2.0},
+      "medium": {"beam": 40, "passes": 2, "max_cost": 4.0},
+      "long": {"beam": 64, "passes": 2, "max_cost": 6.0}
+    },
     "costs": {
       "typed": 0,
       "vowel_length": 1,
@@ -55,6 +65,12 @@
   "ltr": {
     "coefficients_path": "js/ltr_coefficients.json",
     "enabled": false
+  },
+  "morphology": {
+    "max_components": 3,
+    "compound_min_input_length": 8,
+    "compound_min_component_length": 3,
+    "max_compound_candidates": 8
   },
   "confusion_pairs": [
     ["sh", "Sh"],
@@ -99,6 +115,52 @@
     ["gy", "jny"],
     ["jny", "gy"]
   ],
+  "alternate_confusions": {
+    "ch": ["chh"], "chh": ["ch"],
+    "t": ["T"], "T": ["t"], "d": ["D"], "D": ["d"],
+    "s": ["sh", "Sh"], "sh": ["Sh", "s"], "Sh": ["sh", "s"],
+    "n": ["N"], "N": ["n"], "l": ["L"], "L": ["l"],
+    "f": ["ph"], "ph": ["f"], "v": ["w"], "w": ["v"],
+    "z": ["j"], "j": ["z"],
+    "gn": ["gy", "gny", "jny"], "gy": ["gn", "gny", "jny"],
+    "gny": ["gy", "gn", "jny"], "jny": ["gy", "gn", "gny"]
+  },
+  "ending_variants": {
+    "i": ["ii", "ee"], "ii": ["i"], "ee": ["i", "ii"],
+    "u": ["uu", "un", "um"], "uu": ["u"],
+    "un": ["u", "um"], "um": ["u", "un"],
+    "a": ["aa"], "aa": ["a"]
+  },
+  "conjunct_pairs": [
+    "v|y", "k|y", "g|y", "c|y", "ch|y", "j|y", "t|y", "d|y", "n|y",
+    "p|y", "b|y", "m|y", "r|y", "l|y", "s|y", "sh|y", "h|y", "T|y", "D|y",
+    "p|r", "t|r", "k|r", "g|r", "d|r", "b|r", "s|r", "sh|r", "f|r", "ph|r",
+    "k|v", "t|v", "d|v", "s|v", "n|v", "dh|v",
+    "t|n", "s|n", "s|t", "s|k", "s|th", "t|th"
+  ],
+  "stem_postfix_suffixes": [
+    ["omaanthi", "ઓમાંથી"], ["omathi", "ઓમાંથી"], ["omaan", "ઓમાં"], ["omaa", "ઓમાં"],
+    ["maanthi", "માંથી"], ["manthi", "માંથી"], ["mathi", "માંથી"],
+    ["maan", "માં"], ["maa", "માં"], ["man", "માં"], ["ma", "માં"],
+    ["onaa", "ોનાં"], ["ona", "ોના"], ["oni", "ોની"], ["one", "ોને"],
+    ["valun", "વાળું"], ["vali", "વાળી"], ["vala", "વાળા"], ["valo", "વાળો"],
+    ["walun", "વાળું"], ["wali", "વાળી"], ["wala", "વાળા"], ["walo", "વાળો"],
+    ["thi", "થી"], ["nee", "ની"], ["nii", "ની"], ["noo", "નું"], ["nuu", "નું"],
+    ["naa", "નાં"], ["naa", "ના"], ["ni", "ની"], ["nu", "નું"], ["na", "ના"], ["no", "નો"], ["ne", "ને"],
+    ["aatmak", "ાત્મક"], ["tama", "તામાં"], ["pane", "પણે"], ["o", "ઓ"], ["s", "્સ"]
+  ],
+  "stem_inflection_suffixes": [
+    ["ishun", "ીશું"], ["ishu", "ીશું"], ["she", "શે"], ["sho", "શો"],
+    ["shun", "શું"], ["vun", "વું"], ["vanu", "વાનું"], ["vani", "વાની"],
+    ["vana", "વાના"], ["ta", "તા"], ["ti", "તી"], ["tun", "તું"]
+  ],
+  "experimental_families": {
+    "conjunct_virama": ["m|p", "t|k", "r|sh", "r|th", "l|p", "n|d", "n|dh", "k|t"],
+    "plural_postpositions": [
+      ["omaanthi", "ઓમાંથી"], ["omaa", "ઓમાં"], ["one", "ઓને"],
+      ["oni", "ઓની"], ["ona", "ઓના"], ["ono", "ઓનો"], ["onu", "ઓનું"]
+    ]
+  },
   "near_exact_suffixes": ["n", "m", "un", "um", "e", "ne"],
   "notes": "Shared by runtime (JS) and eval; do not bake per-word exceptions here. beam≤64 hard cap. Soft floors are not equivalent across sources — use provenance confidence."
 }

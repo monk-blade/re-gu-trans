@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -39,6 +40,10 @@ def main() -> int:
         ("leakage", [sys.executable, "scripts/check_lexicon_leakage.py"]),
         ("held_out", [sys.executable, "eval/held_out_agree.py"]),
         ("gold", [sys.executable, "eval/gold_agree.py"]),
+        ("apple_class_reference", [sys.executable, "eval/apple_class_reference.py"]),
+        ("neural_bridge", ["node", "eval/neural_bridge_test.js"]),
+        ("ranking_primitives", ["node", "eval/ranking_primitives_test.js"]),
+        ("emoji_quality", [sys.executable, "eval/emoji_quality.py"]),
         ("binary_text_parity", [sys.executable, "eval/binary_text_parity.py"]),
         ("learning_unit", [sys.executable, "eval/learning_v2_test.py"]),
         ("learning_integration", ["node", "eval/learning_integration_runner.mjs"]),
@@ -89,6 +94,14 @@ def main() -> int:
     learning_path = ROOT / "eval" / "learning_integration_summary.json"
     if learning_path.exists():
         learning = json.loads(learning_path.read_text())
+    apple_class = {}
+    apple_class_path = ROOT / "eval" / "apple_class_quality_summary.json"
+    if apple_class_path.exists():
+        apple_class = json.loads(apple_class_path.read_text())
+    emoji_quality = {}
+    emoji_quality_path = ROOT / "eval" / "emoji_quality_summary.json"
+    if emoji_quality_path.exists():
+        emoji_quality = json.loads(emoji_quality_path.read_text())
     leak = {}
     # budgets
     budget = {}
@@ -127,6 +140,8 @@ def main() -> int:
         "gold": gold,
         "parity": parity,
         "learning": learning,
+        "apple_class": apple_class,
+        "emoji_quality": emoji_quality,
         "assets": {
             "lexicon_total": len(lex),
             "soft": soft,
@@ -162,6 +177,10 @@ def main() -> int:
     required = (
         "held_out",
         "gold",
+        "apple_class_reference",
+        "neural_bridge",
+        "ranking_primitives",
+        "emoji_quality",
         "binary_text_parity",
         "learning_unit",
         "learning_integration",
@@ -178,6 +197,13 @@ def main() -> int:
         return 7
     if not learning.get("ok"):
         return 8
+    if not emoji_quality.get("ok"):
+        return 9
+    if os.environ.get("REQUIRE_APPLE_CLASS") == "1":
+        if not apple_class.get("core_targets", {}).get("passed"):
+            return 10
+        if not apple_class.get("stress", {}).get("full_gate"):
+            return 11
     return 0
 
 

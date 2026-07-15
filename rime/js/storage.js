@@ -89,6 +89,67 @@ function loadExceptions(load, paths) {
   return out
 }
 
+function rememberEmoji(map, key, emoji, weight, metadata) {
+  if (!key || !emoji) return
+  const list = map.get(key) || []
+  const existing = list.find((item) => item.e === emoji)
+  const confidence = Math.max(0, Math.min(1, Number(metadata && metadata.confidence) || 0))
+  if (existing) {
+    existing.w = Math.max(existing.w, weight)
+    existing.confidence = Math.max(existing.confidence || 0, confidence)
+  } else {
+    list.push({
+      e: emoji,
+      w: weight,
+      confidence,
+      source: String((metadata && metadata.source) || 'legacy'),
+      category: String((metadata && metadata.category) || 'semantic'),
+    })
+  }
+  list.sort((a, b) => b.confidence - a.confidence || b.w - a.w)
+  map.set(key, list)
+}
+
+function lexiconNative(lexicon, key) {
+  if (!lexicon || !key) return null
+  if (lexicon.trie && typeof lexicon.trie.find === 'function') {
+    try {
+      const raw = lexicon.trie.find(key)
+      return raw == null ? null : String(raw).split('\x1f')[0]
+    } catch (_e) { return null }
+  }
+  return lexicon.map && lexicon.map.get(key)
+}
+
+function loadEmojiStorage(load, paths, lexicon) {
+  const byRoman = new Map()
+  const byNative = new Map()
+  const data = loadJson(load, paths)
+  const keywords = data && data.version === 2 ? data.keywords : data
+  for (const [code, items] of Object.entries(keywords || {})) {
+    const roman = String(code || '').toLowerCase()
+    if (!roman || !Array.isArray(items)) continue
+    for (const item of items) {
+      const emoji = item && (item.e || item.emoji || item[0])
+      const rawWeight = Number((item && (item.w || item.weight || item[1])) || 100)
+      const weight = Number.isFinite(rawWeight) ? rawWeight : 100
+      if (!emoji) continue
+      rememberEmoji(byRoman, roman, String(emoji), weight, item)
+      const native = lexiconNative(lexicon, roman)
+      // Reverse native lookup is safe only for Gujarati-curated semantics.
+      // English aliases such as club/art can collide with unrelated Gujarati
+      // lexicon forms and create surprising emoji on ordinary roman input.
+      if (native && (!item || item.source === 'curated_gu' || item.source === 'gu_extra')) {
+        rememberEmoji(byNative, native, String(emoji), weight, item)
+      }
+      for (const nativeKeyword of (item && item.native_keywords) || []) {
+        rememberEmoji(byNative, String(nativeKeyword), String(emoji), weight, item)
+      }
+    }
+  }
+  return { byRoman, byNative }
+}
+
 /**
  * Parse native_lm payload: "unigram\\tstem\\tattestedFlag"
  * @returns {{unigram:number,stem:number,attested:boolean}}
@@ -352,16 +413,20 @@ export function loadRuntimeStorage(env, options) {
     mode = 'error'
   }
 
+  const lexicon = {
+    trie: lexiconTrie,
+    map: lexiconMap,
+    weights: weightsMap,
+    exceptions,
+  }
+  const emoji = loadEmojiStorage(load, paths.emoji, lexicon)
+  console.log('$qjs$ emoji loaded romans=' + emoji.byRoman.size + ' natives=' + emoji.byNative.size)
   return {
     mode,
-    lexicon: {
-      trie: lexiconTrie,
-      map: lexiconMap,
-      weights: weightsMap,
-      exceptions,
-    },
+    lexicon,
     prefix: { trie: prefixTrie },
     nativeLm,
+    emoji,
     policy: policyRaw,
     capabilities,
   }

@@ -10,12 +10,13 @@ Sources (merged, roman/latin codes only — Rime speller is ASCII):
 CLDR Gujarati annotations are native-script (not typeable in this IME); GU coverage
 comes from the curated dict + extra TSV. English CLDR/emojilib expand EN triggers.
 
-Output: { "smile": [{"e": "🙂", "w": 1000}, ...], ... }
+Output v2: {"version":2,"keywords":{"smile":[{"emoji":"🙂", ...}]}}
 """
 from __future__ import annotations
 
 import json
 import re
+import unicodedata
 import urllib.request
 from collections import defaultdict
 from pathlib import Path
@@ -35,6 +36,12 @@ CLDR_EN_URL = (
 W_CURATED = 1000
 W_EMOJILIB = 700
 W_CLDR = 500
+CONFIDENCE = {
+    "curated_gu": 0.98,
+    "gu_extra": 0.97,
+    "emojilib": 0.90,
+    "cldr_en": 0.78,
+}
 
 CODE_OK = re.compile(r"^[a-z][a-z0-9'-]{0,31}$")
 
@@ -74,14 +81,37 @@ def fetch(url: str, cache: Path) -> str:
     return text
 
 
-def add(by_code: dict[str, list[dict]], seen: set[tuple[str, str]], code: str, emoji: str, weight: int) -> None:
-    if not code or not emoji:
+def valid_emoji(emoji: str) -> bool:
+    if not emoji or "\ufffd" in emoji or emoji.startswith(("\ufe0e", "\ufe0f", "\u200d")):
+        return False
+    if emoji.endswith("\u200d"):
+        return False
+    return not any(unicodedata.category(ch) in {"Cc", "Cs"} for ch in emoji)
+
+
+def add(
+    by_code: dict[str, list[dict]],
+    seen: set[tuple[str, str]],
+    code: str,
+    emoji: str,
+    weight: int,
+    source: str,
+) -> None:
+    if not code or not valid_emoji(emoji):
         return
     key = (code, emoji)
     if key in seen:
         return
     seen.add(key)
-    by_code[code].append({"e": emoji, "w": weight})
+    by_code[code].append({
+        "emoji": emoji,
+        "weight": weight,
+        "source": source,
+        "confidence": CONFIDENCE[source],
+        "category": "semantic",
+        "native_keywords": [],
+        "unicode_version": "current",
+    })
 
 
 def parse_local_dict(path: Path, by_code: dict, seen: set) -> int:
@@ -98,7 +128,7 @@ def parse_local_dict(path: Path, by_code: dict, seen: set) -> int:
         emoji, code, weight_s = parts[0].strip(), parts[1].lower(), parts[2]
         if not emoji or not CODE_OK.match(code):
             continue
-        add(by_code, seen, code, emoji, max(int(weight_s), W_CURATED))
+        add(by_code, seen, code, emoji, max(int(weight_s), W_CURATED), "curated_gu")
         n += 1
     return n
 
@@ -117,7 +147,7 @@ def parse_extra_tsv(path: Path, by_code: dict, seen: set) -> int:
         code, emoji = parts[0].lower().strip(), parts[1].strip()
         w = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else W_CURATED
         if CODE_OK.match(code):
-            add(by_code, seen, code, emoji, w)
+            add(by_code, seen, code, emoji, w, "gu_extra")
             n += 1
     return n
 
@@ -135,7 +165,7 @@ def merge_emojilib(by_code: dict, seen: set) -> int:
             # skip :shortcode: style with colons only
             kw = kw.strip(":")
             for code in token_codes(kw):
-                add(by_code, seen, code, emoji, W_EMOJILIB)
+                add(by_code, seen, code, emoji, W_EMOJILIB, "emojilib")
                 n += 1
     return n
 
@@ -158,7 +188,7 @@ def merge_cldr_en(by_code: dict, seen: set) -> int:
             if not isinstance(kw, str):
                 continue
             for code in token_codes(kw):
-                add(by_code, seen, code, emoji, W_CLDR)
+                add(by_code, seen, code, emoji, W_CLDR, "cldr_en")
                 n += 1
     return n
 
@@ -177,13 +207,17 @@ def find_local_dict() -> Path | None:
 def finalize(by_code: dict[str, list[dict]]) -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {}
     for code, items in sorted(by_code.items()):
-        items.sort(key=lambda x: -x["w"])
+        # Two-letter CLDR/English tokens are commonly country codes, operators,
+        # or abbreviations. Keep short keys only when Gujarati curation opted in.
+        if len(code) <= 2 and not any(it["source"] in {"curated_gu", "gu_extra"} for it in items):
+            continue
+        items.sort(key=lambda x: (-x["confidence"], -x["weight"]))
         dedup: list[dict] = []
         seen_e: set[str] = set()
         for it in items:
-            if it["e"] in seen_e:
+            if it["emoji"] in seen_e:
                 continue
-            seen_e.add(it["e"])
+            seen_e.add(it["emoji"])
             dedup.append(it)
             if len(dedup) >= 6:  # cap emojis per keyword
                 break
@@ -204,7 +238,8 @@ def main() -> None:
 
     out = finalize(by_code)
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    payload = {"version": 2, "keywords": out}
+    OUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(
         f"wrote {OUT} codes={len(out)} pairs={sum(len(v) for v in out.values())} "
         f"(local={n_local} gu_extra={n_extra} emojilib={n_lib} cldr_en={n_cldr})"

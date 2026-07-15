@@ -21,9 +21,15 @@ for bin in lexicon.trie.bin prefix.trie.bin native_lm.trie.bin; do
 done
 ! test -f "$JS/gu_lexicon_blob.json" || { echo "FAIL: blob present in $JS" >&2; exit 1; }
 ! test -f "$JS/lm/unigram.tsv" || { echo "FAIL: unigram present in $JS" >&2; exit 1; }
-test -f "$JS/gujarati_translator.js" || { echo "FAIL: missing translator" >&2; exit 1; }
+for module in \
+  gujarati_translator.js engine.js ranking.js ranking_primitives.js phonetic.js storage.js \
+  learning.js neural.js selection_tracker_processor.js runtime_capabilities.js commit_on_punct_processor.js
+do
+  test -f "$JS/$module" || { echo "FAIL: missing runtime module $module" >&2; exit 1; }
+done
 test -f "$JS/ranking_policy.json" || { echo "FAIL: missing ranking_policy" >&2; exit 1; }
 test -f "$JS/native_lm_meta.json" || { echo "FAIL: missing native LM metadata" >&2; exit 1; }
+test -f "$JS/emoji_keywords.json" || { echo "FAIL: missing emoji metadata" >&2; exit 1; }
 
 python3 - "$JS/native_lm_meta.json" <<'PY'
 import json
@@ -33,6 +39,21 @@ assert meta.get("version") == 1
 assert meta.get("payload_format") == "unigram\\tstem\\tattested"
 assert int(meta.get("max_unigram") or 0) > 0
 assert int(meta.get("attested_floor") or 0) >= 0
+PY
+python3 - "$JS/emoji_keywords.json" <<'PY'
+import json, sys, unicodedata
+p=json.load(open(sys.argv[1], encoding='utf-8'))
+assert p.get('version') == 2
+keywords=p.get('keywords') or {}
+assert len(keywords) >= 1000
+for code, items in keywords.items():
+    assert code and isinstance(items, list)
+    for item in items:
+        emoji=str(item.get('emoji') or '')
+        confidence=float(item.get('confidence') or 0)
+        assert emoji and '\ufffd' not in emoji and not emoji.endswith('\u200d')
+        assert 0 <= confidence <= 1
+        assert not any(unicodedata.category(ch) in {'Cc','Cs'} for ch in emoji)
 PY
 
 TOTAL=0

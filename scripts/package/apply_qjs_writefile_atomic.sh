@@ -19,6 +19,9 @@ if ! grep -q 'writeFileAtomic' "$SRC/src/types/environment.cc"; then
   fi
   cat "$OVER/writeFileAtomic.cc" >> "$SRC/src/types/environment.cc"
 fi
+if ! grep -q 'transliterateNBest' "$SRC/src/types/environment.cc"; then
+  cat "$OVER/neuralBridge.cc" >> "$SRC/src/types/environment.cc"
+fi
 
 # Bind JS API
 QJS_ENV="$SRC/src/types/qjs_environment.h"
@@ -56,6 +59,40 @@ if 'writeFileAtomic' not in text:
     print('patched', p)
 else:
     print('already patched', p)
+PY
+fi
+
+if ! grep -q 'transliterateNBest' "$QJS_ENV"; then
+  python3 - <<PY
+from pathlib import Path
+p = Path("$QJS_ENV")
+text = p.read_text()
+needle = "DEFINE_CFUNCTION_ARGC(fileExists, 1,"
+insert = '''
+  DEFINE_CFUNCTION(gujaratiModelAvailable, {
+    return engine.wrap(Environment::gujaratiModelAvailable());
+  })
+
+  DEFINE_CFUNCTION_ARGC(transliterateNBest, 2, {
+    std::string roman = engine.toStdString(argv[0]);
+    int count = argc > 1 ? engine.toInt(argv[1]) : 4;
+    try {
+      return engine.wrap(Environment::transliterateNBest(roman, count));
+    } catch (const std::exception& e) {
+      throw JsException(JsErrorType::GENERIC, e.what());
+    }
+  })
+
+'''
+if needle not in text:
+    raise SystemExit('needle not found in qjs_environment.h')
+text = text.replace(needle, insert + needle, 1)
+text = text.replace(
+    'WITH_FUNCTIONS(loadFile, 1, fileExists, 1, writeFileAtomic, 2, getRimeInfo, 0, popen, 1)',
+    'WITH_FUNCTIONS(loadFile, 1, fileExists, 1, writeFileAtomic, 2, gujaratiModelAvailable, 0, transliterateNBest, 2, getRimeInfo, 0, popen, 1)',
+)
+p.write_text(text)
+print('patched Gujarati model bridge', p)
 PY
 fi
 

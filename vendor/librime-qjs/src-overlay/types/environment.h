@@ -31,6 +31,8 @@ public:
   static bool fileExists(const std::string& path);
   // Atomic durable write under userDataDir only (tmp + rename, mode 0600).
   static void writeFileAtomic(const std::string& path, const std::string& content);
+  static bool gujaratiModelAvailable();
+  static std::string transliterateNBest(const std::string& roman, int count);
   static std::string getRimeInfo();
   static std::pair<std::string, std::string> popen(const std::string& command,
                                                    int timeoutInMilliseconds);

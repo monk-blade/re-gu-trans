@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "model_version": "gu-ctc-v1",
+  "architecture": "2-layer-bidirectional-gru-ctc",
+  "quantization": "dynamic-int8",
+  "training_pairs": 200000,
+  "training_seed": 17,
+  "training_epochs": 2,
+  "benchmark_family_exclusion": true,
+  "sources": [
+    {"name": "Aksharantar Gujarati", "license": "CC-BY-4.0 and CC0"},
+    {"name": "Dakshina Gujarati", "license": "CC-BY-SA-4.0"}
+  ],
+  "excluded_eval": {
+    "held_out_gold_sha256": "f5efe81a9e518ca4811f15bbf837e57d6f4dacbf97e035351229b7079ef50ae9",
+    "apple_class_source_disjoint_sha256": "571b93028435d282417a64a563c6ccb1849a22fa4c77704c85a7bae95ee4a487"
+  },
+  "model_sha256": "b00366fa70f9c6bdbd90a094e9338a3f79965fc27dcb3b4f6c37823f7339ad8d",
+  "metrics": {
+    "top1_pct": 55.72,
+    "top3_pct": 67.92,
+    "recall_at_6_pct": 79.16,
+    "core_top1_pct": 42.44,
+    "core_recall_at_6_pct": 52.24
+  },
+  "runtime": {
+    "warm_p95_ms": 1.528,
+    "model_bytes": 1908649,
+    "native_plugin_p95_ms": 1.333
+  }
+}

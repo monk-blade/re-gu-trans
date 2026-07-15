@@ -14,5 +14,8 @@ patch:
   # Keyword emoji (English / Gujarati-roman); disable with emoji_enable: false
   "translator/emoji_enable": true
   "translator/max_emoji": 3
+  # Optional local model pack; auto keeps deterministic fallback when absent.
+  "translator/neural_mode": auto
+  "translator/max_neural_candidates": 4
   # Optional: slightly prefer dictionary-validated phonetics
   # "translator/lm_unigram_weight": 0.7

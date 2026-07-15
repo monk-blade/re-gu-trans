@@ -1,0 +1,5 @@
+{"roman":"chalshe","expected_top1":"ચાલશે","required_top6":["ચાલશે"],"forbidden_top1":["ચલાશે"]}
+{"roman":"ko","expected_top1":"કો","required_top6":["કો"],"forbidden_top1":["કાઉ"]}
+{"roman":"to","expected_top1":"તો","required_top6":["તો"],"forbidden_top6":["🇹🇴","≡"]}
+{"roman":"wah","expected_top1":"વાહ","required_top6":["🤩","🥳"]}
+{"roman":"bagicho","expected_top1":"બગીચો","required_top6":["બગીચો"]}

@@ -41,7 +41,7 @@ def feats(roman: str, native: str, meta: dict) -> dict[str, float]:
     return {
         "soft": 1.0 if 0 < w < 100 else 0.0,
         "strong": 1.0 if w >= 100 else 0.0,
-        "stem_derived": 1.0 if meta.get("source") in ("stem_matra", "stem_postfix", "stem_derived") else 0.0,
+        "stem_derived": 1.0 if meta.get("source") in ("stem_matra", "stem_postfix", "stem_inflection", "stem_derived") else 0.0,
         "phonetic": 1.0 if meta.get("source") in (None, "phonetic") else 0.0,
         "log_uni": math.log1p(meta.get("uni") or 0),
         "log_weight": math.log1p(max(0.0, w)),

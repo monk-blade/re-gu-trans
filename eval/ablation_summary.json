@@ -1,0 +1,47 @@
+{
+  "ranker": "production-javascript-trie",
+  "enabled": {
+    "evaluated": 2000,
+    "top1_pct": 36.7,
+    "top3_pct": 42.3,
+    "recall_at_6_pct": 45.85,
+    "ndcg_at_6": 0.40978
+  },
+  "families": [
+    {
+      "family": "conjunct_virama",
+      "disabled": {
+        "evaluated": 2000,
+        "top1_pct": 36.4,
+        "top3_pct": 42.0,
+        "recall_at_6_pct": 45.35,
+        "ndcg_at_6": 0.40591
+      },
+      "delta_percentage_points": {
+        "top1": 0.3,
+        "recall_at_6": 0.5
+      },
+      "accepted": true
+    },
+    {
+      "family": "plural_postpositions",
+      "disabled": {
+        "evaluated": 2000,
+        "top1_pct": 36.55,
+        "top3_pct": 42.25,
+        "recall_at_6_pct": 45.7,
+        "ndcg_at_6": 0.40835
+      },
+      "delta_percentage_points": {
+        "top1": 0.15,
+        "recall_at_6": 0.15
+      },
+      "accepted": true
+    }
+  ],
+  "threshold": {
+    "top1": 0.15,
+    "recall_at_6": 0.25
+  },
+  "accepted": true
+}

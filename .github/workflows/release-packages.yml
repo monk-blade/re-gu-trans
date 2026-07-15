@@ -72,9 +72,15 @@ jobs:
           ./scripts/package/clean_deploy_check.sh
       - name: Smoke + quality report
         run: |
+          pip install onnxruntime numpy
           python3 eval/rank_offline.py
           python3 eval/apple_integrity.py
-          python3 eval/quality_report.py
+          python3 eval/apple_class_reference.py
+          node eval/neural_bridge_test.js
+          python3 eval/emoji_quality.py
+          python3 eval/apple_class_benchmark.py --stress 250000 --require-full
+          python3 eval/neural_model_benchmark.py
+          REQUIRE_HYBRID=1 python3 eval/release_quality_report.py
 
   linux:
     needs: stage
@@ -109,13 +115,44 @@ jobs:
           chmod +x packaging/linux/re-gu-trans-enable packaging/linux/postinst.sh
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/linux/build_packages.sh
+          curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
+          tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP"
+          ONNXRUNTIME_ROOT="$RUNNER_TEMP/onnxruntime-linux-x64-1.23.2" \
+            ./scripts/package/linux/build_neural_model_pack.sh
+          python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-linux
+          (cd dist/gujarati-model-pack-linux && zip -qr \
+            ../packages/re-gu-trans-gu-ctc-v1-linux-x64.zip .)
           ./scripts/package/validate_payload.sh dist/payload-linux
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.so \
+            ./eval/rime_harness.sh
+          EXPECT_NEURAL_REQUIRED_MISSING=1 \
+            REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.so \
+            ./eval/rime_harness.sh
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.so \
+            NEURAL_MODEL_PACK=dist/gujarati-model-pack-linux \
+            ./eval/rime_harness.sh
+          python3 eval/platform_verification.py \
+            --platform linux --arch x86_64 \
+            --plugin dist/plugins/librime-qjs.so --payload dist/payload-linux \
+            --package "$(find dist/packages -name '*.deb' | head -1)" \
+            --package "$(find dist/packages -name '*.rpm' | head -1)" \
+            --model-pack dist/packages/re-gu-trans-gu-ctc-v1-linux-x64.zip \
+            --output dist/reports/verification-linux.json
       - uses: actions/upload-artifact@v4
         with:
           name: packages-linux
           path: |
             dist/packages/*.deb
             dist/packages/*.rpm
+            dist/packages/*gu-ctc-v1-linux-x64.zip
+            dist/reports/verification-linux.json
 
   macos:
     needs: stage
@@ -133,13 +170,44 @@ jobs:
           pip3 install marisa-trie
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/macos/build_pkg.sh
+          curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-osx-arm64-1.23.2.tgz
+          tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP"
+          ONNXRUNTIME_ROOT="$RUNNER_TEMP/onnxruntime-osx-arm64-1.23.2" \
+            ./scripts/package/macos/build_neural_model_pack.sh
+          python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-macos
+          (cd dist/gujarati-model-pack-macos && zip -qr \
+            ../packages/re-gu-trans-gu-ctc-v1-macos-arm64.zip .)
           ./scripts/package/validate_payload.sh dist/payload-macos
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-macos/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.dylib \
+            ./eval/rime_harness.sh
+          EXPECT_NEURAL_REQUIRED_MISSING=1 \
+            REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-macos/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.dylib \
+            ./eval/rime_harness.sh
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-macos/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.dylib \
+            NEURAL_MODEL_PACK=dist/gujarati-model-pack-macos \
+            ./eval/rime_harness.sh
+          python3 eval/platform_verification.py \
+            --platform macos --arch arm64 \
+            --plugin dist/plugins/librime-qjs.dylib --payload dist/payload-macos \
+            --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.zip" \
+            --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.pkg" \
+            --model-pack dist/packages/re-gu-trans-gu-ctc-v1-macos-arm64.zip \
+            --output dist/reports/verification-macos.json
       - uses: actions/upload-artifact@v4
         with:
           name: packages-macos
           path: |
             dist/packages/*macos-arm64.pkg
             dist/packages/*macos-arm64.zip
+            dist/packages/*gu-ctc-v1-macos-arm64.zip
+            dist/reports/verification-macos.json
 
   windows:
     needs: stage
@@ -164,14 +232,62 @@ jobs:
           export PATH="/c/Program Files/7-Zip:$PATH"
           python scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/windows/build_zip.sh
+          curl -fsSL -o "$RUNNER_TEMP/ort.zip" \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-win-x64-1.23.2.zip
+          7z x -y -o"$RUNNER_TEMP" "$RUNNER_TEMP/ort.zip" >/dev/null
+          ONNXRUNTIME_ROOT="$RUNNER_TEMP/onnxruntime-win-x64-1.23.2" \
+            ./scripts/package/windows/build_neural_model_pack.sh
+          python eval/native_model_plugin_test.py dist/gujarati-model-pack-windows
+          (cd dist/gujarati-model-pack-windows && 7z a -tzip -y \
+            ../packages/re-gu-trans-gu-ctc-v1-windows-x64.zip . >/dev/null)
           ./scripts/package/validate_payload.sh dist/payload-windows
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-windows/librime \
+            RIME_PLUGIN=dist/plugins/rime.dll \
+            ./eval/rime_harness.sh
+          EXPECT_NEURAL_REQUIRED_MISSING=1 \
+            REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-windows/librime \
+            RIME_PLUGIN=dist/plugins/rime.dll \
+            ./eval/rime_harness.sh
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-windows/librime \
+            RIME_PLUGIN=dist/plugins/rime.dll \
+            NEURAL_MODEL_PACK=dist/gujarati-model-pack-windows \
+            ./eval/rime_harness.sh
+          python eval/platform_verification.py \
+            --platform windows --arch x86_64 \
+            --plugin dist/plugins/rime.dll --payload dist/payload-windows \
+            --package "dist/packages/re-gu-trans-${VERSION}-windows-x64.zip" \
+            --model-pack dist/packages/re-gu-trans-gu-ctc-v1-windows-x64.zip \
+            --output dist/reports/verification-windows.json
       - uses: actions/upload-artifact@v4
         with:
           name: packages-windows
-          path: dist/packages/*windows-x64.zip
+          path: |
+            dist/packages/*windows-x64.zip
+            dist/packages/*gu-ctc-v1-windows-x64.zip
+            dist/reports/verification-windows.json
+
+  release-gate:
+    needs: [stage, linux, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Aggregate observed platform verification
+        run: |
+          python3 eval/aggregate_platform_reports.py artifacts \
+            --output dist/reports/release-platform-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-platform-report
+          path: dist/reports/release-platform-report.json
 
   publish:
-    needs: [stage, linux, macos, windows]
+    needs: [stage, release-gate]
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag' || inputs.publish == true
     steps:
@@ -207,6 +323,10 @@ jobs:
           | macOS arm64 | \`re-gu-trans-${VERSION}-macos-arm64.pkg\` / \`.zip\` | [Squirrel](https://github.com/rime/squirrel/releases) |
           | Windows x64 | \`re-gu-trans-${VERSION}-windows-x64.zip\` | [Weasel](https://github.com/rime/weasel/releases) |
           | Linux amd64 | \`re-gu-trans_${VERSION}_amd64.deb\` / \`.rpm\` | fcitx5-rime or ibus-rime |
+
+          Optional offline Gujarati model packs are published as
+          \`re-gu-trans-gu-ctc-v1-<platform>.zip\`. The deterministic core remains fully usable
+          without a model pack; \`neural_mode: required\` intentionally blocks menus if its pack is absent.
 
           Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md) · Typing: [USAGE.md](https://github.com/monk-blade/re-gu-trans/blob/main/USAGE.md)
           EOF

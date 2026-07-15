@@ -1,6 +1,11 @@
 /** Production-module smoke runner; no synthetic candidates. */
 import { emptyLearning, recordExplicitSelection } from '../rime/js/learning.js'
-import { layoutMenu, makeCandidateRecord, rankCandidates, TIER_DICT } from '../rime/js/ranking.js'
+import {
+  layoutMenu,
+  makeCandidateRecord,
+  rankCandidates,
+  TIER_DICT,
+} from '../rime/js/ranking_primitives.js'
 
 const learning = emptyLearning()
 recordExplicitSelection(learning, 'padi', 'પડી', 1)

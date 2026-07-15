@@ -19,7 +19,8 @@ install_files: >-
   rime/gujarati.custom.yaml.sample
   rime/js/gujarati_translator.js
   rime/js/engine.js
-  rime/js/ime_core.js
+  rime/js/ranking.js
+  rime/js/ranking_primitives.js
   rime/js/selection_tracker_processor.js
   rime/js/commit_on_punct_processor.js
   rime/js/ranking.js
