@@ -106,4 +106,3 @@ class IndicXlitOnnx:
             if len(results) >= count:
                 break
         return results
-

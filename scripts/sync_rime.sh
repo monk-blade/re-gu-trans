@@ -58,6 +58,7 @@ cp -f "$JS/ranking.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/phonetic.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/storage.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/learning.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/neural.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/runtime_capabilities.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/ranking_policy.json" "$RIME/js/"
 cp -f "$JS/emoji_keywords.json" "$RIME/js/" 2>/dev/null || true

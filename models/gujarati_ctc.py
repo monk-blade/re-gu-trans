@@ -70,4 +70,3 @@ class GujaratiCtcOnnx:
             Candidate(native=native, log_prob=score)
             for native, score in sorted(unique.items(), key=lambda item: item[1], reverse=True)[:count]
         ]
-

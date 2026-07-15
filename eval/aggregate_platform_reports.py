@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 REQUIRED = {"macos", "linux", "windows"}
-CAPABILITIES = ("trie", "candidate_access", "commit_notifier", "write_file_atomic")
+CAPABILITIES = ("trie", "candidate_access", "commit_notifier", "write_file_atomic", "neural_model")
 
 
 def main() -> int:
@@ -28,6 +28,8 @@ def main() -> int:
         learning = report.get("learning") or {}
         payload = report.get("payload") or {}
         plugin = report.get("plugin") or {}
+        model_pack = report.get("model_pack") or {}
+        native_model = report.get("native_model") or {}
         if not report.get("passed") or not all(caps.get(name) is True for name in CAPABILITIES):
             failures.append(platform + ":capabilities")
         if not learning.get("three_selection") or not learning.get("restart_persisted") or learning.get("latin_slot") != 2:
@@ -45,6 +47,15 @@ def main() -> int:
             failures.append(platform + ":plugin-hash")
         if not report.get("packages") or not all(item.get("valid") for item in report["packages"]):
             failures.append(platform + ":packages")
+        if (
+            not model_pack.get("validated")
+            or model_pack.get("bytes") is None
+            or model_pack["bytes"] > 35 * 1024 * 1024
+            or len(str(model_pack.get("sha256") or "")) != 64
+        ):
+            failures.append(platform + ":model-pack")
+        if not native_model.get("passed") or native_model.get("p95_ms") is None or native_model["p95_ms"] > 10:
+            failures.append(platform + ":native-model")
     result = {"schema": 1, "platforms": by_platform, "failures": failures, "passed": not failures}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

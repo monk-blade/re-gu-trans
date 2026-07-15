@@ -218,7 +218,7 @@ Toggle: `translator/emoji_enable` / `translator/max_emoji` in schema or `gujarat
 
 ### Optional offline model pack
 
-`translator/neural_mode: auto` uses `env.transliterateNBest()` when a separately validated model pack is installed and otherwise preserves the deterministic engine. `off` disables it; `required` logs a deployment capability error when absent. Model packs are staged with `scripts/package/stage_neural_model_pack.sh` and are rejected if the model, plugin, licenses, measured metrics, or checksums are missing. No model or network service is required for normal typing.
+`translator/neural_mode: auto` uses `env.transliterateNBest()` when a separately validated model pack is installed and otherwise preserves the deterministic engine. `off` disables it; `required` blocks Gujarati menus with a deployment error when the pack is absent. Extract the platform model-pack ZIP as `gujarati-model` inside the Rime user directory (`~/Library/Rime`, the fcitx5/IBus Rime user directory, or `%APPDATA%\Rime`), then redeploy. Model packs are rejected if the model, native plugin, ONNX Runtime, licenses, measured metrics, or checksums are missing. No model or network service is required for normal typing.
 
 ### Phonetic grammar (Indic IME-style)
 

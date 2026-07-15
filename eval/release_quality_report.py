@@ -51,6 +51,7 @@ def main() -> int:
     budget = load_json(ROOT / "eval" / "budget_summary.json") or {}
     apple_class = load_json(ROOT / "eval" / "apple_class_quality_summary.json") or {}
     emoji_quality = load_json(ROOT / "eval" / "emoji_quality_summary.json") or {}
+    neural_model = load_json(ROOT / "eval" / "neural_model_benchmark_summary.json") or {}
     report = {
         "project": "Akshar GU",
         "package_id": "re-gu-trans",
@@ -65,6 +66,7 @@ def main() -> int:
             "quality_report": quality,
             "apple_class": apple_class or None,
             "emoji": emoji_quality or None,
+            "neural_model": neural_model or None,
         },
         "runtime": budget,
         "parity": parity,
@@ -107,6 +109,7 @@ def main() -> int:
             "query_p95_ms": 5,
             "beam": 64,
             "apple_class_core": {"top1_pct": 45, "top3_pct": 55, "recall_at_6_pct": 60},
+            "apple_class_hybrid": {"top1_improvement_pp": 5, "recall_at_6_improvement_pp": 8},
             "emoji_first_page_recall_pct": 85,
             "emoji_false_positive_pct": 1,
         },
@@ -150,6 +153,13 @@ def main() -> int:
             failures.append("apple_class_core_targets")
         if not (apple_class.get("stress") or {}).get("full_gate"):
             failures.append("apple_class_full_stress")
+    if os.environ.get("REQUIRE_HYBRID") == "1":
+        if not neural_model.get("passed"):
+            failures.append("apple_class_hybrid")
+        if not (apple_class.get("stress") or {}).get("full_gate"):
+            failures.append("apple_class_full_stress")
+        if not (harness.get("capabilities") or {}).get("neural_model") and os.environ.get("REQUIRE_REAL_RIME") == "1":
+            failures.append("real_neural_model")
     report["gate_failures"] = failures
     report["passed"] = not failures
     OUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

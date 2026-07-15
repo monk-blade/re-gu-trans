@@ -7,6 +7,8 @@ import hashlib
 import json
 import os
 import subprocess
+import tempfile
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,11 +29,18 @@ def main() -> int:
     parser.add_argument("--plugin", required=True, type=Path)
     parser.add_argument("--payload", required=True, type=Path)
     parser.add_argument("--harness", default=ROOT / "eval" / "rime_harness_summary.json", type=Path)
+    parser.add_argument(
+        "--native-model-report",
+        default=ROOT / "eval" / "native_model_plugin_summary.json",
+        type=Path,
+    )
     parser.add_argument("--package", action="append", default=[], type=Path)
+    parser.add_argument("--model-pack", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
     harness = json.loads(args.harness.read_text(encoding="utf-8"))
+    native_model = json.loads(args.native_model_report.read_text(encoding="utf-8"))
     caps = harness.get("capabilities") or {}
     bench = harness.get("benchmark") or {}
     required_caps = ("trie", "candidate_access", "commit_notifier", "write_file_atomic")
@@ -39,8 +48,12 @@ def main() -> int:
         raise SystemExit("real-host learning verification missing")
     if not all(caps.get(name) for name in required_caps):
         raise SystemExit("required runtime capability missing")
+    if not caps.get("neural_model") or not harness.get("neural_candidate_observed"):
+        raise SystemExit("real-host neural inference verification missing")
     if bench.get("host") != "real-librime" or bench.get("query_p95_ms") is None:
         raise SystemExit("real-host benchmark missing")
+    if not native_model.get("passed") or native_model.get("p95_ms") is None:
+        raise SystemExit("native model plugin report missing or failed")
 
     subprocess.run(
         [str(ROOT / "scripts" / "package" / "validate_payload.sh"), str(args.payload)],
@@ -63,6 +76,20 @@ def main() -> int:
         )
     if not package_results:
         raise SystemExit("at least one extracted package verification is required")
+    with tempfile.TemporaryDirectory(prefix="akshar-model-pack-") as temp:
+        with zipfile.ZipFile(args.model_pack) as archive:
+            archive.extractall(temp)
+        subprocess.run(
+            [str(ROOT / "scripts" / "package" / "validate_neural_model_pack.sh"), temp],
+            cwd=ROOT,
+            check=True,
+        )
+    model_pack = {
+        "name": args.model_pack.name,
+        "sha256": digest(args.model_pack),
+        "bytes": args.model_pack.stat().st_size,
+        "validated": True,
+    }
 
     three_selection = harness.get("three_selection_observed") is True
     report = {
@@ -82,6 +109,8 @@ def main() -> int:
         "benchmark": bench,
         "payload": {"bytes": tree_bytes(args.payload), "binary_only": True, "validated": True},
         "packages": package_results,
+        "model_pack": model_pack,
+        "native_model": native_model,
         "passed": three_selection,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

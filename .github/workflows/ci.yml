@@ -20,8 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install marisa-trie (binary Tries)
-        run: pip install marisa-trie
+      - name: Install runtime test dependencies
+        run: pip install marisa-trie onnxruntime numpy
       - name: Leakage gate
         run: python3 scripts/check_lexicon_leakage.py
       - name: Smoke
@@ -39,6 +39,7 @@ jobs:
           node eval/ranking_primitives_test.js
           python3 eval/emoji_quality.py
           python3 eval/apple_class_benchmark.py --stress 10000
+          python3 eval/neural_model_benchmark.py
           python3 eval/menu_baseline_check.py
       - name: Budgets
         run: |
@@ -86,8 +87,24 @@ jobs:
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/macos/build_librime_qjs.sh
           ./scripts/package/verify_qjs_plugin.sh dist/plugins/librime-qjs.dylib
-      - name: Real librime menu and learning integration
+      - name: Real librime core fallback modes
         env:
           REQUIRE_RIME_DEPLOYER: '1'
           RIME_BUILD_ROOT: dist/librime-build-macos/librime
+        run: |
+          ./eval/rime_harness.sh
+          EXPECT_NEURAL_REQUIRED_MISSING=1 ./eval/rime_harness.sh
+      - name: Build and validate optional model pack
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-osx-arm64-1.23.2.tgz
+          tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP"
+          ONNXRUNTIME_ROOT="$RUNNER_TEMP/onnxruntime-osx-arm64-1.23.2" \
+            ./scripts/package/macos/build_neural_model_pack.sh
+          python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-macos
+      - name: Real librime hybrid menu and learning integration
+        env:
+          REQUIRE_RIME_DEPLOYER: '1'
+          RIME_BUILD_ROOT: dist/librime-build-macos/librime
+          NEURAL_MODEL_PACK: dist/gujarati-model-pack-macos
         run: ./eval/rime_harness.sh

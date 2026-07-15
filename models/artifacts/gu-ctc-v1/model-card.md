@@ -25,4 +25,3 @@ not installed.
 This is a word-level model. It does not segment sentences or predict the next
 word. Names and English loanwords remain less reliable than common Gujarati
 words. Outputs must pass the runtime Gujarati Unicode validator.
-

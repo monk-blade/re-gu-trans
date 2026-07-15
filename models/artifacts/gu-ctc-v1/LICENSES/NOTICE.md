@@ -9,4 +9,3 @@
 - The model architecture, training/export code, and native bridge are released
   under the repository MIT License. Distribution of the trained model retains
   the attribution and share-alike notices above.
-
