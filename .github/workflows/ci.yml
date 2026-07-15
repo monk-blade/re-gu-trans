@@ -24,6 +24,8 @@ jobs:
         run: pip install marisa-trie onnxruntime numpy
       - name: Leakage gate
         run: python3 scripts/check_lexicon_leakage.py
+      - name: Build production Trie test assets
+        run: python3 scripts/build_qjs_tries.py --bin --exceptions
       - name: Smoke
         run: python3 eval/rank_offline.py
       - name: Apple integrity
@@ -42,9 +44,7 @@ jobs:
           python3 eval/neural_model_benchmark.py
           python3 eval/menu_baseline_check.py
       - name: Budgets
-        run: |
-          python3 scripts/build_qjs_tries.py --bin --exceptions
-          python3 eval/check_budgets.py
+        run: python3 eval/check_budgets.py
       - name: Clean deploy (file-level)
         run: |
           chmod +x scripts/package/clean_deploy_check.sh scripts/package/stage_payload.sh scripts/package/apply_qjs_writefile_atomic.sh

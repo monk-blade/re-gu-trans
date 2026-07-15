@@ -11,6 +11,16 @@ const [mode = 'text', inputPath, outputPath, limitArg] = process.argv.slice(2)
 if (!inputPath || !outputPath || !['text', 'trie'].includes(mode)) {
   throw new Error('usage: js_production_runner.mjs text|trie INPUT.jsonl OUTPUT.jsonl')
 }
+if (mode === 'trie') {
+  const required = ['lexicon.trie.txt', 'prefix.trie.txt', 'native_lm.tsv']
+  const missing = required.filter((name) => !fs.existsSync(path.join(JS, name)))
+  if (missing.length) {
+    throw new Error(
+      'missing generated Trie test assets: ' + missing.join(', ') +
+      '; run python3 scripts/build_qjs_tries.py --bin --exceptions'
+    )
+  }
+}
 const neuralFixtures = process.env.NEURAL_FIXTURES
   ? new Map(Object.entries(JSON.parse(fs.readFileSync(process.env.NEURAL_FIXTURES, 'utf8'))))
   : null
