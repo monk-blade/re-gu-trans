@@ -89,8 +89,8 @@
     "executed": 250000,
     "finite": true,
     "deterministic_first_1000": true,
-    "seconds": 152.81,
-    "queries_per_second": 1636.0,
+    "seconds": 149.958,
+    "queries_per_second": 1667.1,
     "ordered_menu_sha256": "ffc59b004bd719b9eaf27edc5ff08c9919631acff2a100cba25f2eb51a2c4e38",
     "full_gate": true
   },

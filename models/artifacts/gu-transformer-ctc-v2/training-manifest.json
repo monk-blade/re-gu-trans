@@ -1,0 +1,117 @@
+{
+  "version": 2,
+  "model_version": "gu-transformer-ctc-v2",
+  "architecture": "4-layer-transformer-encoder-ctc",
+  "quantization": "dynamic-int8",
+  "training_pairs": 392078,
+  "validation_pairs": 7922,
+  "training_epochs": 2,
+  "benchmark_family_exclusion": true,
+  "family_disjoint_validation": true,
+  "short_input_oversampling": true,
+  "roman_noise_augmentation": true,
+  "sources": [
+    {
+      "name": "Aksharantar Gujarati",
+      "license": "CC-BY-4.0 and CC0"
+    },
+    {
+      "name": "Dakshina Gujarati",
+      "license": "CC-BY-SA-4.0"
+    }
+  ],
+  "excluded_eval": {
+    "held_out_gold_sha256": "f5efe81a9e518ca4811f15bbf837e57d6f4dacbf97e035351229b7079ef50ae9",
+    "apple_class_source_disjoint_sha256": "571b93028435d282417a64a563c6ccb1849a22fa4c77704c85a7bae95ee4a487"
+  },
+  "model_sha256": "3408eaaa542c995e10470365adbb9d1827da7b301f72165fac2bc5665bae7774",
+  "metrics": {
+    "top1_pct": 56.6,
+    "top3_pct": 70.32,
+    "recall_at_6_pct": 81.92,
+    "model_only_top1_pct": 50.52,
+    "model_only_top3_pct": 74.68,
+    "model_only_recall_at_6_pct": 78.76,
+    "core_top1_pct": 42.44,
+    "core_recall_at_6_pct": 52.24
+  },
+  "runtime": {
+    "warm_p50_ms": 2.529,
+    "warm_p95_ms": 3.916,
+    "model_bytes": 1543415
+  },
+  "reference": {
+    "yas": {
+      "expected": "યસ",
+      "menu": [
+        "યસ",
+        "yas",
+        "યશ",
+        "યાસ",
+        "🙆",
+        "યાશ"
+      ],
+      "passed": true
+    },
+    "chalshe": {
+      "expected": "ચાલશે",
+      "menu": [
+        "ચાલશે",
+        "chalshe",
+        "ચલાશે",
+        "ચાલ્શે",
+        "છાલશે",
+        "ચાલસે"
+      ],
+      "passed": true
+    },
+    "ko": {
+      "expected": "કો",
+      "menu": [
+        "કો",
+        "ko",
+        "કોહ",
+        "ખો",
+        "કોં",
+        "કોબી"
+      ],
+      "passed": true
+    },
+    "to": {
+      "expected": "તો",
+      "menu": [
+        "તો",
+        "to",
+        "ટો",
+        "થો",
+        "ઠો",
+        "તોબાહ"
+      ],
+      "passed": true
+    },
+    "wah": {
+      "expected": "વાહ",
+      "menu": [
+        "વાહ",
+        "wah",
+        "વહ",
+        "વા",
+        "🤩",
+        "🥳"
+      ],
+      "passed": true
+    },
+    "bagicho": {
+      "expected": "બગીચો",
+      "menu": [
+        "બગીચો",
+        "bagicho",
+        "બગીચાઓ",
+        "બગિચો",
+        "બાગીચો",
+        "ભગીચો"
+      ],
+      "passed": true
+    }
+  }
+}

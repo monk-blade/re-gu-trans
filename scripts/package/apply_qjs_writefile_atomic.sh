@@ -25,11 +25,16 @@ fi
 
 # Bind JS API
 QJS_ENV="$SRC/src/types/qjs_environment.h"
+QJS_ENV_PY="$QJS_ENV"
+if command -v cygpath >/dev/null 2>&1; then
+  QJS_ENV_PY="$(cygpath -m "$QJS_ENV")"
+fi
 if ! grep -q 'writeFileAtomic' "$QJS_ENV"; then
-  python3 - <<PY
+  python3 - "$QJS_ENV_PY" <<'PY'
 from pathlib import Path
-p = Path("$QJS_ENV")
-text = p.read_text()
+import sys
+p = Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
 needle = "DEFINE_CFUNCTION_ARGC(fileExists, 1,"
 insert = '''
   DEFINE_CFUNCTION_ARGC(writeFileAtomic, 2, {
@@ -55,7 +60,7 @@ if 'writeFileAtomic' not in text:
         'WITH_FUNCTIONS(loadFile, 1, fileExists, 1, getRimeInfo, 0, popen, 1)',
         'WITH_FUNCTIONS(loadFile, 1, fileExists, 1, writeFileAtomic, 2, getRimeInfo, 0, popen, 1)',
     )
-    p.write_text(text)
+    p.write_text(text, encoding="utf-8")
     print('patched', p)
 else:
     print('already patched', p)
@@ -63,10 +68,11 @@ PY
 fi
 
 if ! grep -q 'transliterateNBest' "$QJS_ENV"; then
-  python3 - <<PY
+  python3 - "$QJS_ENV_PY" <<'PY'
 from pathlib import Path
-p = Path("$QJS_ENV")
-text = p.read_text()
+import sys
+p = Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
 needle = "DEFINE_CFUNCTION_ARGC(fileExists, 1,"
 insert = '''
   DEFINE_CFUNCTION(gujaratiModelAvailable, {
@@ -91,7 +97,7 @@ text = text.replace(
     'WITH_FUNCTIONS(loadFile, 1, fileExists, 1, writeFileAtomic, 2, getRimeInfo, 0, popen, 1)',
     'WITH_FUNCTIONS(loadFile, 1, fileExists, 1, writeFileAtomic, 2, gujaratiModelAvailable, 0, transliterateNBest, 2, getRimeInfo, 0, popen, 1)',
 )
-p.write_text(text)
+p.write_text(text, encoding="utf-8")
 print('patched Gujarati model bridge', p)
 PY
 fi

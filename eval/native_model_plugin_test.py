@@ -15,7 +15,7 @@ from pathlib import Path
 
 GUJARATI = re.compile(r"^[\u0A80-\u0AFF\u200C\u200D]+$")
 PROBES = (
-    "aajdeevse", "chalshe", "bagicho", "parkhavyu", "samajdaarima",
+    "yas", "aajdeevse", "chalshe", "bagicho", "parkhavyu", "samajdaarima",
     "javabdaarione", "gujaratimaa", "anubhavmathi", "vyavasthaapan",
     "lokshahivaadi", "mahatvapurn", "sambhaavnaao",
 )
@@ -45,6 +45,11 @@ def main() -> int:
     plugin.akshar_gu_transliterate_nbest.restype = ctypes.c_char_p
     model_root = str(args.pack.resolve()).encode()
 
+    for invalid in ("", ".", "3.", "--", "a..b", "a b"):
+        raw = plugin.akshar_gu_transliterate_nbest(model_root, invalid.encode(), 4)
+        if json.loads(raw.decode()) != []:
+            raise SystemExit(f"native model accepted invalid Roman input: {invalid!r}")
+
     timings: list[float] = []
     outputs: dict[str, list[dict]] = {}
     for index in range(1000):
@@ -64,6 +69,8 @@ def main() -> int:
     target = [item["native"] for item in outputs["aajdeevse"]]
     if "આજદિવસે" not in target:
         raise SystemExit("held-out native inference probe is missing")
+    if "યસ" not in [item["native"] for item in outputs["yas"]]:
+        raise SystemExit("yas n-best must contain યસ for hybrid arbitration")
     payload = {
         "report": "native_model_plugin",
         "platform": platform.system().lower(),
@@ -74,8 +81,10 @@ def main() -> int:
         "p95_ms": round(percentile(timings, 0.95), 3),
         "finite": True,
         "held_out_probe": True,
+        "invalid_input_rejected": True,
+        "yas_in_nbest": True,
     }
-    payload["passed"] = payload["model_version"] == "gu-ctc-v1" and payload["p95_ms"] <= 10
+    payload["passed"] = payload["model_version"] == "gu-model-plugin-v2" and payload["p95_ms"] <= 10
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, indent=2))

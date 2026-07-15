@@ -19,6 +19,11 @@ echo "Cloning librime @ $LIBRIME_TAG ..."
 git clone --depth 1 --branch "$LIBRIME_TAG" https://github.com/rime/librime.git
 cd librime
 
+# Use librime's pinned Windows dependency sources and build recipe. Directly
+# configuring the top-level project leaves Boost/glog/OpenCC unresolved on a
+# clean GitHub runner.
+git submodule update --init --recursive
+
 mkdir -p plugins
 echo "Cloning librime-qjs @ $LIBRIME_QJS_TAG ..."
 git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
@@ -30,19 +35,21 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
 
 "$PACKAGE_ROOT/scripts/package/apply_qjs_writefile_atomic.sh" "$PWD/plugins/qjs"
 
-# Windows librime build (HuangJian / rime docs use cmake + boost deps)
-cmake -B build -G "Visual Studio 17 2022" -A x64 \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TEST=OFF \
-  -DBUILD_SHARED_LIBS=ON || \
-cmake -B build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TEST=OFF \
-  -DBUILD_SHARED_LIBS=ON
+# Keep the generator/toolset explicit; the upstream template still defaults to
+# Visual Studio 2019/x86. install-boost.bat and build.bat consume this file.
+cat > env.bat <<'EOF'
+set RIME_ROOT=%CD%
+set BOOST_ROOT=%RIME_ROOT%\deps\boost-1.89.0
+set ARCH=x64
+set CMAKE_GENERATOR="Visual Studio 17 2022"
+set PLATFORM_TOOLSET=v143
+EOF
 
-cmake --build build --config Release -j"$JOBS"
+cmd.exe /d /c install-boost.bat
+cmd.exe /d /c build.bat deps
+cmd.exe /d /c build.bat librime
 
-FOUND="$(find . -type f -iname 'rime.dll' 2>/dev/null | head -1 || true)"
+FOUND="$(find dist build -type f -iname 'rime.dll' 2>/dev/null | head -1 || true)"
 if [[ -z "$FOUND" ]]; then
   # Some layouts emit librime-qjs.dll beside weasel rime.dll — prefer bundled rime.dll
   FOUND="$(find . -type f \( -iname 'librime-qjs.dll' -o -iname 'rime.dll' \) 2>/dev/null | head -1 || true)"

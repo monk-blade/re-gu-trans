@@ -13,7 +13,24 @@ case "$ARCHIVE" in
   *.deb) dpkg-deb -x "$ARCHIVE" "$TMP" ;;
   *.rpm)
     command -v rpm2cpio >/dev/null
-    (cd "$TMP" && rpm2cpio "$ARCHIVE" | cpio -idm --quiet)
+    CPIO_LOG="$TMP/cpio.stderr"
+    set +e
+    rpm2cpio "$ARCHIVE" | (
+      cd "$TMP" && cpio --no-absolute-filenames -idm --quiet 2>"$CPIO_LOG"
+    )
+    CPIO_STATUS=$?
+    set -e
+    if [[ "$CPIO_STATUS" -ne 0 ]]; then
+      if [[ "$CPIO_STATUS" -eq 1 ]] &&
+        grep -q 'Removing leading.*from member names' "$CPIO_LOG" &&
+        ! grep -qv 'Removing leading.*from member names' "$CPIO_LOG"; then
+        echo "RPM extraction normalized absolute member names"
+      else
+        cat "$CPIO_LOG" >&2
+        exit "$CPIO_STATUS"
+      fi
+    fi
+    rm -f "$CPIO_LOG"
     ;;
   *.pkg)
     command -v pkgutil >/dev/null

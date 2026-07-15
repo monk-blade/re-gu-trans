@@ -13,3 +13,8 @@ falls back exactly to the deterministic engine if that capability is absent.
 No placeholder model is shipped. The staging script rejects missing, oversized,
 or undocumented artifacts so a package cannot claim neural support without an
 actual tested model and runtime.
+
+The current release model is `gu-transformer-ctc-v2`: a compact four-layer
+character Transformer with a CTC head. Train it with
+`python3 models/train_gujarati_transformer.py`; the legacy GRU-CTC v1 remains
+available only as a reproducibility baseline.

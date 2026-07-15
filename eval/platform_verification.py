@@ -12,6 +12,11 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_PACKAGE_SUFFIXES = {
+    "linux": {".deb", ".rpm"},
+    "macos": {".pkg", ".zip"},
+    "windows": {".zip"},
+}
 
 
 def digest(path: Path) -> str:
@@ -76,6 +81,16 @@ def main() -> int:
         )
     if not package_results:
         raise SystemExit("at least one extracted package verification is required")
+    actual_suffixes = {Path(item["name"]).suffix.lower() for item in package_results}
+    expected_suffixes = EXPECTED_PACKAGE_SUFFIXES[args.platform]
+    if actual_suffixes != expected_suffixes:
+        raise SystemExit(
+            f"package formats mismatch for {args.platform}: "
+            f"expected={sorted(expected_suffixes)} actual={sorted(actual_suffixes)}"
+        )
+    expected_model_token = "gu-transformer-ctc-v2"
+    if expected_model_token not in args.model_pack.name:
+        raise SystemExit(f"model pack filename does not identify {expected_model_token}")
     with tempfile.TemporaryDirectory(prefix="akshar-model-pack-") as temp:
         with zipfile.ZipFile(args.model_pack) as archive:
             archive.extractall(temp)
@@ -109,6 +124,7 @@ def main() -> int:
         "benchmark": bench,
         "payload": {"bytes": tree_bytes(args.payload), "binary_only": True, "validated": True},
         "packages": package_results,
+        "package_formats": sorted(actual_suffixes),
         "model_pack": model_pack,
         "native_model": native_model,
         "passed": three_selection,
