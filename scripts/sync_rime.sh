@@ -51,7 +51,7 @@ cp -f "$ROOT/rime/gujarati.custom.yaml.sample" "$RIME/" 2>/dev/null || true
 # Modules + policy
 cp -f "$JS/gujarati_translator.js" "$RIME/js/"
 cp -f "$JS/engine.js" "$RIME/js/" 2>/dev/null || true
-cp -f "$JS/ime_core.js" "$RIME/js/" 2>/dev/null || true
+cp -f "$JS/ranking_primitives.js" "$RIME/js/"
 cp -f "$JS/commit_on_punct_processor.js" "$RIME/js/"
 cp -f "$JS/selection_tracker_processor.js" "$RIME/js/" 2>/dev/null || true
 cp -f "$JS/ranking.js" "$RIME/js/" 2>/dev/null || true

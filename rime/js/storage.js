@@ -89,6 +89,47 @@ function loadExceptions(load, paths) {
   return out
 }
 
+function rememberEmoji(map, key, emoji, weight) {
+  if (!key || !emoji) return
+  const list = map.get(key) || []
+  const existing = list.find((item) => item.e === emoji)
+  if (existing) existing.w = Math.max(existing.w, weight)
+  else list.push({ e: emoji, w: weight })
+  list.sort((a, b) => b.w - a.w)
+  map.set(key, list)
+}
+
+function lexiconNative(lexicon, key) {
+  if (!lexicon || !key) return null
+  if (lexicon.trie && typeof lexicon.trie.find === 'function') {
+    try {
+      const raw = lexicon.trie.find(key)
+      return raw == null ? null : String(raw).split('\x1f')[0]
+    } catch (_e) { return null }
+  }
+  return lexicon.map && lexicon.map.get(key)
+}
+
+function loadEmojiStorage(load, paths, lexicon) {
+  const byRoman = new Map()
+  const byNative = new Map()
+  const data = loadJson(load, paths)
+  for (const [code, items] of Object.entries(data || {})) {
+    const roman = String(code || '').toLowerCase()
+    if (!roman || !Array.isArray(items)) continue
+    for (const item of items) {
+      const emoji = item && (item.e || item.emoji || item[0])
+      const rawWeight = Number((item && (item.w || item.weight || item[1])) || 100)
+      const weight = Number.isFinite(rawWeight) ? rawWeight : 100
+      if (!emoji) continue
+      rememberEmoji(byRoman, roman, String(emoji), weight)
+      const native = lexiconNative(lexicon, roman)
+      if (native) rememberEmoji(byNative, native, String(emoji), weight)
+    }
+  }
+  return { byRoman, byNative }
+}
+
 /**
  * Parse native_lm payload: "unigram\\tstem\\tattestedFlag"
  * @returns {{unigram:number,stem:number,attested:boolean}}
@@ -352,16 +393,20 @@ export function loadRuntimeStorage(env, options) {
     mode = 'error'
   }
 
+  const lexicon = {
+    trie: lexiconTrie,
+    map: lexiconMap,
+    weights: weightsMap,
+    exceptions,
+  }
+  const emoji = loadEmojiStorage(load, paths.emoji, lexicon)
+  console.log('$qjs$ emoji loaded romans=' + emoji.byRoman.size + ' natives=' + emoji.byNative.size)
   return {
     mode,
-    lexicon: {
-      trie: lexiconTrie,
-      map: lexiconMap,
-      weights: weightsMap,
-      exceptions,
-    },
+    lexicon,
     prefix: { trie: prefixTrie },
     nativeLm,
+    emoji,
     policy: policyRaw,
     capabilities,
   }

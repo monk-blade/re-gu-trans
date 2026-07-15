@@ -30,7 +30,8 @@ End-user typing: **[USAGE.md](./USAGE.md)**. Install: **[GUIDE.md](./GUIDE.md)**
 | `rime/gujarati.schema.yaml` | Schema 2.9+ (processors/translators/knobs; `latin_position: 2`) |
 | `rime/js/gujarati_translator.js` | Thin Rime entry re-export |
 | `rime/js/engine.js` | Thin adapter re-export |
-| `rime/js/ime_core.js` | Transitional ranking core (still large; prefer modules) |
+| `rime/js/ranking.js` | Production candidate generation, rescoring, personalization, layout |
+| `rime/js/ranking_primitives.js` | Pure candidate records, tiers, and layout helpers |
 | `rime/js/selection_tracker_processor.js` | Numbered-selection observer (before selector) |
 | `rime/js/ranking.js` | Tiers, CandidateRecord, menu layout, LTR coeffs |
 | `rime/js/phonetic.js` | Weighted multi-pass lattice (beam≤64) |

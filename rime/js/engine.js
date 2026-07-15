@@ -1,5 +1,5 @@
 /**
- * engine.js — thin Rime adapter. Ranking/storage/learning live in modules + ime_core.
+ * engine.js — thin Rime adapter entry. Ranking/storage/learning live in modules.
  */
 export {
   GujaratiTranslator,
@@ -8,4 +8,4 @@ export {
   rankCandidates,
   layoutMenu,
   rankRomanTopTexts,
-} from './ime_core.js'
+} from './ranking.js'
