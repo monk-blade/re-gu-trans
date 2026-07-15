@@ -4,6 +4,12 @@ const GUJARATI_WORD = /^[\u0A80-\u0AFF\u200C\u200D]+$/u
 
 export function neuralCapability(env) {
   if (env && typeof env.transliterateNBest === 'function') {
+    if (
+      typeof env.gujaratiModelAvailable === 'function' &&
+      !env.gujaratiModelAvailable()
+    ) {
+      return { available: false, provider: null }
+    }
     return { available: true, provider: 'environment' }
   }
   if (
@@ -29,6 +35,8 @@ export function neuralNBest(env, roman, limit, mode) {
     raw = capability.provider === 'environment'
       ? env.transliterateNBest(String(roman || ''), max)
       : globalThis.GujaratiModel.nbest(String(roman || ''), max)
+    if (typeof raw === 'string') raw = JSON.parse(raw)
+    if (raw && raw.error) throw new Error(String(raw.error))
   } catch (error) {
     return { candidates: [], capability, error: String(error && error.message ? error.message : error) }
   }
@@ -49,4 +57,3 @@ export function neuralNBest(env, roman, limit, mode) {
   }
   return { candidates, capability }
 }
-

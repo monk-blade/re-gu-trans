@@ -17,6 +17,7 @@
     "lm_user": 0.6,
     "transform_cost": 1.35,
     "neural_log_probability": 0.35,
+    "neural_source_boost": 3.0,
     "onset_only_long_a_penalty": 3.8,
     "typed_aa_prefer_aa": 3.5,
     "typed_aa_demote_a": 4.0,
@@ -64,6 +65,12 @@
   "ltr": {
     "coefficients_path": "js/ltr_coefficients.json",
     "enabled": false
+  },
+  "morphology": {
+    "max_components": 3,
+    "compound_min_input_length": 8,
+    "compound_min_component_length": 3,
+    "max_compound_candidates": 8
   },
   "confusion_pairs": [
     ["sh", "Sh"],
@@ -132,10 +139,15 @@
     "t|n", "s|n", "s|t", "s|k", "s|th", "t|th"
   ],
   "stem_postfix_suffixes": [
-    ["maanthi", "માંથી"], ["maan", "માં"], ["maa", "માં"], ["man", "માં"], ["ma", "માં"],
+    ["omaanthi", "ઓમાંથી"], ["omathi", "ઓમાંથી"], ["omaan", "ઓમાં"], ["omaa", "ઓમાં"],
+    ["maanthi", "માંથી"], ["manthi", "માંથી"], ["mathi", "માંથી"],
+    ["maan", "માં"], ["maa", "માં"], ["man", "માં"], ["ma", "માં"],
+    ["onaa", "ોનાં"], ["ona", "ોના"], ["oni", "ોની"], ["one", "ોને"],
     ["valun", "વાળું"], ["vali", "વાળી"], ["vala", "વાળા"], ["valo", "વાળો"],
+    ["walun", "વાળું"], ["wali", "વાળી"], ["wala", "વાળા"], ["walo", "વાળો"],
     ["thi", "થી"], ["nee", "ની"], ["nii", "ની"], ["noo", "નું"], ["nuu", "નું"],
-    ["naa", "ના"], ["ni", "ની"], ["nu", "નું"], ["na", "ના"], ["no", "નો"], ["ne", "ને"]
+    ["naa", "નાં"], ["naa", "ના"], ["ni", "ની"], ["nu", "નું"], ["na", "ના"], ["no", "નો"], ["ne", "ને"],
+    ["aatmak", "ાત્મક"], ["tama", "તામાં"], ["pane", "પણે"], ["o", "ઓ"], ["s", "્સ"]
   ],
   "stem_inflection_suffixes": [
     ["ishun", "ીશું"], ["ishu", "ીશું"], ["she", "શે"], ["sho", "શો"],

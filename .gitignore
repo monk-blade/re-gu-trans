@@ -64,6 +64,8 @@ eval/release_quality_report.json
 eval/binary_text_parity_summary.json
 eval/learning_integration_summary.json
 eval/learning_v2_summary.json
+eval/neural_model_benchmark_summary.json
+eval/native_model_plugin_summary.json
 
 # Regenerable hash-split roman lists (keep test_romans.json + meta.json)
 data/splits/train_romans.txt

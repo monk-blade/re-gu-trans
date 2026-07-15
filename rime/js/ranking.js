@@ -371,7 +371,7 @@ function lexiconHitTier(source, weight, typedRoman, hitRoman) {
   }
   // Productive stem expansion never gets hard EXACT (padi: પદિ from pad+i must
   // not outrank soft exact પડી). Evidence-pool DICT only.
-  if (source === 'stem_matra' || source === 'stem_postfix' || source === 'stem_inflection') {
+  if (source === 'stem_matra' || source === 'stem_postfix' || source === 'stem_inflection' || source === 'stem_compound') {
     return TIER_DICT
   }
   // Near-exact weak suffixes: EXACT only when typed has no lexicon entry.
@@ -510,19 +510,30 @@ function lookupLexiconStem(stem) {
 /** Stem + postposition (mulyama → મૂલ્ય + માં). Skips if roman stem ends in a vowel letter. */
 function lexiconStemPostfixHits(typed) {
   const out = []
+  const seen = new Set()
   const lower = String(typed || '').toLowerCase()
   if (lower.length < 4) return out
-  for (const [suf, guSuf] of configuredStemPostfixSuffixes()) {
+  let matchedSuffixLength = null
+  const suffixes = configuredStemPostfixSuffixes()
+    .filter(([suf]) => suf && lower.endsWith(suf))
+    .sort((a, b) => b[0].length - a[0].length)
+  for (const [suf, guSuf] of suffixes) {
+    if (matchedSuffixLength !== null && suf.length < matchedSuffixLength) break
     if (lower.length <= suf.length + 2) continue
     if (!lower.endsWith(suf)) continue
     const stem = lower.slice(0, -suf.length)
     if (!stem || stem.length < 2) continue
-    // Allow inherent-a roman stems (moolya); reject other vowel endings (mane↛ma+ne).
-    const last = stem[stem.length - 1]
-    if ('eiou'.includes(last)) continue
-    if (/(aa|ii|ee|uu|oo|ai|au)$/.test(stem)) continue
     const hit = lookupLexiconStem(stem)
     if (!hit) continue
+    // Short vowel-final stems are ambiguous (mane must not become ma+ne).
+    // Longer, strongly attested stems productively take Gujarati postpositions.
+    const vowelFinal = /(?:e|i|o|u|aa|ii|ee|uu|oo|ai|au)$/.test(stem)
+    const stemValidity = dictionaryValidity(hit.word)
+    if (
+      vowelFinal &&
+      (stem.length < 5 || (hit.weight < LEXICON_STRONG_WEIGHT && !stemValidity.attested))
+    ) continue
+    if (suf === 'o' && stem.length < 5) continue
     // Prefer bare inherent-a stems; allow nasal/matra stems (હિંમતમાં).
     if (
       !endsWithConsonantWithImplicitA(hit.word) &&
@@ -530,13 +541,21 @@ function lexiconStemPostfixHits(typed) {
     ) {
       continue
     }
+    let composedSuffix = guSuf
+    if (endsWithConsonantWithImplicitA(hit.word) && guSuf.startsWith('ઓ')) {
+      composedSuffix = 'ો' + guSuf.slice(1)
+    }
+    const word = hit.word + composedSuffix
+    if (seen.has(word)) continue
+    seen.add(word)
     out.push({
       roman: hit.roman + suf,
-      word: hit.word + guSuf,
+      word,
       weight: Math.max(hit.weight, 120),
       source: 'stem_postfix',
     })
-    break // longest matching postfix only
+    matchedSuffixLength = suf.length
+    if (out.length >= 8) break
   }
   return out
 }
@@ -569,6 +588,68 @@ function lexiconStemInflectionHits(typed) {
     if (out.length >= 8) break
   }
   return out
+}
+
+/** Bounded exact-part compound generation; no word identities or free-form splits. */
+function lexiconCompoundHits(typed) {
+  const lower = String(typed || '').toLowerCase()
+  const policy = ((RUNTIME && RUNTIME.policy) || {}).morphology || {}
+  const minInput = Math.max(6, Number(policy.compound_min_input_length) || 8)
+  const minPart = Math.max(2, Number(policy.compound_min_component_length) || 3)
+  const maxComponents = Math.max(2, Math.min(3, Number(policy.max_components) || 3))
+  const maxCandidates = Math.max(1, Math.min(16, Number(policy.max_compound_candidates) || 8))
+  if (lower.length < minInput) return []
+
+  const partCache = new Map()
+  function part(roman) {
+    if (partCache.has(roman)) return partCache.get(roman)
+    const word = APPLE_LEXICON.get(roman) || DICT_TRIE.findExact(roman)
+    if (!word) {
+      partCache.set(roman, null)
+      return null
+    }
+    const weight = lexiconWeight(roman)
+    const validity = dictionaryValidity(word)
+    const value = (weight >= 100 || validity.attested)
+      ? { roman, word, weight, evidence: validity.evidence || 0 }
+      : null
+    partCache.set(roman, value)
+    return value
+  }
+
+  const out = []
+  const seen = new Set()
+  function emit(parts) {
+    const word = parts.map((item) => item.word).join('')
+    if (!word || seen.has(word)) return
+    seen.add(word)
+    const evidence = parts.reduce((sum, item) => sum + Math.log1p(item.evidence), 0)
+    const weight = Math.max(100, Math.min(...parts.map((item) => item.weight || 100)))
+    out.push({
+      roman: parts.map((item) => item.roman).join(''),
+      word,
+      weight,
+      evidence,
+      components: parts.length,
+      source: 'stem_compound',
+    })
+  }
+
+  for (let first = minPart; first <= lower.length - minPart; first += 1) {
+    const left = part(lower.slice(0, first))
+    if (!left) continue
+    const right = part(lower.slice(first))
+    if (right) emit([left, right])
+    if (maxComponents < 3) continue
+    for (let second = first + minPart; second <= lower.length - minPart; second += 1) {
+      const middle = part(lower.slice(first, second))
+      if (!middle) continue
+      const tail = part(lower.slice(second))
+      if (tail) emit([left, middle, tail])
+    }
+  }
+  out.sort((a, b) => b.evidence - a.evidence || b.weight - a.weight || a.components - b.components)
+  return out.slice(0, maxCandidates)
 }
 
 /**
@@ -758,6 +839,13 @@ export class GujaratiTranslator {
     if (USER_LEARNING_ENABLED) {
       USER_LEARNING = initLearningSession(env)
     }
+    this.neuralMode = getEnvString(env, 'translator/neural_mode', 'auto')
+    this.requiredNeuralMissing =
+      this.neuralMode === 'required' && !neuralCapability(env).available
+    if (this.requiredNeuralMissing) {
+      console.error('$qjs$ deployment error: neural_mode=required but Gujarati model is unavailable')
+    }
+    this.menuCache = new Map()
   }
 
   finalizer() {
@@ -775,6 +863,7 @@ export class GujaratiTranslator {
       if (!input || input.length === 0) {
         return []
       }
+      if (this.requiredNeuralMissing) return []
 
       if (looksLikeLatinLiteral(input) || looksLikeAsciiNumber(input)) {
         const cand = new Candidate('latin', segment.start, segment.end, input, '', 100)
@@ -799,9 +888,36 @@ export class GujaratiTranslator {
       const maxPhonetic = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_phonetic', 4)))
       const maxEmoji = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_emoji', 2)))
       const maxCandidates = Math.max(1, Math.floor(getEnvNumber(env, 'translator/max_candidates', 6)))
+      const neuralMode = getEnvString(env, 'translator/neural_mode', 'auto')
+      const maxNeural = Math.max(1, Math.min(8, Math.floor(
+        getEnvNumber(env, 'translator/max_neural_candidates', 4)
+      )))
       LM_WEIGHTS.unigram = getEnvNumber(env, 'translator/lm_unigram_weight', LM_WEIGHTS.unigram)
       LM_WEIGHTS.user = getEnvNumber(env, 'translator/lm_user_weight', LM_WEIGHTS.user)
       const lower = input.toLowerCase()
+      const learningEntry = enableUserLm && USER_LEARNING && USER_LEARNING.choices
+        ? USER_LEARNING.choices[lower]
+        : null
+      const cacheKey = [
+        input, hardGate, fuzzyExactSoft, includeLatin, emojiEnable, maxPrefix,
+        maxPhonetic, maxEmoji, maxCandidates, neuralMode, maxNeural,
+        JSON.stringify(learningEntry || null),
+      ].join('\u001f')
+      const materialize = (descriptors) => descriptors.map((item) => {
+        const candidate = new Candidate(
+          item.candidateType,
+          segment.start,
+          segment.end,
+          item.native,
+          item.comment,
+          0
+        )
+        candidate.quality = item.quality
+        if (item.debugRank) candidate.debugRank = item.debugRank
+        return candidate
+      })
+      const cached = this.menuCache.get(cacheKey)
+      if (cached) return materialize(cached)
       const seen = new Set()
       const items = []
 
@@ -950,6 +1066,22 @@ export class GujaratiTranslator {
           { transformFamily: 'stem_inflection', transformCost: 1, weight: hit.weight }
         )
       }
+      for (const hit of lexiconCompoundHits(lower)) {
+        pushCand(
+          hit.word,
+          input,
+          920 + Math.min(35, hit.evidence),
+          TIER_DICT,
+          false,
+          hit.roman,
+          'stem_compound',
+          {
+            transformFamily: 'stem_compound',
+            transformCost: Math.max(1, hit.components - 1),
+            weight: hit.weight,
+          }
+        )
+      }
 
       // Near-exact lexicon: typed + weak suffix (poshatu→poshatun).
       // Only from the typed roman (not a→aa expansions: ank↛aankh), and only when
@@ -1084,10 +1216,6 @@ export class GujaratiTranslator {
         }
       }
 
-      const neuralMode = getEnvString(env, 'translator/neural_mode', 'auto')
-      const maxNeural = Math.max(1, Math.min(8, Math.floor(
-        getEnvNumber(env, 'translator/max_neural_candidates', 4)
-      )))
       if (!hasStrongExact || exactCount === 0) {
         const neural = neuralNBest(env, lower, maxNeural, neuralMode)
         if (neural.requiredMissing) {
@@ -1227,7 +1355,10 @@ export class GujaratiTranslator {
           Number((runtimePolicy.weights && runtimePolicy.weights.transform_cost) || 1.35)
         const neuralBoost = (Number(item.neuralLogProb) || 0) *
           Number((runtimePolicy.weights && runtimePolicy.weights.neural_log_probability) || 0.35)
-        let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost + neuralBoost - transformPenalty
+        const neuralSourceBoost = item.exactSource === 'neural'
+          ? Number((runtimePolicy.weights && runtimePolicy.weights.neural_source_boost) || 0)
+          : 0
+        let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost + neuralBoost + neuralSourceBoost - transformPenalty
         let tier = item.tier
         const isLex =
           item.exactSource === 'strict' ||
@@ -1235,7 +1366,8 @@ export class GujaratiTranslator {
           item.exactSource === 'near_exact' ||
           item.exactSource === 'stem_matra' ||
           item.exactSource === 'stem_postfix' ||
-          item.exactSource === 'stem_inflection'
+          item.exactSource === 'stem_inflection' ||
+          item.exactSource === 'stem_compound'
         if (isLex && (item.weight || 0) > 0 && (item.weight || 0) < LEXICON_STRONG_WEIGHT && unigramCount < 150) {
           score -= freq * 0.85 + 2.8
         }
@@ -1488,19 +1620,16 @@ export class GujaratiTranslator {
         emojiMinConfidence: Number(menuPolicy.emoji_min_confidence) || 0.9,
       })
 
-      const sortedCandidates = laid.map((item, rank) => {
-        const c = new Candidate(
-          item.candidateType || 'gujarati',
-          segment.start,
-          segment.end,
-          item.native,
-          item.comment || '',
-          0
-        )
+      const descriptors = laid.map((item, rank) => {
         // TIER_EMOJI=TIER_MAX → base 0 so script candidates always outrank emoji.
-        c.quality = (TIER_MAX - item.tier) * 200 + Math.max(0, 180 - rank)
+        const descriptor = {
+          candidateType: item.candidateType || 'gujarati',
+          native: item.native,
+          comment: item.comment || '',
+          quality: (TIER_MAX - item.tier) * 200 + Math.max(0, 180 - rank),
+        }
         if (getEnvBool(env, 'translator/debug_rank', false)) {
-          c.debugRank = {
+          descriptor.debugRank = {
             tier: item.tier,
             score: item.score,
             romanKey: item.romanKey,
@@ -1510,13 +1639,16 @@ export class GujaratiTranslator {
             transformCost: item.transformCost,
           }
         }
-        return c
+        return descriptor
       })
 
       // Hard cap menu size (page_size alone still allows paging past soft limits).
-      return sortedCandidates.length > maxCandidates
-        ? sortedCandidates.slice(0, maxCandidates)
-        : sortedCandidates
+      const capped = descriptors.length > maxCandidates
+        ? descriptors.slice(0, maxCandidates)
+        : descriptors
+      this.menuCache.set(cacheKey, capped)
+      if (this.menuCache.size > 512) this.menuCache.delete(this.menuCache.keys().next().value)
+      return materialize(capped)
     } catch (e) {
       console.error('$qjs$ translate error:', e.message)
       return []

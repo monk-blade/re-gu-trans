@@ -11,6 +11,9 @@ const [mode = 'text', inputPath, outputPath, limitArg] = process.argv.slice(2)
 if (!inputPath || !outputPath || !['text', 'trie'].includes(mode)) {
   throw new Error('usage: js_production_runner.mjs text|trie INPUT.jsonl OUTPUT.jsonl')
 }
+const neuralFixtures = process.env.NEURAL_FIXTURES
+  ? new Map(Object.entries(JSON.parse(fs.readFileSync(process.env.NEURAL_FIXTURES, 'utf8'))))
+  : null
 
 class CandidateMock {
   constructor(type, start, end, text, comment, quality = 0) {
@@ -99,6 +102,10 @@ const config = {
     return null
   },
   getDouble() { return null },
+  getString(key) {
+    if (key === 'translator/neural_mode') return neuralFixtures ? 'auto' : 'off'
+    return null
+  },
 }
 const context = {
   input: '',
@@ -123,6 +130,10 @@ const env = {
       return JSON.stringify(policy)
     } catch { return '' }
   },
+}
+if (neuralFixtures) {
+  env.transliterateNBest = (roman, count) =>
+    (neuralFixtures.get(String(roman).toLowerCase()) || []).slice(0, count)
 }
 const startupStarted = performance.now()
 const translator = new GujaratiTranslator(env)

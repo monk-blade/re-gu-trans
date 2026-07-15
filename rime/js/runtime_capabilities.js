@@ -12,6 +12,16 @@ export function probeRuntimeCapabilities(env) {
   try {
     if (typeof globalThis.Trie === 'function') trie = new globalThis.Trie()
   } catch (_e) {}
+  let neuralModel = false
+  if (method(env, 'gujaratiModelAvailable')) {
+    try {
+      neuralModel = env.gujaratiModelAvailable() === true
+    } catch (_e) {}
+  } else {
+    neuralModel =
+      typeof globalThis.GujaratiModel !== 'undefined' &&
+      method(globalThis.GujaratiModel, 'nbest')
+  }
   return {
     trie_constructor: typeof globalThis.Trie === 'function',
     trie_find: method(trie, 'find'),
@@ -20,9 +30,7 @@ export function probeRuntimeCapabilities(env) {
     segment_candidate_access:
       !segment || (method(segment, 'getCandidateAt') && Number.isFinite(Number(segment.candidateSize))),
     commit_notifier: !!ctx && !!ctx.commitNotifier && method(ctx.commitNotifier, 'connect'),
-    neural_model:
-      method(env, 'transliterateNBest') ||
-      (typeof globalThis.GujaratiModel !== 'undefined' && method(globalThis.GujaratiModel, 'nbest')),
+    neural_model: neuralModel,
   }
 }
 

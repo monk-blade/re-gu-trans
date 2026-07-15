@@ -66,7 +66,7 @@ export function lexiconHitTier(source, weight, typedRoman, hitRoman, opts) {
   if (typedRoman && typedRoman.length === 1 && iastPair[typedRoman]) return TIER_DICT
   if (source === 'strict' && !soft) return TIER_EXACT
   if (soft) return TIER_DICT
-  if (source === 'stem_matra' || source === 'stem_postfix' || source === 'stem_derived') {
+  if (source === 'stem_matra' || source === 'stem_postfix' || source === 'stem_derived' || source === 'stem_inflection' || source === 'stem_compound') {
     return TIER_DICT
   }
   if (source === 'near_exact') {

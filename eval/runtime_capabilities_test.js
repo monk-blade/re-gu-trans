@@ -24,7 +24,13 @@ const capabilities = probeRuntimeCapabilities(env)
 assert(missingRuntimeCapabilities(capabilities, { learning: true }).length === 0, 'full runtime')
 assert(missingRuntimeCapabilities(capabilities, { neural: true }).includes('neural_model'), 'neural optional absent')
 env.transliterateNBest = () => []
+env.gujaratiModelAvailable = () => true
 assert(missingRuntimeCapabilities(probeRuntimeCapabilities(env), { neural: true }).length === 0, 'neural bridge observed')
+env.gujaratiModelAvailable = () => false
+assert(
+  missingRuntimeCapabilities(probeRuntimeCapabilities(env), { neural: true }).includes('neural_model'),
+  'bridge without installed model is unavailable'
+)
 delete env.writeFileAtomic
 assert(
   missingRuntimeCapabilities(probeRuntimeCapabilities(env), { learning: true }).includes('write_file_atomic'),
