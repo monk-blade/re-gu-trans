@@ -111,7 +111,17 @@ const env = {
   userDataDir: path.join(ROOT, 'rime'),
   engine: { schema: { config, pageSize: 6 }, context },
   loadFile(file) {
-    try { return fs.readFileSync(file, 'utf8') } catch { return '' }
+    try {
+      const text = fs.readFileSync(file, 'utf8')
+      if (path.basename(file) !== 'ranking_policy.json' || !process.env.AKSHAR_DISABLE_FAMILY) {
+        return text
+      }
+      const policy = JSON.parse(text)
+      if (policy.experimental_families) {
+        delete policy.experimental_families[process.env.AKSHAR_DISABLE_FAMILY]
+      }
+      return JSON.stringify(policy)
+    } catch { return '' }
   },
 }
 const startupStarted = performance.now()

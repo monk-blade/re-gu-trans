@@ -8,6 +8,7 @@ js_production_runner.mjs.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -28,7 +29,9 @@ def canonical_native(text: str) -> str:
     return value
 
 
-def rank_many(romans: list[str], mode: str = "trie") -> list[dict]:
+def rank_many(
+    romans: list[str], mode: str = "trie", disable_family: str | None = None
+) -> list[dict]:
     if mode not in {"text", "trie"}:
         raise ValueError(f"unsupported production rank mode: {mode}")
     if not romans:
@@ -46,12 +49,16 @@ def rank_many(romans: list[str], mode: str = "trie") -> list[dict]:
             ),
             encoding="utf-8",
         )
+        child_env = os.environ.copy()
+        if disable_family:
+            child_env["AKSHAR_DISABLE_FAMILY"] = disable_family
         process = subprocess.run(
             ["node", str(RUNNER), mode, str(source), str(output)],
             cwd=ROOT,
             text=True,
             capture_output=True,
             check=False,
+            env=child_env,
         )
         if process.returncode:
             raise ProductionRankError(
@@ -79,5 +86,10 @@ def rank_many(romans: list[str], mode: str = "trie") -> list[dict]:
     return rows
 
 
-def top_six_many(romans: list[str], mode: str = "trie") -> list[list[str]]:
-    return [list(row.get("top6") or []) for row in rank_many(romans, mode)]
+def top_six_many(
+    romans: list[str], mode: str = "trie", disable_family: str | None = None
+) -> list[list[str]]:
+    return [
+        list(row.get("top6") or [])
+        for row in rank_many(romans, mode, disable_family=disable_family)
+    ]

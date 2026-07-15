@@ -50,6 +50,8 @@ jobs:
           node eval/runtime_capabilities_test.js
       - name: Binary/text payload parity
         run: python3 eval/binary_text_parity.py
+      - name: Accepted generation-family ablations
+        run: python3 eval/ablation_check.py
       - name: Coefficient schema validation
         run: python3 train/ltr/train_coefficients.py
       - name: Held-out diagnostic
