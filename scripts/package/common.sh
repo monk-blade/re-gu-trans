@@ -217,3 +217,21 @@ require_file() {
     exit 1
   fi
 }
+
+# Print the conventional "digest  filename" form on every supported runner.
+sha256_file() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file"
+  else
+    python3 - "$file" <<'PY'
+from hashlib import sha256
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+print(f"{sha256(path.read_bytes()).hexdigest()}  {path}")
+PY
+  fi
+}

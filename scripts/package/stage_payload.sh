@@ -113,7 +113,7 @@ EOF
   echo "writeFileAtomic=patched-overlay"
   echo "--- sha256 ---"
   (cd "$OUT_DIR" && find . -type f | sort | while read -r f; do
-    shasum -a 256 "$f" | awk '{print $1"  "$2}'
+    sha256_file "$f" | awk '{print $1"  "$2}'
   done)
 } > "$OUT_DIR/MANIFEST.txt"
 
