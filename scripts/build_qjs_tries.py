@@ -74,13 +74,13 @@ def write_text_assets(lex: dict, weights: dict):
     if STEMS.exists():
         stems = {
             k: int(v)
-            for k, v in json.loads(STEMS.read_text()).items()
+            for k, v in json.loads(STEMS.read_text(encoding="utf-8")).items()
             if str(v).isdigit() or isinstance(v, (int, float))
         }
     attested: set[str] = set()
     attested_floor = 50
     if ATT.exists():
-        data = json.loads(ATT.read_text())
+        data = json.loads(ATT.read_text(encoding="utf-8"))
         words = data.get("words") if isinstance(data, dict) else data
         if isinstance(words, list):
             attested = set(map(str, words))

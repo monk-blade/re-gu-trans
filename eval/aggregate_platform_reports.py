@@ -8,6 +8,11 @@ from pathlib import Path
 
 REQUIRED = {"macos", "linux", "windows"}
 CAPABILITIES = ("trie", "candidate_access", "commit_notifier", "write_file_atomic", "neural_model")
+EXPECTED_FORMATS = {
+    "linux": [".deb", ".rpm"],
+    "macos": [".pkg", ".zip"],
+    "windows": [".zip"],
+}
 
 
 def main() -> int:
@@ -47,6 +52,8 @@ def main() -> int:
             failures.append(platform + ":plugin-hash")
         if not report.get("packages") or not all(item.get("valid") for item in report["packages"]):
             failures.append(platform + ":packages")
+        if sorted(report.get("package_formats") or []) != EXPECTED_FORMATS[platform]:
+            failures.append(platform + ":package-formats")
         if (
             not model_pack.get("validated")
             or model_pack.get("bytes") is None

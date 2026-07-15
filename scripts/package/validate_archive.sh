@@ -13,7 +13,7 @@ case "$ARCHIVE" in
   *.deb) dpkg-deb -x "$ARCHIVE" "$TMP" ;;
   *.rpm)
     command -v rpm2cpio >/dev/null
-    (cd "$TMP" && rpm2cpio "$ARCHIVE" | cpio -idm --quiet)
+    rpm2cpio "$ARCHIVE" | (cd "$TMP" && cpio -idm --quiet)
     ;;
   *.pkg)
     command -v pkgutil >/dev/null

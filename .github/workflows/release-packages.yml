@@ -21,6 +21,7 @@ permissions:
 env:
   LIBRIME_QJS_TAG: v1.3.0
   LIBRIME_TAG: '1.16.1'
+  MODEL_PACK_ID: gu-transformer-ctc-v2
   REQUIRE_BINARY_TRIES: '1'
 
 jobs:
@@ -87,6 +88,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install build deps
         run: |
           sudo apt-get update
@@ -99,7 +103,7 @@ jobs:
             libleveldb-dev libmarisa-dev libopencc-dev \
             libcapnp-dev capnproto \
             p7zip-full rpm python3-pip
-          pip install marisa-trie
+          python -m pip install marisa-trie
       - name: Install nfpm
         run: |
           curl -sL "https://github.com/goreleaser/nfpm/releases/download/v2.41.3/nfpm_2.41.3_Linux_x86_64.tar.gz" \
@@ -122,7 +126,7 @@ jobs:
             ./scripts/package/linux/build_neural_model_pack.sh
           python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-linux
           (cd dist/gujarati-model-pack-linux && zip -qr \
-            ../packages/re-gu-trans-gu-ctc-v1-linux-x64.zip .)
+            ../packages/re-gu-trans-${MODEL_PACK_ID}-linux-x64.zip .)
           ./scripts/package/validate_payload.sh dist/payload-linux
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build/librime \
@@ -143,7 +147,7 @@ jobs:
             --plugin dist/plugins/librime-qjs.so --payload dist/payload-linux \
             --package "$(find dist/packages -name '*.deb' | head -1)" \
             --package "$(find dist/packages -name '*.rpm' | head -1)" \
-            --model-pack dist/packages/re-gu-trans-gu-ctc-v1-linux-x64.zip \
+            --model-pack dist/packages/re-gu-trans-${MODEL_PACK_ID}-linux-x64.zip \
             --output dist/reports/verification-linux.json
       - uses: actions/upload-artifact@v4
         with:
@@ -151,7 +155,7 @@ jobs:
           path: |
             dist/packages/*.deb
             dist/packages/*.rpm
-            dist/packages/*gu-ctc-v1-linux-x64.zip
+            dist/packages/*gu-transformer-ctc-v2-linux-x64.zip
             dist/reports/verification-linux.json
 
   macos:
@@ -159,6 +163,13 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build dependencies
+        run: |
+          brew install boost
+          python -m pip install marisa-trie
       - name: Build pkg + zip
         env:
           VERSION: ${{ needs.stage.outputs.version }}
@@ -167,7 +178,6 @@ jobs:
         run: |
           chmod +x scripts/package/macos/*.sh scripts/package/*.sh
           chmod +x scripts/package/macos/postinstall
-          pip3 install marisa-trie
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/macos/build_pkg.sh
           curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
@@ -177,7 +187,7 @@ jobs:
             ./scripts/package/macos/build_neural_model_pack.sh
           python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-macos
           (cd dist/gujarati-model-pack-macos && zip -qr \
-            ../packages/re-gu-trans-gu-ctc-v1-macos-arm64.zip .)
+            ../packages/re-gu-trans-${MODEL_PACK_ID}-macos-arm64.zip .)
           ./scripts/package/validate_payload.sh dist/payload-macos
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build-macos/librime \
@@ -198,7 +208,7 @@ jobs:
             --plugin dist/plugins/librime-qjs.dylib --payload dist/payload-macos \
             --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.zip" \
             --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.pkg" \
-            --model-pack dist/packages/re-gu-trans-gu-ctc-v1-macos-arm64.zip \
+            --model-pack dist/packages/re-gu-trans-${MODEL_PACK_ID}-macos-arm64.zip \
             --output dist/reports/verification-macos.json
       - uses: actions/upload-artifact@v4
         with:
@@ -206,7 +216,7 @@ jobs:
           path: |
             dist/packages/*macos-arm64.pkg
             dist/packages/*macos-arm64.zip
-            dist/packages/*gu-ctc-v1-macos-arm64.zip
+            dist/packages/*gu-transformer-ctc-v2-macos-arm64.zip
             dist/reports/verification-macos.json
 
   windows:
@@ -214,13 +224,19 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
       - name: Install 7zip + marisa-trie
         shell: bash
         run: |
-          choco install 7zip -y --no-progress || true
+          choco install 7zip aria2 -y --no-progress
           echo "$PROGRAMFILES/7-Zip" >> "$GITHUB_PATH"
           echo "/c/Program Files/7-Zip" >> "$GITHUB_PATH"
-          pip install marisa-trie
+          python -m pip install marisa-trie
       - name: Build zip
         shell: bash
         env:
@@ -239,7 +255,7 @@ jobs:
             ./scripts/package/windows/build_neural_model_pack.sh
           python eval/native_model_plugin_test.py dist/gujarati-model-pack-windows
           (cd dist/gujarati-model-pack-windows && 7z a -tzip -y \
-            ../packages/re-gu-trans-gu-ctc-v1-windows-x64.zip . >/dev/null)
+            ../packages/re-gu-trans-${MODEL_PACK_ID}-windows-x64.zip . >/dev/null)
           ./scripts/package/validate_payload.sh dist/payload-windows
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build-windows/librime \
@@ -259,14 +275,14 @@ jobs:
             --platform windows --arch x86_64 \
             --plugin dist/plugins/rime.dll --payload dist/payload-windows \
             --package "dist/packages/re-gu-trans-${VERSION}-windows-x64.zip" \
-            --model-pack dist/packages/re-gu-trans-gu-ctc-v1-windows-x64.zip \
+            --model-pack dist/packages/re-gu-trans-${MODEL_PACK_ID}-windows-x64.zip \
             --output dist/reports/verification-windows.json
       - uses: actions/upload-artifact@v4
         with:
           name: packages-windows
           path: |
             dist/packages/*windows-x64.zip
-            dist/packages/*gu-ctc-v1-windows-x64.zip
+            dist/packages/*gu-transformer-ctc-v2-windows-x64.zip
             dist/reports/verification-windows.json
 
   release-gate:
@@ -325,7 +341,7 @@ jobs:
           | Linux amd64 | \`re-gu-trans_${VERSION}_amd64.deb\` / \`.rpm\` | fcitx5-rime or ibus-rime |
 
           Optional offline Gujarati model packs are published as
-          \`re-gu-trans-gu-ctc-v1-<platform>.zip\`. The deterministic core remains fully usable
+          \`re-gu-trans-gu-transformer-ctc-v2-<platform>.zip\`. The deterministic core remains fully usable
           without a model pack; \`neural_mode: required\` intentionally blocks menus if its pack is absent.
 
           Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md) · Typing: [USAGE.md](https://github.com/monk-blade/re-gu-trans/blob/main/USAGE.md)
