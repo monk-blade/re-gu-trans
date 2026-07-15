@@ -33,4 +33,15 @@ test -n "$PAYLOAD" || { echo "FAIL: no packaged rime/js payload in $ARCHIVE" >&2
 PLUGIN="$(find "$TMP" -type f \( -name 'librime-qjs.so' -o -name 'librime-qjs.dylib' -o -name 'rime.dll' \) | head -1 || true)"
 test -n "$PLUGIN" || { echo "FAIL: runtime plugin absent from $ARCHIVE" >&2; exit 1; }
 "$ROOT/scripts/package/verify_qjs_plugin.sh" "$PLUGIN"
+if [[ -n "${EXPECTED_PLUGIN_SHA256:-}" ]]; then
+  if command -v sha256sum >/dev/null 2>&1; then
+    ACTUAL_PLUGIN_SHA256="$(sha256sum "$PLUGIN" | awk '{print $1}')"
+  else
+    ACTUAL_PLUGIN_SHA256="$(shasum -a 256 "$PLUGIN" | awk '{print $1}')"
+  fi
+  test "$ACTUAL_PLUGIN_SHA256" = "$EXPECTED_PLUGIN_SHA256" || {
+    echo "FAIL: packaged plugin hash differs from tested plugin" >&2
+    exit 1
+  }
+fi
 echo "VALIDATE_ARCHIVE_OK archive=$ARCHIVE plugin=$PLUGIN"

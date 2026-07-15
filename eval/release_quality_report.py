@@ -42,6 +42,7 @@ def main() -> int:
     apple = load_json(ROOT / "eval" / "apple_integrity_summary.json") or {}
     parity = load_json(ROOT / "eval" / "js_parity_summary.json") or {}
     learning = load_json(ROOT / "eval" / "learning_integration_summary.json") or {}
+    harness = load_json(ROOT / "eval" / "rime_harness_summary.json") or {}
     bench = load_json(ROOT / "eval" / "bench_summary.json") or {}
     budget = load_json(ROOT / "eval" / "budget_summary.json") or {}
     report = {
@@ -62,7 +63,7 @@ def main() -> int:
         "learning": learning,
         "benchmark": bench,
         "ltr": load_json(ROOT / "eval" / "ltr_train_summary.json"),
-        "harness": load_json(ROOT / "eval" / "rime_harness_summary.json"),
+        "harness": harness or None,
         "payload_hashes": {
             "lexicon.trie.bin": sha256(js / "lexicon.trie.bin"),
             "prefix.trie.bin": sha256(js / "prefix.trie.bin"),
@@ -77,7 +78,8 @@ def main() -> int:
             ),
             "require_binary_tries": os.environ.get("REQUIRE_BINARY_TRIES", "1"),
             "ltr_enabled": False,
-            "writeFileAtomic": "verified-by-platform-package-job",
+            "observed_runtime": harness.get("capabilities") or None,
+            "writeFileAtomic": (harness.get("capabilities") or {}).get("write_file_atomic"),
             "librime_pin": "1.16.1",
             "librime_qjs_tag": "v1.3.0",
         },
@@ -119,6 +121,12 @@ def main() -> int:
         failures.append("parity")
     if not learning.get("ok"):
         failures.append("learning")
+    if os.environ.get("REQUIRE_REAL_RIME") == "1":
+        caps = harness.get("capabilities") or {}
+        if not harness.get("real_librime") or not harness.get("learning_persisted"):
+            failures.append("real_librime")
+        if not all(caps.get(name) for name in ("trie", "candidate_access", "commit_notifier", "write_file_atomic")):
+            failures.append("runtime_capabilities")
     if bench.get("query_p95_ms") is None or bench.get("query_p95_ms") > 5:
         failures.append("query_p95")
     if budget.get("staged_est_bytes") is None or budget.get("staged_est_bytes") > 70 * 1024 * 1024:

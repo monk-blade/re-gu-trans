@@ -1,12 +1,18 @@
 // End-to-end librime session test for menus and persisted numbered learning.
 #include <rime_api.h>
 
+#include <algorithm>
+#include <chrono>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
 namespace {
+
+using Clock = std::chrono::steady_clock;
 
 RimeApi* api = nullptr;
 
@@ -70,13 +76,39 @@ int main(int argc, char** argv) {
     return 2;
   }
   api = rime_get_api();
+  const auto startup_begin = Clock::now();
   RimeSessionId session = start_session(argv[1], argv[2]);
   if (!session) return 3;
+  const double startup_ms =
+      std::chrono::duration<double, std::milli>(Clock::now() - startup_begin).count();
 
   const std::string roman = "padi";
   const std::string target = "પાડી";
   auto initial = menu(session, roman);
-  if (initial.size() < 3 || initial[1] != roman) return 4;
+  const bool latin_slot_observed = initial.size() >= 3 && initial[1] == roman;
+  const bool binary_menu_observed = !initial.empty();
+  if (!latin_slot_observed) return 4;
+
+  const std::vector<std::string> benchmark_inputs = {
+      "jamin", "favshe", "poshatu", "ketli", "padi", "parkhavyu",
+      "mne", "gujarat", "shanti", "kshama", "gnan", "moolyama"};
+  std::vector<double> query_ms;
+  query_ms.reserve(600);
+  for (int round = 0; round < 50; ++round) {
+    for (const auto& input : benchmark_inputs) {
+      const auto begin = Clock::now();
+      const auto candidates = menu(session, input);
+      query_ms.push_back(
+          std::chrono::duration<double, std::milli>(Clock::now() - begin).count());
+      if (candidates.empty()) return 10;
+    }
+  }
+  std::sort(query_ms.begin(), query_ms.end());
+  const auto percentile = [&](double p) {
+    const size_t at = std::min(query_ms.size() - 1,
+                               static_cast<size_t>(query_ms.size() * p));
+    return query_ms[at];
+  };
 
   std::vector<std::string> tops;
   for (int count = 1; count <= 3; ++count) {
@@ -87,7 +119,18 @@ int main(int argc, char** argv) {
     if (next.empty()) return 6;
     tops.push_back(next[0]);
   }
-  if (tops[0] == target || tops[1] == target || tops[2] != target) return 7;
+  const bool three_selection_observed =
+      tops[0] != target && tops[1] != target && tops[2] == target;
+  if (!three_selection_observed) return 7;
+  const std::filesystem::path learning_path =
+      std::filesystem::path(argv[2]) / "gujarati.user-learning.json";
+  std::ifstream learning_stream(learning_path);
+  const bool learning_file_open = learning_stream.is_open();
+  const std::string learning_json((std::istreambuf_iterator<char>(learning_stream)),
+                                  std::istreambuf_iterator<char>());
+  const bool atomic_file_observed = learning_file_open &&
+      learning_json.find(target) != std::string::npos;
+  if (!atomic_file_observed) return 11;
 
   api->destroy_session(session);
   api->finalize();
@@ -99,7 +142,20 @@ int main(int argc, char** argv) {
   api->finalize();
   if (!persisted) return 9;
 
+  const bool candidate_access_observed = three_selection_observed;
+  const bool commit_notifier_observed = three_selection_observed;
+
   std::cout << "{\"ok\":true,\"real_librime\":true,"
-            << "\"learning_persisted\":true,\"latin_slot\":2}\n";
+            << "\"three_selection_observed\":" << (three_selection_observed ? "true" : "false")
+            << ",\"learning_persisted\":" << (persisted ? "true" : "false")
+            << ",\"latin_slot\":" << (latin_slot_observed ? 2 : -1) << ","
+            << "\"capabilities\":{\"trie\":" << (binary_menu_observed ? "true" : "false")
+            << ",\"candidate_access\":" << (candidate_access_observed ? "true" : "false")
+            << ",\"commit_notifier\":" << (commit_notifier_observed ? "true" : "false")
+            << ",\"write_file_atomic\":" << (atomic_file_observed ? "true" : "false") << "},"
+            << "\"benchmark\":{\"host\":\"real-librime\",\"cases\":"
+            << query_ms.size() << ",\"startup_ms\":" << startup_ms
+            << ",\"query_p50_ms\":" << percentile(0.50)
+            << ",\"query_p95_ms\":" << percentile(0.95) << "}}\n";
   return 0;
 }

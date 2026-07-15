@@ -110,12 +110,23 @@ jobs:
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/linux/build_packages.sh
           ./scripts/package/validate_payload.sh dist/payload-linux
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.so \
+            ./eval/rime_harness.sh
+          python3 eval/platform_verification.py \
+            --platform linux --arch x86_64 \
+            --plugin dist/plugins/librime-qjs.so --payload dist/payload-linux \
+            --package "$(find dist/packages -name '*.deb' | head -1)" \
+            --package "$(find dist/packages -name '*.rpm' | head -1)" \
+            --output dist/reports/verification-linux.json
       - uses: actions/upload-artifact@v4
         with:
           name: packages-linux
           path: |
             dist/packages/*.deb
             dist/packages/*.rpm
+            dist/reports/verification-linux.json
 
   macos:
     needs: stage
@@ -134,12 +145,23 @@ jobs:
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/macos/build_pkg.sh
           ./scripts/package/validate_payload.sh dist/payload-macos
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-macos/librime \
+            RIME_PLUGIN=dist/plugins/librime-qjs.dylib \
+            ./eval/rime_harness.sh
+          python3 eval/platform_verification.py \
+            --platform macos --arch arm64 \
+            --plugin dist/plugins/librime-qjs.dylib --payload dist/payload-macos \
+            --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.zip" \
+            --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.pkg" \
+            --output dist/reports/verification-macos.json
       - uses: actions/upload-artifact@v4
         with:
           name: packages-macos
           path: |
             dist/packages/*macos-arm64.pkg
             dist/packages/*macos-arm64.zip
+            dist/reports/verification-macos.json
 
   windows:
     needs: stage
@@ -165,13 +187,41 @@ jobs:
           python scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/windows/build_zip.sh
           ./scripts/package/validate_payload.sh dist/payload-windows
+          REQUIRE_RIME_DEPLOYER=1 \
+            RIME_BUILD_ROOT=dist/librime-build-windows/librime \
+            RIME_PLUGIN=dist/plugins/rime.dll \
+            ./eval/rime_harness.sh
+          python eval/platform_verification.py \
+            --platform windows --arch x86_64 \
+            --plugin dist/plugins/rime.dll --payload dist/payload-windows \
+            --package "dist/packages/re-gu-trans-${VERSION}-windows-x64.zip" \
+            --output dist/reports/verification-windows.json
       - uses: actions/upload-artifact@v4
         with:
           name: packages-windows
-          path: dist/packages/*windows-x64.zip
+          path: |
+            dist/packages/*windows-x64.zip
+            dist/reports/verification-windows.json
+
+  release-gate:
+    needs: [stage, linux, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Aggregate observed platform verification
+        run: |
+          python3 eval/aggregate_platform_reports.py artifacts \
+            --output dist/reports/release-platform-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-platform-report
+          path: dist/reports/release-platform-report.json
 
   publish:
-    needs: [stage, linux, macos, windows]
+    needs: [stage, release-gate]
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag' || inputs.publish == true
     steps:

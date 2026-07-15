@@ -21,7 +21,12 @@ for bin in lexicon.trie.bin prefix.trie.bin native_lm.trie.bin; do
 done
 ! test -f "$JS/gu_lexicon_blob.json" || { echo "FAIL: blob present in $JS" >&2; exit 1; }
 ! test -f "$JS/lm/unigram.tsv" || { echo "FAIL: unigram present in $JS" >&2; exit 1; }
-test -f "$JS/gujarati_translator.js" || { echo "FAIL: missing translator" >&2; exit 1; }
+for module in \
+  gujarati_translator.js engine.js ranking.js ranking_primitives.js phonetic.js storage.js \
+  learning.js selection_tracker_processor.js runtime_capabilities.js commit_on_punct_processor.js
+do
+  test -f "$JS/$module" || { echo "FAIL: missing runtime module $module" >&2; exit 1; }
+done
 test -f "$JS/ranking_policy.json" || { echo "FAIL: missing ranking_policy" >&2; exit 1; }
 test -f "$JS/native_lm_meta.json" || { echo "FAIL: missing native LM metadata" >&2; exit 1; }
 

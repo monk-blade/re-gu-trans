@@ -48,7 +48,10 @@ for f in \
   commit_on_punct_processor.js \
   js/ranking_policy.json \
   js/native_lm_meta.json \
+  js/engine.js \
   js/ranking.js \
+  js/ranking_primitives.js \
+  js/phonetic.js \
   js/storage.js
 do
   test -f "$RIME_USER/$f" || { echo "MISSING $f"; exit 1; }
