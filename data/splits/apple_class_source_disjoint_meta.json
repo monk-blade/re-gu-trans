@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "seed": "apple-class-v1",
+  "runtime_roman_families_excluded": 344350,
+  "runtime_natives_excluded": 309688,
+  "sources": {
+    "aksharantar": {
+      "eligible": 723769,
+      "selected": 10000
+    },
+    "dakshina": {
+      "eligible": 40474,
+      "selected": 10000
+    }
+  },
+  "selected": 20000,
+  "length_bands": {
+    "1-3": 27,
+    "10-14": 8603,
+    "15+": 820,
+    "4-6": 1691,
+    "7-9": 8859
+  },
+  "short_behavior_cases": 500
+}
