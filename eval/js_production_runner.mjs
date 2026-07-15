@@ -107,6 +107,7 @@ const { GujaratiTranslator } = await import('../rime/js/engine.js')
 const config = {
   getBool(key) {
     if (key === 'translator/debug_rank') return process.env.DEBUG_RANK === '1'
+    if (key === 'translator/debug_paths') return process.env.DEBUG_PATHS === '1'
     if (key === 'translator/allow_text_fallback') return mode === 'text'
     if (key === 'translator/enable_user_learning') return false
     return null
@@ -136,6 +137,19 @@ const env = {
       const policy = JSON.parse(text)
       if (policy.experimental_families) {
         delete policy.experimental_families[process.env.AKSHAR_DISABLE_FAMILY]
+      }
+      if (process.env.AKSHAR_POLICY_OVERRIDES) {
+        const merge = (target, override) => {
+          for (const [key, value] of Object.entries(override || {})) {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              target[key] = merge({ ...(target[key] || {}) }, value)
+            } else {
+              target[key] = value
+            }
+          }
+          return target
+        }
+        merge(policy, JSON.parse(process.env.AKSHAR_POLICY_OVERRIDES))
       }
       return JSON.stringify(policy)
     } catch { return '' }

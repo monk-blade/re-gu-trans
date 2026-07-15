@@ -110,6 +110,12 @@ def main() -> int:
             "beam": 64,
             "apple_class_core": {"top1_pct": 45, "top3_pct": 55, "recall_at_6_pct": 60},
             "apple_class_hybrid": {"top1_improvement_pp": 5, "recall_at_6_improvement_pp": 8},
+            "hybrid_ranking": {
+                "top1_pct": 60,
+                "top3_pct": 75,
+                "recall_at_6_pct": 82,
+                "arbitration_regret_pct_below": 5,
+            },
             "emoji_first_page_recall_pct": 85,
             "emoji_false_positive_pct": 1,
         },
@@ -160,6 +166,8 @@ def main() -> int:
             failures.append("apple_class_full_stress")
         if not (harness.get("capabilities") or {}).get("neural_model") and os.environ.get("REQUIRE_REAL_RIME") == "1":
             failures.append("real_neural_model")
+    if os.environ.get("REQUIRE_HYBRID_TARGETS") == "1" and not neural_model.get("quality_targets_met"):
+        failures.append("hybrid_ranking_targets")
     report["gate_failures"] = failures
     report["passed"] = not failures
     OUT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
