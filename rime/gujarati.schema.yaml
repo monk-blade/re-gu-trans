@@ -66,6 +66,9 @@ translator:
   # Keyword emoji suggestions (English + Gujarati-roman); always below script
   emoji_enable: true
   max_emoji: 2
+  # Optional offline model pack. auto is bit-for-bit core fallback when absent.
+  neural_mode: auto  # auto | off | required
+  max_neural_candidates: 4
   lm_unigram_weight: 0.6
   lm_user_weight: 0.6
 

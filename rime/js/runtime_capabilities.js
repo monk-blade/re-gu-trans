@@ -20,6 +20,9 @@ export function probeRuntimeCapabilities(env) {
     segment_candidate_access:
       !segment || (method(segment, 'getCandidateAt') && Number.isFinite(Number(segment.candidateSize))),
     commit_notifier: !!ctx && !!ctx.commitNotifier && method(ctx.commitNotifier, 'connect'),
+    neural_model:
+      method(env, 'transliterateNBest') ||
+      (typeof globalThis.GujaratiModel !== 'undefined' && method(globalThis.GujaratiModel, 'nbest')),
   }
 }
 
@@ -28,6 +31,7 @@ export function missingRuntimeCapabilities(capabilities, options) {
   if (options && options.learning) {
     required.push('write_file_atomic', 'segment_candidate_access', 'commit_notifier')
   }
+  if (options && options.neural) required.push('neural_model')
   return required.filter((name) => !capabilities[name])
 }
 

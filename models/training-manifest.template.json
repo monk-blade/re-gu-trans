@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "model_version": null,
+  "architecture": "gujarati-character-transliteration",
+  "quantization": "int8",
+  "sources": [
+    {"name": "IndicXlit", "license": "MIT", "revision": null},
+    {"name": "Aksharantar", "license": "CC-BY-4.0 and CC0", "revision": null},
+    {"name": "Dakshina", "license": "CC-BY-SA-4.0", "revision": null}
+  ],
+  "excluded_eval_manifest_sha256": null,
+  "metrics": {"top1_pct": null, "top3_pct": null, "recall_at_6_pct": null},
+  "runtime": {"warm_p95_ms": null, "model_bytes": null}
+}

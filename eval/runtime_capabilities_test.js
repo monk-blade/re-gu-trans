@@ -22,6 +22,9 @@ const env = {
 }
 const capabilities = probeRuntimeCapabilities(env)
 assert(missingRuntimeCapabilities(capabilities, { learning: true }).length === 0, 'full runtime')
+assert(missingRuntimeCapabilities(capabilities, { neural: true }).includes('neural_model'), 'neural optional absent')
+env.transliterateNBest = () => []
+assert(missingRuntimeCapabilities(probeRuntimeCapabilities(env), { neural: true }).length === 0, 'neural bridge observed')
 delete env.writeFileAtomic
 assert(
   missingRuntimeCapabilities(probeRuntimeCapabilities(env), { learning: true }).includes('write_file_atomic'),

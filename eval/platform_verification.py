@@ -73,6 +73,7 @@ def main() -> int:
         "librime_qjs": os.environ.get("LIBRIME_QJS_TAG", "v1.3.0"),
         "plugin": {"path": args.plugin.name, "sha256": plugin_hash},
         "capabilities": caps,
+        "optional_capabilities": {"neural_model": caps.get("neural_model") is True},
         "learning": {
             "three_selection": three_selection,
             "restart_persisted": harness.get("learning_persisted") is True,
