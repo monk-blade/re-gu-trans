@@ -122,7 +122,12 @@ PY
 fi
 
 if [[ -x "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" ]]; then
-  "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload || true
+  SQUIRREL="/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel"
+  "$SQUIRREL" --quit || true
+  "$SQUIRREL" --register-input-source || true
+  "$SQUIRREL" --enable-input-source || true
+  "$SQUIRREL" --select-input-source || true
+  open -a "/Library/Input Methods/Squirrel.app" || true
 elif command -v fcitx5-remote >/dev/null 2>&1; then
   fcitx5-remote -r || true
 elif command -v ibus >/dev/null 2>&1; then
