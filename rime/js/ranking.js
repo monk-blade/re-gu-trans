@@ -45,6 +45,7 @@ import {
   EXPLICIT_PROMOTION_THRESHOLD,
 } from './learning.js'
 import { logRuntimeCapabilities } from './runtime_capabilities.js'
+import { neuralNBest } from './neural.js'
 
 // Gujarati phonetic transliteration engine for Rime using librime-qjs
 //
@@ -370,7 +371,7 @@ function lexiconHitTier(source, weight, typedRoman, hitRoman) {
   }
   // Productive stem expansion never gets hard EXACT (padi: પદિ from pad+i must
   // not outrank soft exact પડી). Evidence-pool DICT only.
-  if (source === 'stem_matra' || source === 'stem_postfix') {
+  if (source === 'stem_matra' || source === 'stem_postfix' || source === 'stem_inflection') {
     return TIER_DICT
   }
   // Near-exact weak suffixes: EXACT only when typed has no lexicon entry.
@@ -380,7 +381,8 @@ function lexiconHitTier(source, weight, typedRoman, hitRoman) {
     }
     return TIER_EXACT
   }
-  if (source === 'fuzzy' || source === 'strict') return TIER_EXACT
+  if (source === 'fuzzy') return TIER_DICT
+  if (source === 'strict') return TIER_EXACT
   return TIER_DICT
 }
 
@@ -539,6 +541,36 @@ function lexiconStemPostfixHits(typed) {
   return out
 }
 
+/** Productive word-level inflections (future, infinitive, agreement), policy-owned. */
+function lexiconStemInflectionHits(typed) {
+  const out = []
+  const seen = new Set()
+  const lower = String(typed || '').toLowerCase()
+  const policy = (RUNTIME && RUNTIME.policy) || {}
+  const suffixes = Array.isArray(policy.stem_inflection_suffixes)
+    ? policy.stem_inflection_suffixes
+    : []
+  for (const [suffix, nativeSuffix] of suffixes) {
+    if (!suffix || !nativeSuffix || lower.length <= suffix.length + 1 || !lower.endsWith(suffix)) continue
+    const stem = lower.slice(0, -suffix.length)
+    for (const stemQuery of [stem, stem + 'a']) {
+      const hit = lookupLexiconStem(stemQuery)
+      if (!hit || !hit.word) continue
+      const word = hit.word + nativeSuffix
+      if (seen.has(word)) continue
+      seen.add(word)
+      out.push({
+        roman: hit.roman + suffix,
+        word,
+        weight: Math.max(hit.weight, 120),
+        source: 'stem_inflection',
+      })
+    }
+    if (out.length >= 8) break
+  }
+  return out
+}
+
 /**
  * All roman strings to try against the Apple lexicon for this input.
  * Scalable fuzzy match — no per-word baking.
@@ -600,6 +632,16 @@ function getEnvNumber(env, key, fallback) {
   } catch (e) {
     return fallback
   }
+  return fallback
+}
+
+function getEnvString(env, key, fallback) {
+  try {
+    const config = env && env.engine && env.engine.schema && env.engine.schema.config
+    if (!config) return fallback
+    if (typeof config.get_string === 'function') return config.get_string(key) || fallback
+    if (typeof config.getString === 'function') return config.getString(key) || fallback
+  } catch (_e) {}
   return fallback
 }
 
@@ -763,7 +805,7 @@ export class GujaratiTranslator {
       const seen = new Set()
       const items = []
 
-      function pushCand(text, comment, quality, tier, isPhonetic, romanKey, exactSource) {
+      function pushCand(text, comment, quality, tier, isPhonetic, romanKey, exactSource, meta) {
         if (!text) return false
         text = normalizeGujaratiOrthography(text)
         if (seen.has(text)) {
@@ -791,15 +833,23 @@ export class GujaratiTranslator {
         items.push(makeCandidateRecord({
           native: text,
           text,
+          typedRoman: lower,
+          queryRoman: romanKey || lower,
           comment: comment || '',
           candidateType: tier === TIER_EMOJI ? 'emoji' : tier === TIER_LATIN ? 'latin' : 'gujarati',
           source,
           provenance: [source],
+          transformFamily: (meta && meta.transformFamily) || (source === 'strict' ? 'typed' : source),
+          transformCost: Math.max(0, Number(meta && meta.transformCost) || 0),
+          neuralLogProb: Number(meta && meta.neuralLogProb) || 0,
+          emojiConfidence: Math.max(0, Math.min(1, Number(meta && meta.emojiConfidence) || 0)),
           displayGroup: tier === TIER_EMOJI ? 'emoji' : tier === TIER_LATIN ? 'latin' : 'gu',
           tier,
           isPhonetic: !!isPhonetic,
           romanKey: romanKey || lower,
-          weight: tier === TIER_EMOJI ? quality : lexiconWeight(romanKey || lower),
+          weight: Number.isFinite(Number(meta && meta.weight))
+            ? Number(meta.weight)
+            : (tier === TIER_EMOJI ? quality : lexiconWeight(romanKey || lower)),
           exactSource: exactSource || null,
           closeness: romanCloseness(lower, romanKey || lower),
         }))
@@ -811,6 +861,16 @@ export class GujaratiTranslator {
       const romanQueries = expandRomanQueries(input)
       const runtimePolicy = (RUNTIME && RUNTIME.policy) || {}
       const altForms = generateAlternateForms(lower, runtimePolicy)
+      const latticeCosts = new Map([[lower, 0]])
+      try {
+        for (const form of expandRomanLattice(
+          lower,
+          runtimePolicy.confusion_pairs || DEFAULT_CONFUSION_PAIRS,
+          Object.assign({}, DEFAULT_LATTICE, runtimePolicy.lattice || {})
+        )) {
+          latticeCosts.set(form.roman, Number(form.cost) || 0)
+        }
+      } catch (_e) {}
 
       const exc = APPLE_EXCEPTIONS.get(lower) || APPLE_EXCEPTIONS.get(input)
       if (exc) {
@@ -818,7 +878,21 @@ export class GujaratiTranslator {
       }
 
       const exactHits = []
+      const generatedRomanKeys = new Set()
+      // The public pure generator is the authoritative lattice/Trie entry.
+      // The adapter supplements it only with non-lattice legacy alternate forms.
+      for (const record of modGenerateCandidates(lower, RUNTIME, runtimePolicy)) {
+        generatedRomanKeys.add(record.queryRoman || record.romanKey)
+        exactHits.push({
+          roman: record.queryRoman || record.romanKey,
+          word: record.native,
+          weight: record.weight,
+          source: record.source,
+          transformCost: record.transformCost,
+        })
+      }
       for (const q of romanQueries) {
+        if (generatedRomanKeys.has(q)) continue
         const word = APPLE_LEXICON.get(q) || DICT_TRIE.findExact(q)
         if (!word) continue
         const source = q === lower || q === input ? 'strict' : 'fuzzy'
@@ -827,6 +901,7 @@ export class GujaratiTranslator {
           word,
           weight: Math.max(lexiconWeight(q), q === lower ? 1 : 0),
           source,
+          transformCost: source === 'strict' ? 0 : (latticeCosts.get(q) ?? 2),
         })
       }
       exactHits.sort((a, b) => {
@@ -847,7 +922,8 @@ export class GujaratiTranslator {
           tier,
           false,
           hit.roman,
-          hit.source
+          hit.source,
+          { transformFamily: hit.source === 'strict' ? 'typed' : 'fuzzy', transformCost: hit.transformCost }
         )
       }
 
@@ -860,6 +936,19 @@ export class GujaratiTranslator {
       for (const hit of lexiconStemPostfixHits(lower)) {
         const tier = lexiconHitTier('stem_postfix', hit.weight, typedForTier, hit.roman)
         pushCand(hit.word, input, 930 + Math.min(40, Math.log1p(hit.weight) * 5), tier, false, hit.roman, 'stem_postfix')
+      }
+      for (const hit of lexiconStemInflectionHits(lower)) {
+        const tier = lexiconHitTier('stem_inflection', hit.weight, typedForTier, hit.roman)
+        pushCand(
+          hit.word,
+          input,
+          925 + Math.min(40, Math.log1p(hit.weight) * 5),
+          tier,
+          false,
+          hit.roman,
+          'stem_inflection',
+          { transformFamily: 'stem_inflection', transformCost: 1, weight: hit.weight }
+        )
       }
 
       // Near-exact lexicon: typed + weak suffix (poshatu→poshatun).
@@ -880,7 +969,16 @@ export class GujaratiTranslator {
             if (!isNearExactRomanSuffix(suf, entry.key, seed.length)) continue
             const w = lexiconWeight(entry.key)
             const tier = lexiconHitTier('near_exact', w, typedForTier, entry.key)
-            pushCand(entry.value, input, 900 + Math.min(50, Math.log1p(w) * 6), tier, false, entry.key, 'near_exact')
+            pushCand(
+              entry.value,
+              input,
+              900 + Math.min(50, Math.log1p(w) * 6),
+              tier,
+              false,
+              entry.key,
+              'near_exact',
+              { transformFamily: 'near_exact', transformCost: Math.max(1.5, suf.length * 1.5), weight: w }
+            )
           }
         }
       }
@@ -986,6 +1084,37 @@ export class GujaratiTranslator {
         }
       }
 
+      const neuralMode = getEnvString(env, 'translator/neural_mode', 'auto')
+      const maxNeural = Math.max(1, Math.min(8, Math.floor(
+        getEnvNumber(env, 'translator/max_neural_candidates', 4)
+      )))
+      if (!hasStrongExact || exactCount === 0) {
+        const neural = neuralNBest(env, lower, maxNeural, neuralMode)
+        if (neural.requiredMissing) {
+          console.error('$qjs$ neural_mode=required but Gujarati model bridge is unavailable')
+        } else if (neural.error) {
+          console.error('$qjs$ neural inference failed: ' + neural.error)
+        }
+        for (const result of neural.candidates) {
+          const validity = dictionaryValidity(result.native)
+          pushCand(
+            result.native,
+            'model',
+            650,
+            validity.attested ? TIER_DICT : TIER_PHONETIC,
+            false,
+            lower,
+            'neural',
+            {
+              transformFamily: 'neural',
+              transformCost: 0,
+              neuralLogProb: result.logProb,
+              weight: validity.evidence || 0,
+            }
+          )
+        }
+      }
+
       if (input.length >= 2 && maxPrefix > 0) {
         const prefixSeeds = new Set([lower])
         for (const q of romanQueries) {
@@ -1011,7 +1140,16 @@ export class GujaratiTranslator {
           const w = lexiconWeight(entry.key)
           if (entry.key.startsWith(lower) && !typedInLex && isNearExactRomanSuffix(suffix, entry.key, lower.length)) {
             const tier = lexiconHitTier('near_exact', w, lower, entry.key)
-            if (pushCand(entry.value, input, 860 + Math.min(40, Math.log1p(w) * 5), tier, false, entry.key, 'near_exact')) {
+            if (pushCand(
+              entry.value,
+              input,
+              860 + Math.min(40, Math.log1p(w) * 5),
+              tier,
+              false,
+              entry.key,
+              'near_exact',
+              { transformFamily: 'near_exact', transformCost: Math.max(1.5, suffix.length * 1.5), weight: w }
+            )) {
               prefixAdded += 1
             }
             continue
@@ -1035,24 +1173,35 @@ export class GujaratiTranslator {
           for (const it of list) {
             if (!it || !it.e || seenEmoji.has(it.e) || seen.has(it.e)) continue
             seenEmoji.add(it.e)
-            emojiHits.push({ emoji: it.e, weight: it.w || 100, via })
+            emojiHits.push({
+              emoji: it.e,
+              weight: it.w || 100,
+              confidence: Number(it.confidence) || 0,
+              source: it.source || 'legacy',
+              via,
+            })
           }
         }
         queueEmoji(emojiByRoman.get(lower), lower)
-        for (const q of romanQueries) {
-          if (q !== lower) queueEmoji(emojiByRoman.get(q), q)
-        }
         // Native forms already in the menu (e.g. પ્રેમ from prem)
         for (const item of items) {
           if (item.tier === TIER_EMOJI) continue
           queueEmoji(emojiByNative.get(item.native), item.native)
-          if (item.romanKey) queueEmoji(emojiByRoman.get(item.romanKey), item.romanKey)
         }
-        emojiHits.sort((a, b) => b.weight - a.weight)
+        emojiHits.sort((a, b) => b.confidence - a.confidence || b.weight - a.weight)
         let emojiAdded = 0
         for (const hit of emojiHits) {
           if (emojiAdded >= maxEmoji) break
-          if (pushCand(hit.emoji, 'emoji', 50 + Math.min(40, Math.log1p(hit.weight) * 4), TIER_EMOJI, false, lower, null)) {
+          if (pushCand(
+            hit.emoji,
+            'emoji',
+            50 + Math.min(40, Math.log1p(hit.weight) * 4),
+            TIER_EMOJI,
+            false,
+            lower,
+            null,
+            { transformFamily: 'emoji_exact', emojiConfidence: hit.confidence }
+          )) {
             emojiAdded += 1
           }
         }
@@ -1074,14 +1223,19 @@ export class GujaratiTranslator {
         const closeBoost = (item.closeness || 0) * 0.01
         const unigramCount = nativeEvidence(text).unigram
         const uniBoost = Math.log1p(unigramCount) * 0.55
-        let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost
+        const transformPenalty = (Number(item.transformCost) || 0) *
+          Number((runtimePolicy.weights && runtimePolicy.weights.transform_cost) || 1.35)
+        const neuralBoost = (Number(item.neuralLogProb) || 0) *
+          Number((runtimePolicy.weights && runtimePolicy.weights.neural_log_probability) || 0.35)
+        let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost + neuralBoost - transformPenalty
         let tier = item.tier
         const isLex =
           item.exactSource === 'strict' ||
           item.exactSource === 'fuzzy' ||
           item.exactSource === 'near_exact' ||
           item.exactSource === 'stem_matra' ||
-          item.exactSource === 'stem_postfix'
+          item.exactSource === 'stem_postfix' ||
+          item.exactSource === 'stem_inflection'
         if (isLex && (item.weight || 0) > 0 && (item.weight || 0) < LEXICON_STRONG_WEIGHT && unigramCount < 150) {
           score -= freq * 0.85 + 2.8
         }
@@ -1240,7 +1394,7 @@ export class GujaratiTranslator {
           isInternalVowelLengthExpansion(lower, item.romanKey) &&
           text.includes('ા')
         ) {
-          score += 4.0
+          score += 5.25
         }
         if (text.length < lower.length * 0.7) score -= 2.0
         if (!Number.isFinite(score)) {
@@ -1285,6 +1439,33 @@ export class GujaratiTranslator {
         if (item.exactSource === 'stem_postfix' && (item.weight || 0) >= LEXICON_STRONG_WEIGHT) {
           item.score += 4.5
         }
+        if (item.exactSource === 'stem_inflection' && (item.weight || 0) >= LEXICON_STRONG_WEIGHT) {
+          item.score += 4.5
+        }
+      }
+
+      // A typed lexicon key remains exact unless a low-cost vowel-length
+      // expansion has substantially stronger language evidence. This keeps
+      // fuzzy candidates out of EXACT while allowing શાંતિ to beat શાન્તિ.
+      const evidenceWinner = scored
+        .filter((item) =>
+          item.exactSource === 'fuzzy' &&
+          (item.transformCost || 0) <= 4 &&
+          item.validity && item.validity.attested &&
+          isInternalVowelLengthExpansion(lower, item.romanKey || '')
+        )
+        .sort((a, b) => b.score - a.score)[0]
+      if (evidenceWinner) {
+        for (const item of scored) {
+          if (
+            item.tier === TIER_EXACT &&
+            item.exactSource === 'strict' &&
+            evidenceWinner.score >= item.score + 3 &&
+            (evidenceWinner.validity.evidence || 0) >= (item.validity.evidence || 0) * 4.25
+          ) {
+            item.tier = TIER_DICT
+          }
+        }
       }
 
       const ranked = modRankCandidates(
@@ -1298,7 +1479,14 @@ export class GujaratiTranslator {
       void enableUserLm
 
       // The pure layout API owns the fixed GU #1 → Latin #2 contract.
-      const laid = modLayoutMenu(ranked, { includeLatin, latinText: input })
+      const menuPolicy = runtimePolicy.menu || {}
+      const laid = modLayoutMenu(ranked, {
+        includeLatin,
+        latinText: input,
+        maxGujaratiBeforeEmoji: Number(menuPolicy.max_gujarati_before_emoji) || 3,
+        maxEmoji,
+        emojiMinConfidence: Number(menuPolicy.emoji_min_confidence) || 0.9,
+      })
 
       const sortedCandidates = laid.map((item, rank) => {
         const c = new Candidate(
@@ -1318,6 +1506,8 @@ export class GujaratiTranslator {
             romanKey: item.romanKey,
             source: item.exactSource,
             weight: item.weight,
+            evidence: item.validity && item.validity.evidence,
+            transformCost: item.transformCost,
           }
         }
         return c

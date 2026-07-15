@@ -85,10 +85,18 @@ function pairCost(a, b, costs) {
 export function expandRomanLattice(typed, confusionPairs, latticePolicy) {
   const policy = Object.assign({}, DEFAULT_LATTICE, latticePolicy || {})
   const costs = Object.assign({}, DEFAULT_LATTICE.costs, policy.costs || {})
-  const beam = Math.min(64, Math.max(1, policy.beam || 64))
-  const passes = Math.min(3, Math.max(1, policy.passes || 2))
   const lower = String(typed || '').toLowerCase()
   if (!lower) return []
+  const lengthPolicy = policy.length_budgets || policy.lengthBudgets || {}
+  const lengthBand = lower.length <= 3 ? 'short' : lower.length <= 6 ? 'medium' : 'long'
+  const band = lengthPolicy[lengthBand] || {}
+  const beam = Math.min(64, Math.max(1, band.beam || policy.beam || 64))
+  const passes = Math.min(3, Math.max(1, band.passes || policy.passes || 2))
+  const maxCost = Number.isFinite(Number(band.max_cost))
+    ? Number(band.max_cost)
+    : Number.isFinite(Number(policy.max_cost))
+      ? Number(policy.max_cost)
+      : Number.POSITIVE_INFINITY
 
   const pairs = confusionPairs && confusionPairs.length ? confusionPairs : DEFAULT_CONFUSION_PAIRS
   /** @type {Map<string, number>} */
@@ -105,6 +113,10 @@ export function expandRomanLattice(typed, confusionPairs, latticePolicy) {
         while (idx >= 0) {
           const alt = roman.slice(0, idx) + b + roman.slice(idx + a.length)
           const c = cost + pairCost(a, b, costs)
+          if (c > maxCost) {
+            idx = roman.indexOf(a, idx + 1)
+            continue
+          }
           if (c >= (costs.intervocalic_invent || 8) && alt !== lower) {
             idx = roman.indexOf(a, idx + 1)
             continue

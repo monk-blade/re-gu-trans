@@ -1,0 +1,64 @@
+{
+  "report": "apple_class_reference",
+  "total": 5,
+  "passed": 5,
+  "ok": true,
+  "results": [
+    {
+      "roman": "chalshe",
+      "top6": [
+        "ચાલશે",
+        "chalshe",
+        "ચલાશે",
+        "છાલશે",
+        "ચાલસે",
+        "ચલશે"
+      ],
+      "ok": true
+    },
+    {
+      "roman": "ko",
+      "top6": [
+        "કો",
+        "ko",
+        "કોબી",
+        "કોબાડ",
+        "કોબીજ"
+      ],
+      "ok": true
+    },
+    {
+      "roman": "to",
+      "top6": [
+        "તો",
+        "to",
+        "તોબાહ",
+        "ટોચ",
+        "તોબા"
+      ],
+      "ok": true
+    },
+    {
+      "roman": "wah",
+      "top6": [
+        "વાહ",
+        "wah",
+        "વહ",
+        "વાઅહ",
+        "🤩",
+        "🥳"
+      ],
+      "ok": true
+    },
+    {
+      "roman": "bagicho",
+      "top6": [
+        "બગીચો",
+        "bagicho",
+        "બગિચો"
+      ],
+      "ok": true
+    }
+  ],
+  "failures": []
+}

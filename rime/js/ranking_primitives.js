@@ -22,19 +22,26 @@ export const LEXICON_STRONG_WEIGHT = 100
 /** @typedef {'strong_exact'|'soft_exact'|'fuzzy'|'near_exact'|'stem_derived'|'phonetic'|'prefix'|'emoji'|'latin'} CandidateSource */
 
 /**
- * @returns {{native:string,romanKey:string,source:string,weight:number,transformCost:number,uni:number,stem:number,attested:boolean,userCount:number,score:number,displayGroup:string,tier:number}}
+ * @returns {{typedRoman:string,queryRoman:string,native:string,romanKey:string,source:string,provenance:string[],transformFamily:string,weight:number,transformCost:number,unigram:number,uni:number,stem:number,attested:boolean,neuralLogProb:number,personalizationCount:number,userCount:number,score:number,displayGroup:string,tier:number}}
  */
 export function makeCandidateRecord(partial) {
   return Object.assign(
     {
       native: '',
+      typedRoman: '',
+      queryRoman: '',
       romanKey: '',
       source: 'phonetic',
+      provenance: [],
+      transformFamily: 'typed',
       weight: 0,
       transformCost: 0,
+      unigram: 0,
       uni: 0,
       stem: 0,
       attested: false,
+      neuralLogProb: 0,
+      personalizationCount: 0,
       userCount: 0,
       score: 0,
       displayGroup: 'gu',
@@ -66,13 +73,17 @@ export function lexiconHitTier(source, weight, typedRoman, hitRoman, opts) {
     if (opts && opts.typedHasLexEntry) return TIER_DICT
     return TIER_EXACT
   }
-  if (source === 'fuzzy' || source === 'strict') return TIER_EXACT
+  // A transformed query is evidence, never an exact user spelling. Its
+  // lexicon weight may rank it inside the evidence tier but cannot erase the
+  // transform that produced it (ko must not become exact kau → કાઉ).
+  if (source === 'fuzzy') return TIER_DICT
+  if (source === 'strict') return TIER_EXACT
   return TIER_DICT
 }
 
 /**
  * macOS menu layout after linguistic rank:
- * GU #1 → Latin echo #2 → remaining GU → prefix → emoji.
+ * GU #1 → Latin echo #2 → bounded strong GU → confident emoji → remaining GU → prefix.
  */
 export function layoutMenu(records, opts) {
   const includeLatin = !opts || opts.includeLatin !== false
@@ -88,6 +99,15 @@ export function layoutMenu(records, opts) {
     else gu.push(r)
   }
   const laid = []
+  const maxGujaratiBeforeEmoji = Math.max(
+    1,
+    Number(opts && opts.maxGujaratiBeforeEmoji) || Number.MAX_SAFE_INTEGER
+  )
+  const maxEmoji = Math.max(0, Number(opts && opts.maxEmoji) || emoji.length)
+  const emojiMinConfidence = Number(opts && opts.emojiMinConfidence) || 0
+  const eligibleEmoji = emoji
+    .filter((item) => Number(item.emojiConfidence || item.confidence || 0) >= emojiMinConfidence)
+    .slice(0, maxEmoji)
   if (gu.length) {
     laid.push(gu[0])
     if (includeLatin) {
@@ -104,7 +124,13 @@ export function layoutMenu(records, opts) {
         )
       }
     }
-    for (let i = 1; i < gu.length; i++) laid.push(gu[i])
+    let i = 1
+    while (i < gu.length && i < maxGujaratiBeforeEmoji) {
+      laid.push(gu[i])
+      i += 1
+    }
+    for (const item of eligibleEmoji) laid.push(item)
+    for (; i < gu.length; i += 1) laid.push(gu[i])
   } else if (includeLatin && (latin.length || latinText)) {
     laid.push(
       latin[0] ||
@@ -117,7 +143,8 @@ export function layoutMenu(records, opts) {
     )
   }
   for (const x of prefix) laid.push(x)
-  for (const x of emoji) laid.push(x)
+  const emittedEmoji = new Set(eligibleEmoji)
+  for (const x of emoji) if (!emittedEmoji.has(x)) laid.push(x)
   return laid
 }
 
@@ -174,10 +201,15 @@ export function generateCandidates(roman, runtime, policy) {
       makeCandidateRecord({
         native: hit.native,
         text: hit.native,
+        typedRoman: typed,
+        queryRoman: form.roman,
         romanKey: form.roman,
         source,
+        provenance: [source],
+        transformFamily: form.family || (source === 'strict' ? 'typed' : 'fuzzy'),
         weight: Number(hit.weight) || 0,
         transformCost: form.cost || 0,
+        unigram: evidence.unigram || 0,
         uni: evidence.unigram || 0,
         stem: evidence.stem || 0,
         attested: !!evidence.attested,
