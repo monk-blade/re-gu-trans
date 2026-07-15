@@ -924,6 +924,10 @@ export class GujaratiTranslator {
       function pushCand(text, comment, quality, tier, isPhonetic, romanKey, exactSource, meta) {
         if (!text) return false
         text = normalizeGujaratiOrthography(text)
+        const metaNeuralLogProb = Number(meta && meta.neuralLogProb)
+        const metaNeuralRelativeLogProb = Number(meta && meta.neuralRelativeLogProb)
+        const hasNeuralEvidence =
+          Number.isFinite(metaNeuralLogProb) && Number.isFinite(metaNeuralRelativeLogProb)
         if (seen.has(text)) {
           // Upgrade tier if a stronger source rediscovers the same native form.
           for (let i = 0; i < items.length; i++) {
@@ -931,6 +935,15 @@ export class GujaratiTranslator {
             if (it.native !== text) continue
             const provenance = exactSource || (tier === TIER_EMOJI ? 'emoji' : isPhonetic ? 'phonetic' : 'unknown')
             if (!it.provenance.includes(provenance)) it.provenance.push(provenance)
+            if (hasNeuralEvidence) {
+              it.neuralSeen = true
+              it.neuralRawLogProb = Math.max(it.neuralRawLogProb, metaNeuralLogProb)
+              it.neuralRelativeLogProb = Math.max(
+                it.neuralRelativeLogProb,
+                metaNeuralRelativeLogProb
+              )
+              it.neuralLogProb = it.neuralRelativeLogProb
+            }
             if (tier < it.tier) {
               it.tier = tier
               it.exactSource = exactSource || it.exactSource
@@ -957,7 +970,10 @@ export class GujaratiTranslator {
           provenance: [source],
           transformFamily: (meta && meta.transformFamily) || (source === 'strict' ? 'typed' : source),
           transformCost: Math.max(0, Number(meta && meta.transformCost) || 0),
-          neuralLogProb: Number(meta && meta.neuralLogProb) || 0,
+          neuralLogProb: hasNeuralEvidence ? metaNeuralRelativeLogProb : 0,
+          neuralRawLogProb: hasNeuralEvidence ? metaNeuralLogProb : -Infinity,
+          neuralRelativeLogProb: hasNeuralEvidence ? metaNeuralRelativeLogProb : -Infinity,
+          neuralSeen: hasNeuralEvidence,
           emojiConfidence: Math.max(0, Math.min(1, Number(meta && meta.emojiConfidence) || 0)),
           displayGroup: tier === TIER_EMOJI ? 'emoji' : tier === TIER_LATIN ? 'latin' : 'gu',
           tier,
@@ -1216,13 +1232,16 @@ export class GujaratiTranslator {
         }
       }
 
-      if (!hasStrongExact || exactCount === 0) {
+      {
         const neural = neuralNBest(env, lower, maxNeural, neuralMode)
         if (neural.requiredMissing) {
           console.error('$qjs$ neural_mode=required but Gujarati model bridge is unavailable')
         } else if (neural.error) {
           console.error('$qjs$ neural inference failed: ' + neural.error)
         }
+        const bestNeuralLogProb = neural.candidates.length
+          ? Math.max(...neural.candidates.map((item) => item.logProb))
+          : 0
         for (const result of neural.candidates) {
           const validity = dictionaryValidity(result.native)
           pushCand(
@@ -1237,6 +1256,7 @@ export class GujaratiTranslator {
               transformFamily: 'neural',
               transformCost: 0,
               neuralLogProb: result.logProb,
+              neuralRelativeLogProb: result.logProb - bestNeuralLogProb,
               weight: validity.evidence || 0,
             }
           )
@@ -1353,7 +1373,9 @@ export class GujaratiTranslator {
         const uniBoost = Math.log1p(unigramCount) * 0.55
         const transformPenalty = (Number(item.transformCost) || 0) *
           Number((runtimePolicy.weights && runtimePolicy.weights.transform_cost) || 1.35)
-        const neuralBoost = (Number(item.neuralLogProb) || 0) *
+        const neuralBoost = (Number.isFinite(item.neuralRelativeLogProb)
+          ? item.neuralRelativeLogProb
+          : 0) *
           Number((runtimePolicy.weights && runtimePolicy.weights.neural_log_probability) || 0.35)
         const neuralSourceBoost = item.exactSource === 'neural'
           ? Number((runtimePolicy.weights && runtimePolicy.weights.neural_source_boost) || 0)
@@ -1546,6 +1568,52 @@ export class GujaratiTranslator {
         }
       })
 
+      // A strong Trie entry is a prior, not an unconditional truth. Override it
+      // only when the model explicitly scores both forms, strongly prefers a
+      // zero-cost typed phonetic form, and the Trie form is not zero-cost.
+      const neuralOverrideMargin = Number(
+        (runtimePolicy.weights && runtimePolicy.weights.neural_exact_override_margin) || 3.0
+      )
+      const neuralOverrideMinLength = Math.max(1, Number(
+        (runtimePolicy.weights && runtimePolicy.weights.neural_exact_override_min_length) || 2
+      ))
+      if (lower.length >= neuralOverrideMinLength) {
+        const directTypedForms = new Set(phoneticFormsForRoman(lower, runtimePolicy))
+        const neuralRanked = scored
+          .filter((item) => item.neuralSeen && Number.isFinite(item.neuralRelativeLogProb))
+          .sort((a, b) => b.neuralRelativeLogProb - a.neuralRelativeLogProb)
+        const bestNeural = neuralRanked[0]
+        const strictExact = scored.find(
+          (item) => item.tier === TIER_EXACT && item.exactSource === 'strict'
+        )
+        const bestDirectNeural = neuralRanked.find((item) => directTypedForms.has(item.native))
+        const finalSFidelityGap = Number(
+          (runtimePolicy.weights && runtimePolicy.weights.neural_final_s_fidelity_gap) || 1.0
+        )
+        const finalSFidelity = Boolean(
+          strictExact && bestDirectNeural && lower.endsWith('s') && !lower.endsWith('sh') &&
+          strictExact.native.endsWith('શ') && bestDirectNeural.native.endsWith('સ') &&
+          bestDirectNeural.neuralRelativeLogProb >= -finalSFidelityGap
+        )
+        const strongModelOverride = Boolean(
+          bestNeural && strictExact && strictExact.neuralSeen &&
+          bestNeural.native !== strictExact.native &&
+          directTypedForms.has(bestNeural.native) && !directTypedForms.has(strictExact.native) &&
+          bestNeural.neuralRelativeLogProb - strictExact.neuralRelativeLogProb >= neuralOverrideMargin
+        )
+        const overrideWinner = finalSFidelity ? bestDirectNeural : (strongModelOverride ? bestNeural : null)
+        if (strictExact && overrideWinner && overrideWinner.native !== strictExact.native) {
+          strictExact.tier = TIER_DICT
+          strictExact.score -= neuralOverrideMargin
+          overrideWinner.tier = TIER_EXACT
+          overrideWinner.score += neuralOverrideMargin
+          overrideWinner.provenance = Array.from(new Set([
+            ...(overrideWinner.provenance || []),
+            'neural_arbitration',
+          ]))
+        }
+      }
+
       // Soft typed exact beats stem_matra only (padi → પડી > પદિ). Never over
       // productive stem_postfix (gharma / mulyama keep માં forms).
       const hasStemMatra = scored.some((x) => x.exactSource === 'stem_matra')
@@ -1629,7 +1697,7 @@ export class GujaratiTranslator {
           quality: (TIER_MAX - item.tier) * 200 + Math.max(0, 180 - rank),
         }
         if (getEnvBool(env, 'translator/debug_rank', false)) {
-          descriptor.debugRank = {
+          const debugRank = {
             tier: item.tier,
             score: item.score,
             romanKey: item.romanKey,
@@ -1638,6 +1706,10 @@ export class GujaratiTranslator {
             evidence: item.validity && item.validity.evidence,
             transformCost: item.transformCost,
           }
+          if (item.neuralSeen && Number.isFinite(item.neuralRelativeLogProb)) {
+            debugRank.neuralRelativeLogProb = item.neuralRelativeLogProb
+          }
+          descriptor.debugRank = debugRank
         }
         return descriptor
       })

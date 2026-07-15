@@ -38,6 +38,7 @@ jobs:
         run: |
           python3 eval/apple_class_reference.py
           node eval/neural_bridge_test.js
+          python3 eval/ctc_decoder_test.py
           node eval/ranking_primitives_test.js
           python3 eval/emoji_quality.py
           python3 eval/apple_class_benchmark.py --stress 10000
