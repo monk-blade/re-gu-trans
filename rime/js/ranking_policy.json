@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "tiers": {
     "exact": 0,
     "dict": 1,
@@ -17,7 +17,8 @@
     "lm_user": 0.6,
     "transform_cost": 1.35,
     "neural_log_probability": 1.5,
-    "neural_source_boost": 3.0,
+    "neural_presence_bonus": 10.0,
+    "neural_core_agreement_bonus": 2.5,
     "neural_exact_override_margin": 3.0,
     "neural_exact_override_min_length": 2,
     "neural_final_s_fidelity_gap": 1.0,
@@ -30,6 +31,65 @@
       "aksharantar": 0.7,
       "google_ime": 0.75,
       "native_freq": 0.6
+    }
+  },
+  "neural_calibration": {
+    "temperature_by_length": {
+      "1-3": 1.1,
+      "4-6": 1.0,
+      "7-10": 1.0,
+      "11-14": 1.05,
+      "15+": 1.1
+    }
+  },
+  "hybrid_ranker": {
+    "version": 1,
+    "enabled": false,
+    "bias": 0.0,
+    "weights": {
+      "base_score": 0.90187927,
+      "log_weight": 0.089115,
+      "log_evidence": 0.57614203,
+      "transform_cost": -0.40472485,
+      "neural_relative": 0.32453805,
+      "neural_seen": -0.33209149,
+      "neural_rank": -0.64181957,
+      "model_core_agreement": 0.43677748,
+      "source_strict": 1.34542998,
+      "source_fuzzy": 0.12442039,
+      "source_phonetic": -0.28677996,
+      "source_morphology": 0.06069626,
+      "native_length_ratio": 0.09382267
+    },
+    "mean": {
+      "base_score": 14.75054725,
+      "log_weight": 2.16123088,
+      "log_evidence": 4.69685532,
+      "transform_cost": 0.39108629,
+      "neural_relative": -4.06219944,
+      "neural_seen": 0.56605494,
+      "neural_rank": 2.78844181,
+      "model_core_agreement": 0.35461074,
+      "source_strict": 0.12675254,
+      "source_fuzzy": 0.04627835,
+      "source_phonetic": 0.27880999,
+      "source_morphology": 0.33660093,
+      "native_length_ratio": 0.84996709
+    },
+    "scale": {
+      "base_score": 10.04267773,
+      "log_weight": 2.28825104,
+      "log_evidence": 2.44128599,
+      "transform_cost": 0.73004304,
+      "neural_relative": 3.58872472,
+      "neural_seen": 0.49561754,
+      "neural_rank": 2.10294036,
+      "model_core_agreement": 0.47839519,
+      "source_strict": 0.33269555,
+      "source_fuzzy": 0.21008729,
+      "source_phonetic": 0.44841385,
+      "source_morphology": 0.47254708,
+      "native_length_ratio": 0.18478793
     }
   },
   "menu": {

@@ -6,6 +6,8 @@ import {
   generateCandidates as modGenerateCandidates,
   rankCandidates as modRankCandidates,
   makeCandidateRecord,
+  makeCandidatePath,
+  mergeCandidatePath,
   TIER_PERSONALIZED,
   TIER_EXACT,
   TIER_DICT,
@@ -774,6 +776,42 @@ function romanCloseness(a, b) {
   return Math.max(0, shared * 6 - Math.abs(x.length - y.length) * 4)
 }
 
+function hybridRankFeatures(item, roman) {
+  const source = String(item.exactSource || item.source || '')
+  const neuralRelative = Number.isFinite(item.calibratedNeuralRelative)
+    ? item.calibratedNeuralRelative
+    : -8
+  return {
+    base_score: Number(item.score) || 0,
+    log_weight: Math.log1p(Math.max(0, Number(item.weight) || 0)),
+    log_evidence: Math.log1p(Math.max(0, Number(item.validity && item.validity.evidence) || 0)),
+    transform_cost: Math.max(0, Number(item.transformCost) || 0),
+    neural_relative: Math.max(-8, Math.min(0, neuralRelative)),
+    neural_seen: item.neuralSeen ? 1 : 0,
+    neural_rank: Number.isFinite(item.neuralRank) ? Math.min(4, item.neuralRank) : 5,
+    model_core_agreement: item.modelCoreAgreement ? 1 : 0,
+    source_strict: source === 'strict' ? 1 : 0,
+    source_fuzzy: source === 'fuzzy' ? 1 : 0,
+    source_phonetic: source === 'phonetic' ? 1 : 0,
+    source_morphology: source.startsWith('stem_') ? 1 : 0,
+    native_length_ratio: roman
+      ? String(item.native || '').length / Math.max(1, String(roman).length)
+      : 0,
+  }
+}
+
+function applyHybridRanker(item, roman, config) {
+  if (!config || config.enabled !== true || !config.weights) return null
+  const features = hybridRankFeatures(item, roman)
+  let score = Number(config.bias) || 0
+  for (const [name, weight] of Object.entries(config.weights)) {
+    const mean = Number(config.mean && config.mean[name]) || 0
+    const scale = Math.max(1e-6, Number(config.scale && config.scale[name]) || 1)
+    score += ((Number(features[name]) || 0) - mean) / scale * (Number(weight) || 0)
+  }
+  return Number.isFinite(score) ? score : null
+}
+
 /** URL / email / host-looking roman → Latin-only (no script suggest). */
 function looksLikeLatinLiteral(s) {
   if (!s) return false
@@ -889,6 +927,7 @@ export class GujaratiTranslator {
       const maxEmoji = Math.max(0, Math.floor(getEnvNumber(env, 'translator/max_emoji', 2)))
       const maxCandidates = Math.max(1, Math.floor(getEnvNumber(env, 'translator/max_candidates', 6)))
       const neuralMode = getEnvString(env, 'translator/neural_mode', 'auto')
+      const configuredModelVersion = getEnvString(env, 'translator/model_version', 'unknown')
       const maxNeural = Math.max(1, Math.min(8, Math.floor(
         getEnvNumber(env, 'translator/max_neural_candidates', 4)
       )))
@@ -901,6 +940,8 @@ export class GujaratiTranslator {
       const cacheKey = [
         input, hardGate, fuzzyExactSoft, includeLatin, emojiEnable, maxPrefix,
         maxPhonetic, maxEmoji, maxCandidates, neuralMode, maxNeural,
+        Number((RUNTIME && RUNTIME.policy && RUNTIME.policy.version) || 0),
+        configuredModelVersion,
         JSON.stringify(learningEntry || null),
       ].join('\u001f')
       const materialize = (descriptors) => descriptors.map((item) => {
@@ -924,42 +965,43 @@ export class GujaratiTranslator {
       function pushCand(text, comment, quality, tier, isPhonetic, romanKey, exactSource, meta) {
         if (!text) return false
         text = normalizeGujaratiOrthography(text)
+        const source = exactSource || (tier === TIER_EMOJI ? 'emoji' : tier === TIER_LATIN ? 'latin' : isPhonetic ? 'phonetic' : 'lexicon')
         const metaNeuralLogProb = Number(meta && meta.neuralLogProb)
         const metaNeuralRelativeLogProb = Number(meta && meta.neuralRelativeLogProb)
         const hasNeuralEvidence =
           Number.isFinite(metaNeuralLogProb) && Number.isFinite(metaNeuralRelativeLogProb)
+        const path = makeCandidatePath({
+          source,
+          queryRoman: romanKey || lower,
+          transformFamily: (meta && meta.transformFamily) || (source === 'strict' ? 'typed' : source),
+          transformCost: Math.max(0, Number(meta && meta.transformCost) || 0),
+          lexiconWeight: source === 'neural' || source === 'latin'
+            ? 0
+            : (Number.isFinite(Number(meta && meta.weight))
+                ? Number(meta.weight)
+                : (tier === TIER_EMOJI ? quality : lexiconWeight(romanKey || lower))),
+          tier,
+          isNeural: hasNeuralEvidence,
+          neuralRank: Number.isFinite(Number(meta && meta.neuralRank))
+            ? Number(meta.neuralRank)
+            : Infinity,
+          neuralRawLogProb: hasNeuralEvidence ? metaNeuralLogProb : -Infinity,
+          neuralRelativeLogProb: hasNeuralEvidence ? metaNeuralRelativeLogProb : -Infinity,
+          modelVersion: String((meta && meta.modelVersion) || ''),
+          comment: comment || '',
+          closeness: romanCloseness(lower, romanKey || lower),
+        })
         if (seen.has(text)) {
-          // Upgrade tier if a stronger source rediscovers the same native form.
           for (let i = 0; i < items.length; i++) {
             const it = items[i]
             if (it.native !== text) continue
-            const provenance = exactSource || (tier === TIER_EMOJI ? 'emoji' : isPhonetic ? 'phonetic' : 'unknown')
-            if (!it.provenance.includes(provenance)) it.provenance.push(provenance)
-            if (hasNeuralEvidence) {
-              it.neuralSeen = true
-              it.neuralRawLogProb = Math.max(it.neuralRawLogProb, metaNeuralLogProb)
-              it.neuralRelativeLogProb = Math.max(
-                it.neuralRelativeLogProb,
-                metaNeuralRelativeLogProb
-              )
-              it.neuralLogProb = it.neuralRelativeLogProb
-            }
-            if (tier < it.tier) {
-              it.tier = tier
-              it.exactSource = exactSource || it.exactSource
-              it.romanKey = romanKey || it.romanKey
-              it.weight = Math.max(it.weight || 0, tier === TIER_EMOJI ? quality : lexiconWeight(romanKey || lower))
-              it.closeness = Math.max(it.closeness || 0, romanCloseness(lower, romanKey || lower))
-              it.comment = comment || it.comment
-              return true
-            }
-            return false
+            mergeCandidatePath(it, path)
+            return true
           }
           return false
         }
         seen.add(text)
-        const source = exactSource || (tier === TIER_EMOJI ? 'emoji' : tier === TIER_LATIN ? 'latin' : isPhonetic ? 'phonetic' : 'lexicon')
-        items.push(makeCandidateRecord({
+        const record = makeCandidateRecord({
           native: text,
           text,
           typedRoman: lower,
@@ -967,24 +1009,16 @@ export class GujaratiTranslator {
           comment: comment || '',
           candidateType: tier === TIER_EMOJI ? 'emoji' : tier === TIER_LATIN ? 'latin' : 'gujarati',
           source,
-          provenance: [source],
-          transformFamily: (meta && meta.transformFamily) || (source === 'strict' ? 'typed' : source),
-          transformCost: Math.max(0, Number(meta && meta.transformCost) || 0),
-          neuralLogProb: hasNeuralEvidence ? metaNeuralRelativeLogProb : 0,
-          neuralRawLogProb: hasNeuralEvidence ? metaNeuralLogProb : -Infinity,
-          neuralRelativeLogProb: hasNeuralEvidence ? metaNeuralRelativeLogProb : -Infinity,
-          neuralSeen: hasNeuralEvidence,
           emojiConfidence: Math.max(0, Math.min(1, Number(meta && meta.emojiConfidence) || 0)),
           displayGroup: tier === TIER_EMOJI ? 'emoji' : tier === TIER_LATIN ? 'latin' : 'gu',
           tier,
           isPhonetic: !!isPhonetic,
           romanKey: romanKey || lower,
-          weight: Number.isFinite(Number(meta && meta.weight))
-            ? Number(meta.weight)
-            : (tier === TIER_EMOJI ? quality : lexiconWeight(romanKey || lower)),
           exactSource: exactSource || null,
           closeness: romanCloseness(lower, romanKey || lower),
-        }))
+        })
+        mergeCandidatePath(record, path)
+        items.push(record)
         return true
       }
 
@@ -1242,7 +1276,8 @@ export class GujaratiTranslator {
         const bestNeuralLogProb = neural.candidates.length
           ? Math.max(...neural.candidates.map((item) => item.logProb))
           : 0
-        for (const result of neural.candidates) {
+        for (let neuralRank = 0; neuralRank < neural.candidates.length; neuralRank += 1) {
+          const result = neural.candidates[neuralRank]
           const validity = dictionaryValidity(result.native)
           pushCand(
             result.native,
@@ -1257,7 +1292,8 @@ export class GujaratiTranslator {
               transformCost: 0,
               neuralLogProb: result.logProb,
               neuralRelativeLogProb: result.logProb - bestNeuralLogProb,
-              weight: validity.evidence || 0,
+              neuralRank,
+              modelVersion: result.modelVersion,
             }
           )
         }
@@ -1373,14 +1409,32 @@ export class GujaratiTranslator {
         const uniBoost = Math.log1p(unigramCount) * 0.55
         const transformPenalty = (Number(item.transformCost) || 0) *
           Number((runtimePolicy.weights && runtimePolicy.weights.transform_cost) || 1.35)
-        const neuralBoost = (Number.isFinite(item.neuralRelativeLogProb)
-          ? item.neuralRelativeLogProb
+        const lengthKey = lower.length <= 3
+          ? '1-3'
+          : lower.length <= 6
+            ? '4-6'
+            : lower.length <= 10
+              ? '7-10'
+              : lower.length <= 14 ? '11-14' : '15+'
+        const neuralCalibration = runtimePolicy.neural_calibration || {}
+        const temperature = Math.max(
+          0.25,
+          Number(neuralCalibration.temperature_by_length && neuralCalibration.temperature_by_length[lengthKey]) || 1
+        )
+        const calibratedNeuralRelative = Number.isFinite(item.neuralRelativeLogProb)
+          ? item.neuralRelativeLogProb / temperature
+          : -Infinity
+        const neuralBoost = (Number.isFinite(calibratedNeuralRelative)
+          ? calibratedNeuralRelative
           : 0) *
           Number((runtimePolicy.weights && runtimePolicy.weights.neural_log_probability) || 0.35)
-        const neuralSourceBoost = item.exactSource === 'neural'
-          ? Number((runtimePolicy.weights && runtimePolicy.weights.neural_source_boost) || 0)
+        const neuralPresenceBonus = item.neuralSeen
+          ? Number((runtimePolicy.weights && runtimePolicy.weights.neural_presence_bonus) || 0)
           : 0
-        let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost + neuralBoost + neuralSourceBoost - transformPenalty
+        const modelCoreAgreementBonus = item.modelCoreAgreement
+          ? Number((runtimePolicy.weights && runtimePolicy.weights.neural_core_agreement_bonus) || 0)
+          : 0
+        let score = lm + freq + dictBoost + spellBoost + closeBoost + uniBoost + neuralBoost + neuralPresenceBonus + modelCoreAgreementBonus - transformPenalty
         let tier = item.tier
         const isLex =
           item.exactSource === 'strict' ||
@@ -1565,6 +1619,10 @@ export class GujaratiTranslator {
           stem: validity.stem || 0,
           attested: !!validity.attested,
           userCount: explicitCount(USER_LEARNING, lower, text),
+          calibratedNeuralRelative,
+          decisionReason: item.neuralSeen
+            ? (item.modelCoreAgreement ? 'model_core_agree' : 'model_candidate')
+            : 'core_fallback',
         }
       })
 
@@ -1611,6 +1669,18 @@ export class GujaratiTranslator {
             ...(overrideWinner.provenance || []),
             'neural_arbitration',
           ]))
+          strictExact.decisionReason = 'model_confident_override'
+          overrideWinner.decisionReason = 'model_confident_override'
+        }
+      }
+
+      for (const item of scored) {
+        if (
+          item.tier === TIER_EXACT && item.exactSource === 'strict' &&
+          Number(item.deterministicTransformCost) === 0 &&
+          item.decisionReason !== 'model_confident_override'
+        ) {
+          item.decisionReason = 'core_protected'
         }
       }
 
@@ -1668,6 +1738,16 @@ export class GujaratiTranslator {
         }
       }
 
+      const hybridRanker = runtimePolicy.hybrid_ranker || null
+      for (const item of scored) {
+        if (item.tier !== TIER_DICT || item.displayGroup !== 'gu') continue
+        const rankerScore = applyHybridRanker(item, lower, hybridRanker)
+        if (rankerScore == null) continue
+        item.baseHeuristicScore = item.score
+        item.score = rankerScore
+        item.hybridRankerScore = rankerScore
+      }
+
       const ranked = modRankCandidates(
         scored,
         { roman: lower, limit: 0 },
@@ -1705,6 +1785,26 @@ export class GujaratiTranslator {
             weight: item.weight,
             evidence: item.validity && item.validity.evidence,
             transformCost: item.transformCost,
+            decisionReason: item.decisionReason,
+            modelCoreAgreement: item.modelCoreAgreement,
+            neuralRank: Number.isFinite(item.neuralRank) ? item.neuralRank : null,
+            modelVersion: item.neuralModelVersion || null,
+            baseHeuristicScore: item.baseHeuristicScore,
+            hybridRankerScore: item.hybridRankerScore,
+            rankFeatures: hybridRankFeatures(item, lower),
+          }
+          if (getEnvBool(env, 'translator/debug_paths', false)) {
+            debugRank.paths = (item.paths || []).map((path) => ({
+              source: path.source,
+              queryRoman: path.queryRoman,
+              transformFamily: path.transformFamily,
+              transformCost: path.transformCost,
+              lexiconWeight: path.lexiconWeight,
+              neuralRank: Number.isFinite(path.neuralRank) ? path.neuralRank : null,
+              neuralRelativeLogProb: Number.isFinite(path.neuralRelativeLogProb)
+                ? path.neuralRelativeLogProb
+                : null,
+            }))
           }
           if (item.neuralSeen && Number.isFinite(item.neuralRelativeLogProb)) {
             debugRank.neuralRelativeLogProb = item.neuralRelativeLogProb

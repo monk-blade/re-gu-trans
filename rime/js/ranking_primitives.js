@@ -33,9 +33,11 @@ export function makeCandidateRecord(partial) {
       romanKey: '',
       source: 'phonetic',
       provenance: [],
+      paths: [],
       transformFamily: 'typed',
       weight: 0,
       transformCost: 0,
+      deterministicTransformCost: Infinity,
       unigram: 0,
       uni: 0,
       stem: 0,
@@ -44,6 +46,9 @@ export function makeCandidateRecord(partial) {
       neuralRawLogProb: -Infinity,
       neuralRelativeLogProb: -Infinity,
       neuralSeen: false,
+      neuralRank: Infinity,
+      neuralModelVersion: '',
+      modelCoreAgreement: false,
       personalizationCount: 0,
       userCount: 0,
       score: 0,
@@ -52,6 +57,122 @@ export function makeCandidateRecord(partial) {
     },
     partial || {}
   )
+}
+
+/** One source-independent route by which a native candidate was discovered. */
+export function makeCandidatePath(partial) {
+  return Object.assign(
+    {
+      source: 'phonetic',
+      queryRoman: '',
+      transformFamily: 'typed',
+      transformCost: 0,
+      lexiconWeight: 0,
+      tier: TIER_PHONETIC,
+      isNeural: false,
+      neuralRank: Infinity,
+      neuralRawLogProb: -Infinity,
+      neuralRelativeLogProb: -Infinity,
+      modelVersion: '',
+      comment: '',
+      closeness: 0,
+    },
+    partial || {}
+  )
+}
+
+function pathIdentity(path) {
+  return [
+    path.source,
+    path.queryRoman,
+    path.transformFamily,
+    Number(path.transformCost) || 0,
+    Number(path.lexiconWeight) || 0,
+    path.isNeural ? 1 : 0,
+    Number.isFinite(path.neuralRank) ? path.neuralRank : '',
+    Number.isFinite(path.neuralRawLogProb) ? path.neuralRawLogProb : '',
+    path.modelVersion || '',
+  ].join('\u001f')
+}
+
+function sourcePriority(source) {
+  if (source === 'strict') return 0
+  if (source === 'near_exact') return 1
+  if (source === 'fuzzy') return 2
+  if (String(source).startsWith('stem_')) return 3
+  if (source === 'lexicon') return 4
+  if (source === 'phonetic') return 5
+  if (source === 'prefix') return 6
+  if (source === 'emoji') return 7
+  return 8
+}
+
+/**
+ * Merge a discovery path without making rank depend on insertion order.
+ * Native evidence is deliberately not accepted here; storage owns it.
+ */
+export function mergeCandidatePath(record, partialPath) {
+  const path = makeCandidatePath(partialPath)
+  if (!Array.isArray(record.paths)) record.paths = []
+  const identity = pathIdentity(path)
+  if (!record.paths.some((item) => pathIdentity(item) === identity)) record.paths.push(path)
+
+  const paths = record.paths
+  const deterministic = paths.filter((item) => !item.isNeural)
+  const neural = paths.filter((item) => item.isNeural)
+  const strongest = deterministic.slice().sort((a, b) =>
+    (a.tier - b.tier) ||
+    (sourcePriority(a.source) - sourcePriority(b.source)) ||
+    (a.transformCost - b.transformCost) ||
+    (b.lexiconWeight - a.lexiconWeight) ||
+    (b.closeness - a.closeness) ||
+    String(a.source).localeCompare(String(b.source))
+  )[0]
+
+  record.provenance = Array.from(new Set(paths.map((item) => item.source))).sort()
+  record.weight = strongest ? Number(strongest.lexiconWeight) || 0 : 0
+  record.deterministicTransformCost = deterministic.length
+    ? Math.min(...deterministic.map((item) => Math.max(0, Number(item.transformCost) || 0)))
+    : Infinity
+  record.transformCost = strongest ? Math.max(0, Number(strongest.transformCost) || 0) : 0
+  if (strongest) {
+    record.tier = strongest.tier
+    record.source = strongest.source
+    record.exactSource = strongest.source
+    record.queryRoman = strongest.queryRoman || record.queryRoman
+    record.romanKey = strongest.queryRoman || record.romanKey
+    record.transformFamily = strongest.transformFamily || record.transformFamily
+    record.closeness = strongest.closeness
+    record.comment = strongest.comment || record.comment
+  } else if (neural.length) {
+    record.tier = Math.min(...neural.map((item) => Math.max(TIER_DICT, item.tier)))
+    record.source = 'neural'
+    record.exactSource = 'neural'
+    record.transformFamily = 'neural'
+    record.comment = neural[0].comment || 'model'
+  }
+
+  record.neuralSeen = neural.length > 0
+  record.neuralRank = neural.reduce(
+    (best, item) => Math.min(best, Number.isFinite(item.neuralRank) ? item.neuralRank : Infinity),
+    Infinity
+  )
+  record.neuralRawLogProb = neural.reduce(
+    (best, item) => Math.max(best, item.neuralRawLogProb),
+    -Infinity
+  )
+  record.neuralRelativeLogProb = neural.reduce(
+    (best, item) => Math.max(best, item.neuralRelativeLogProb),
+    -Infinity
+  )
+  record.neuralLogProb = Number.isFinite(record.neuralRelativeLogProb)
+    ? record.neuralRelativeLogProb
+    : 0
+  record.neuralModelVersion = neural
+    .slice()
+    .sort((a, b) => (a.neuralRank - b.neuralRank))[0]?.modelVersion || ''
+  record.modelCoreAgreement = neural.length > 0 && deterministic.length > 0
+  return record
 }
 
 export function sourceToDisplayGroup(source) {
