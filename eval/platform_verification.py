@@ -88,7 +88,7 @@ def main() -> int:
             f"package formats mismatch for {args.platform}: "
             f"expected={sorted(expected_suffixes)} actual={sorted(actual_suffixes)}"
         )
-    expected_model_token = "gu-transformer-ctc-v2"
+    expected_model_token = "gu-transformer-ctc-v3"
     if expected_model_token not in args.model_pack.name:
         raise SystemExit(f"model pack filename does not identify {expected_model_token}")
     with tempfile.TemporaryDirectory(prefix="akshar-model-pack-") as temp:

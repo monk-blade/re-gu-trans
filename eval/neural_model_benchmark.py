@@ -96,7 +96,7 @@ def evaluate(model, rows: list[dict]) -> tuple[dict, dict[str, list[dict]], list
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model-dir", type=Path, default=ROOT / "models" / "artifacts" / "gu-transformer-ctc-v2"
+        "--model-dir", type=Path, default=ROOT / "models" / "artifacts" / "gu-transformer-ctc-v3"
     )
     parser.add_argument("--source-disjoint-limit-per-source", type=int, default=10_000)
     args = parser.parse_args()

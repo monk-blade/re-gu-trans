@@ -34,9 +34,10 @@ def main() -> int:
     source_disjoint = ROOT / "data" / "splits" / "apple_class_source_disjoint.jsonl"
     hybrid = benchmark["held_out_hybrid"]
     model_only = benchmark["held_out_model_only"]
+    model_version = metadata["model_version"]
     manifest = {
-        "version": 2,
-        "model_version": metadata["model_version"],
+        "version": metadata.get("version", 3),
+        "model_version": model_version,
         "architecture": metadata["architecture"],
         "quantization": "dynamic-int8",
         "training_pairs": metadata["training_pairs"],
@@ -44,12 +45,16 @@ def main() -> int:
         "training_epochs": metadata["training_epochs"],
         "benchmark_family_exclusion": True,
         "family_disjoint_validation": True,
-        "short_input_oversampling": True,
-        "roman_noise_augmentation": True,
+        "short_input_oversampling": metadata.get("short_input_oversampling", True),
+        "roman_noise_augmentation": metadata.get("roman_noise_augmentation", True),
+        "distilled": metadata.get("distilled", False),
+        "model_config": metadata.get("model_config", {}),
+        "training_digest": metadata.get("training_digest"),
         "sources": [
             {"name": "Aksharantar Gujarati", "license": "CC-BY-4.0 and CC0"},
             {"name": "Dakshina Gujarati", "license": "CC-BY-SA-4.0"},
         ],
+        "source_provenance": metadata.get("source_provenance", []),
         "excluded_eval": {
             "held_out_gold_sha256": digest(held),
             "apple_class_source_disjoint_sha256": digest(source_disjoint),
@@ -75,13 +80,14 @@ def main() -> int:
     (artifact / "training-manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    card = f"""# Akshar GU Transformer-CTC v2
+    card = f"""# Akshar GU Transformer-CTC v3
 
 Gujarati-only character Transformer for optional offline n-best generation.
 
 - Architecture: {metadata['architecture']}
 - Training pairs: {metadata['training_pairs']:,}, with family-disjoint validation
 - Robustness: short-input oversampling and bounded Roman-noise augmentation
+- Training: family-disjoint validation with CUDA AMP; distilled={metadata.get('distilled', False)}
 - Quantization: dynamic int8 ONNX
 - Model size: {model.stat().st_size:,} bytes
 - Telemetry/network inference: none
@@ -104,9 +110,22 @@ a word-level model; it does not perform sentence segmentation or next-word predi
     licenses.mkdir(exist_ok=True)
     source_notice = ROOT / "models" / "artifacts" / "gu-ctc-v1" / "LICENSES" / "NOTICE.md"
     shutil.copyfile(source_notice, licenses / "NOTICE.md")
-    for intermediate in (artifact / "gujarati_xlit.pt", artifact / "gujarati_xlit.onnx"):
+    for intermediate in (
+        artifact / "gujarati_xlit.pt",
+        artifact / "gujarati_xlit.onnx",
+        artifact / "checkpoint_best.pt",
+        artifact / "checkpoint_last.pt",
+    ):
         intermediate.unlink(missing_ok=True)
-    print(json.dumps({"artifact": str(artifact), "model_version": metadata["model_version"], "model_sha256": manifest["model_sha256"]}))
+    checksum_lines = []
+    for path in sorted(
+        item for item in artifact.rglob("*") if item.is_file() and item.name != "SHA256SUMS"
+    ):
+        checksum_lines.append(
+            f"{digest(path)}  {path.relative_to(artifact).as_posix()}"
+        )
+    (artifact / "SHA256SUMS").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+    print(json.dumps({"artifact": str(artifact), "model_version": model_version, "model_sha256": manifest["model_sha256"]}))
     return 0
 
 

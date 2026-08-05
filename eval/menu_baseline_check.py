@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Require byte-for-byte production top-six parity with the Apple-class v3 baseline."""
+"""Require byte-for-byte parity with the v3.1 production menu baseline."""
 from __future__ import annotations
 
 import os
@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "eval" / "fixtures" / "production_top6_v3_0.jsonl"
+BASELINE = ROOT / "eval" / "fixtures" / "production_top6_v3_1.jsonl"
 SOURCE = ROOT / "data" / "splits" / "held_out_gold.jsonl"
 RUNNER = ROOT / "eval" / "js_production_runner.mjs"
 

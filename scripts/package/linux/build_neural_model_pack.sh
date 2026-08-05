@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 ORT_ROOT="${ONNXRUNTIME_ROOT:?ONNXRUNTIME_ROOT must point to ONNX Runtime 1.23.2}"
-SOURCE="${MODEL_SOURCE:-$ROOT/models/artifacts/gu-transformer-ctc-v2}"
+SOURCE="${MODEL_SOURCE:-$ROOT/models/artifacts/gu-transformer-ctc-v3}"
 BUILD="${BUILD_DIR:-$ROOT/dist/gujarati-model-build-linux}"
 ASSEMBLY="${ASSEMBLY_DIR:-$ROOT/dist/gujarati-model-assembly-linux}"
 OUT="${OUT_DIR:-$ROOT/dist/gujarati-model-pack-linux}"

@@ -17,6 +17,21 @@ class Candidate:
     log_prob: float
 
 
+ORTHOGRAPHIC_VARIANT_PENALTY = 0.5
+
+
+def orthographic_variants(native: str):
+    """Yield bounded Gujarati i-matra alternatives for CTC spelling noise.
+
+    Public roman corpora use both long and short ``i`` spellings for related
+    Gujarati forms. A single global matra swap improves recall without adding
+    word-specific exceptions or changing the model vocabulary.
+    """
+    for index, char in enumerate(native):
+        if char == "ી":
+            yield native[:index] + "િ" + native[index + 1 :]
+
+
 def valid_roman_word(value: str) -> bool:
     text = str(value or "")
     if not 1 <= len(text) <= 32:
@@ -128,6 +143,12 @@ def ctc_prefix_beam_candidates(
         score = _logadd(*probabilities)
         if native and score > unique.get(native, -math.inf):
             unique[native] = score
+    for native, score in list(unique.items()):
+        for variant in orthographic_variants(native):
+            if valid_gujarati_word(variant):
+                unique[variant] = max(
+                    unique.get(variant, -math.inf), score - ORTHOGRAPHIC_VARIANT_PENALTY
+                )
     return [
         Candidate(native=native, log_prob=score)
         for native, score in sorted(unique.items(), key=lambda item: item[1], reverse=True)[:count]

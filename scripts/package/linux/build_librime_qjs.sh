@@ -89,18 +89,17 @@ echo "Patching librime-qjs __FILE_NAME__ → __FILE__ for GCC ..."
 find plugins/qjs -type f \( -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) \
   -print0 | xargs -0 sed -i 's/__FILE_NAME__/__FILE__/g'
 
-# librime Makefile drives cmake + plugins (see HuangJian doc/build-linux.md)
+# Configure directly so packaging flags, including the test exclusion, are
+# applied consistently across distro toolchains (see HuangJian doc/build-linux.md).
 export CMAKE_BUILD_PARALLEL_LEVEL="$JOBS"
-if [[ -f Makefile ]]; then
-  # Prefer Release; skip tests for packaging speed
-  make -j"$JOBS" release 2>/dev/null || make -j"$JOBS"
-else
-  cmake -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON \
-    -DBUILD_TEST=OFF
-  cmake --build build -j"$JOBS"
-fi
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_SHARED_LIBS=ON \
+  -DBUILD_TEST=OFF \
+  -DBUILD_MERGED_PLUGINS=OFF \
+  -DENABLE_EXTERNAL_PLUGINS=ON \
+  -DCMAKE_SKIP_RPATH=ON
+cmake --build build -j"$JOBS"
 
 FOUND=""
 while IFS= read -r cand; do
