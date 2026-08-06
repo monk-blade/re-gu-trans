@@ -26,7 +26,7 @@ from pathlib import Path
 import json, sys
 root = Path(sys.argv[1])
 manifest = json.loads((root / 'training-manifest.json').read_text(encoding='utf-8'))
-if manifest.get('model_version') != 'gu-transformer-ctc-v2':
+if manifest.get('model_version') != 'gu-transformer-ctc-v3':
     raise SystemExit('FAIL: unexpected model version')
 if not manifest.get('benchmark_family_exclusion'):
     raise SystemExit('FAIL: benchmark-family exclusion evidence missing')

@@ -2,24 +2,24 @@
   "ranker": "production-javascript-trie",
   "enabled": {
     "evaluated": 2000,
-    "top1_pct": 42.65,
-    "top3_pct": 48.8,
-    "recall_at_6_pct": 53.0,
-    "ndcg_at_6": 0.47455
+    "top1_pct": 49.2,
+    "top3_pct": 55.4,
+    "recall_at_6_pct": 57.8,
+    "ndcg_at_6": 0.53293
   },
   "families": [
     {
       "family": "conjunct_virama",
       "disabled": {
         "evaluated": 2000,
-        "top1_pct": 42.35,
-        "top3_pct": 48.5,
-        "recall_at_6_pct": 52.5,
-        "ndcg_at_6": 0.47073
+        "top1_pct": 48.65,
+        "top3_pct": 54.85,
+        "recall_at_6_pct": 57.15,
+        "ndcg_at_6": 0.527
       },
       "delta_percentage_points": {
-        "top1": 0.3,
-        "recall_at_6": 0.5
+        "top1": 0.55,
+        "recall_at_6": 0.65
       },
       "accepted": true
     },
@@ -27,10 +27,10 @@
       "family": "plural_postpositions",
       "disabled": {
         "evaluated": 2000,
-        "top1_pct": 42.5,
-        "top3_pct": 48.7,
-        "recall_at_6_pct": 52.9,
-        "ndcg_at_6": 0.47328
+        "top1_pct": 49.05,
+        "top3_pct": 55.3,
+        "recall_at_6_pct": 57.7,
+        "ndcg_at_6": 0.53168
       },
       "delta_percentage_points": {
         "top1": 0.15,

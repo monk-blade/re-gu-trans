@@ -21,7 +21,7 @@ permissions:
 env:
   LIBRIME_QJS_TAG: v1.3.0
   LIBRIME_TAG: '1.16.1'
-  MODEL_PACK_ID: gu-transformer-ctc-v2
+  MODEL_PACK_ID: gu-transformer-ctc-v3
   REQUIRE_BINARY_TRIES: '1'
 
 jobs:
@@ -155,7 +155,7 @@ jobs:
           path: |
             dist/packages/*.deb
             dist/packages/*.rpm
-            dist/packages/*gu-transformer-ctc-v2-linux-x64.zip
+            dist/packages/*gu-transformer-ctc-v3-linux-x64.zip
             dist/reports/verification-linux.json
 
   macos:
@@ -216,7 +216,7 @@ jobs:
           path: |
             dist/packages/*macos-arm64.pkg
             dist/packages/*macos-arm64.zip
-            dist/packages/*gu-transformer-ctc-v2-macos-arm64.zip
+            dist/packages/*gu-transformer-ctc-v3-macos-arm64.zip
             dist/reports/verification-macos.json
 
   windows:
@@ -282,7 +282,7 @@ jobs:
           name: packages-windows
           path: |
             dist/packages/*windows-x64.zip
-            dist/packages/*gu-transformer-ctc-v2-windows-x64.zip
+            dist/packages/*gu-transformer-ctc-v3-windows-x64.zip
             dist/reports/verification-windows.json
 
   release-gate:
@@ -341,7 +341,7 @@ jobs:
           | Linux amd64 | \`re-gu-trans_${VERSION}_amd64.deb\` / \`.rpm\` | fcitx5-rime or ibus-rime |
 
           Optional offline Gujarati model packs are published as
-          \`re-gu-trans-gu-transformer-ctc-v2-<platform>.zip\`. The deterministic core remains fully usable
+          \`re-gu-trans-gu-transformer-ctc-v3-<platform>.zip\`. The deterministic core remains fully usable
           without a model pack; \`neural_mode: required\` intentionally blocks menus if its pack is absent.
 
           Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md) · Typing: [USAGE.md](https://github.com/monk-blade/re-gu-trans/blob/main/USAGE.md)

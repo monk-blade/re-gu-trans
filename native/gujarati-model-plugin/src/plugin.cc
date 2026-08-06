@@ -23,6 +23,9 @@
 
 namespace {
 constexpr const char* kVersion = "gu-model-plugin-v2";
+constexpr const char* kLongIMatra = "\xE0\xAB\x80";
+constexpr const char* kShortIMatra = "\xE0\xAA\xBF";
+constexpr double kOrthographicVariantPenalty = 0.5;
 
 struct PrefixScore {
   double blank{-INFINITY};
@@ -128,6 +131,22 @@ bool validGujaratiWord(const std::string& text) {
     }
   }
   return haveBase && !afterVirama && !afterJoiner;
+}
+
+void addOrthographicVariants(const std::string& native, double score,
+                             std::unordered_map<std::string, double>* unique) {
+  size_t offset = 0;
+  while ((offset = native.find(kLongIMatra, offset)) != std::string::npos) {
+    std::string variant = native;
+    variant.replace(offset, 3, kShortIMatra);
+    if (validGujaratiWord(variant)) {
+      auto found = unique->find(variant);
+      if (found == unique->end() || score - kOrthographicVariantPenalty > found->second) {
+        (*unique)[variant] = score - kOrthographicVariantPenalty;
+      }
+    }
+    offset += 3;
+  }
 }
 
 std::vector<std::string> splitTabs(const std::string& line) {
@@ -257,6 +276,10 @@ class Model {
       if (validGujaratiWord(native) && (!unique.count(native) || probability > unique[native])) {
         unique[native] = probability;
       }
+    }
+    const std::vector<std::pair<std::string, double>> originals(unique.begin(), unique.end());
+    for (const auto& [native, probability] : originals) {
+      addOrthographicVariants(native, probability, &unique);
     }
     std::vector<std::pair<std::string, double>> ranked(unique.begin(), unique.end());
     std::sort(ranked.begin(), ranked.end(),

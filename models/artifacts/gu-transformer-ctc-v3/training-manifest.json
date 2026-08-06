@@ -1,0 +1,147 @@
+{
+  "version": 3,
+  "model_version": "gu-transformer-ctc-v3",
+  "architecture": "configurable-transformer-encoder-ctc-distilled",
+  "quantization": "dynamic-int8",
+  "training_pairs": 982805,
+  "validation_pairs": 19784,
+  "training_epochs": 8,
+  "benchmark_family_exclusion": true,
+  "family_disjoint_validation": true,
+  "short_input_oversampling": true,
+  "roman_noise_augmentation": true,
+  "distilled": true,
+  "model_config": {
+    "dimension": 256,
+    "layers": 6,
+    "heads": 8,
+    "feedforward": 768,
+    "max_frames": 96,
+    "dropout": 0.1
+  },
+  "training_digest": "c2926020fe992fb64cf318cc1341a3c1ab73973629b935257e8ffa072683886a",
+  "sources": [
+    {
+      "name": "Aksharantar Gujarati",
+      "license": "CC-BY-4.0 and CC0"
+    },
+    {
+      "name": "Dakshina Gujarati",
+      "license": "CC-BY-SA-4.0"
+    }
+  ],
+  "source_provenance": [
+    {
+      "label": "aksharantar-gujarati",
+      "url": "https://huggingface.co/datasets/ai4bharat/Aksharantar",
+      "license": "CC-BY-4.0 and CC0",
+      "cache": "aksharantar_guj.zip",
+      "cache_sha256": "2b83105a76c8d9b93007fc6fb6b5593b9ef45e0ae7d753036fe7a2c82a4b6208",
+      "pairs": "aksharantar_gu_pairs.tsv",
+      "pairs_sha256": "0282d9570ca7d6df9e02a0e7c0c4ceb0940213fd15fd97be7af6b27524ae9e84"
+    },
+    {
+      "label": "dakshina-gujarati",
+      "url": "https://github.com/google-research-datasets/dakshina",
+      "license": "CC-BY-SA-4.0",
+      "cache": "dakshina_dataset_v1.0.tar",
+      "cache_sha256": "83530bec211893d9df429298f42e63c350c25ad56f9f5172f85edb0575ee5b03",
+      "pairs": "dakshina_gu_pairs.tsv",
+      "pairs_sha256": "471e0f77da15b57ede3700feff26ecc8668a61dd80c317e44cab72acb0015408"
+    }
+  ],
+  "excluded_eval": {
+    "held_out_gold_sha256": "f5efe81a9e518ca4811f15bbf837e57d6f4dacbf97e035351229b7079ef50ae9",
+    "apple_class_source_disjoint_sha256": "571b93028435d282417a64a563c6ccb1849a22fa4c77704c85a7bae95ee4a487"
+  },
+  "model_sha256": "f8d2b9fd024658d4cd807e7307cce0317663f086468800e1ef9d947fb3a4dce9",
+  "metrics": {
+    "top1_pct": 73.28,
+    "top3_pct": 85.32,
+    "recall_at_6_pct": 90.8,
+    "model_only_top1_pct": 67.28,
+    "model_only_top3_pct": 86.96,
+    "model_only_recall_at_6_pct": 89.84,
+    "core_top1_pct": 48.68,
+    "core_recall_at_6_pct": 56.88
+  },
+  "runtime": {
+    "warm_p50_ms": 3.178,
+    "warm_p95_ms": 4.939,
+    "model_bytes": 4203190
+  },
+  "reference": {
+    "yas": {
+      "expected": "યસ",
+      "menu": [
+        "યસ",
+        "yas",
+        "યશ",
+        "યાસ",
+        "🙆",
+        "યાશ"
+      ],
+      "passed": true
+    },
+    "chalshe": {
+      "expected": "ચાલશે",
+      "menu": [
+        "ચાલશે",
+        "chalshe",
+        "ચલાશે",
+        "ચાલસે",
+        "છાલશે",
+        "ચલશે"
+      ],
+      "passed": true
+    },
+    "ko": {
+      "expected": "કો",
+      "menu": [
+        "કો",
+        "ko",
+        "કહો",
+        "ખો",
+        "કુ",
+        "કોબી"
+      ],
+      "passed": true
+    },
+    "to": {
+      "expected": "તો",
+      "menu": [
+        "તો",
+        "to",
+        "ટો",
+        "થો",
+        "તૉ",
+        "તોબાહ"
+      ],
+      "passed": true
+    },
+    "wah": {
+      "expected": "વાહ",
+      "menu": [
+        "વાહ",
+        "wah",
+        "વહ",
+        "વ્હ",
+        "🤩",
+        "🥳"
+      ],
+      "passed": true
+    },
+    "bagicho": {
+      "expected": "બગીચો",
+      "menu": [
+        "બગીચો",
+        "bagicho",
+        "બગીચાઓ",
+        "બગિચો",
+        "ભગિચો",
+        "ભગીચો"
+      ],
+      "passed": true
+    }
+  }
+}

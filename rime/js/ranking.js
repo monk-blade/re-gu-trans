@@ -45,7 +45,7 @@ import {
   EXPLICIT_PROMOTION_THRESHOLD,
 } from './learning.js'
 import { logRuntimeCapabilities } from './runtime_capabilities.js'
-import { neuralNBest } from './neural.js'
+import { neuralCapability, neuralNBest } from './neural.js'
 
 // Gujarati phonetic transliteration engine for Rime using librime-qjs
 //

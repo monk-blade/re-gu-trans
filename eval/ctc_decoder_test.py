@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from models.gujarati_ctc import (
     GujaratiCtcOnnx,
     ctc_prefix_beam_candidates,
+    orthographic_variants,
     valid_gujarati_word,
     valid_roman_word,
 )
@@ -46,6 +47,7 @@ def main() -> int:
         assert valid_gujarati_word(native)
     for native in ("", "ી", "્ય", "ક્", "ક્‍", "કિી", "latin", "બદલ�"):
         assert not valid_gujarati_word(native)
+    assert list(orthographic_variants("આજદીવસે")) == ["આજદિવસે"]
     rng = np.random.default_rng(17)
     logits = rng.normal(size=(4, 3))
     logits -= logits.max(axis=1, keepdims=True)

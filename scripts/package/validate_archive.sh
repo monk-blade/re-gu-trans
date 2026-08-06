@@ -10,7 +10,21 @@ trap 'rm -rf "$TMP"' EXIT
 
 case "$ARCHIVE" in
   *.zip) unzip -q "$ARCHIVE" -d "$TMP" ;;
-  *.deb) dpkg-deb -x "$ARCHIVE" "$TMP" ;;
+  *.deb)
+    if command -v dpkg-deb >/dev/null 2>&1; then
+      dpkg-deb -x "$ARCHIVE" "$TMP"
+    else
+      command -v ar >/dev/null 2>&1 || { echo "FAIL: ar is required to inspect .deb on this host" >&2; exit 1; }
+      DEB_TMP="$TMP/deb-ar"
+      mkdir -p "$DEB_TMP"
+      (cd "$DEB_TMP" && ar x "$ARCHIVE")
+      test -f "$DEB_TMP/data.tar.gz" || {
+        echo "FAIL: unsupported .deb data archive without dpkg-deb" >&2
+        exit 1
+      }
+      tar -xzf "$DEB_TMP/data.tar.gz" -C "$TMP"
+    fi
+    ;;
   *.rpm)
     command -v rpm2cpio >/dev/null
     CPIO_LOG="$TMP/cpio.stderr"

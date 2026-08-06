@@ -20,7 +20,7 @@
     "neural_source_boost": 3.0,
     "neural_exact_override_margin": 3.0,
     "neural_exact_override_min_length": 2,
-    "neural_final_s_fidelity_gap": 1.0,
+    "neural_final_s_fidelity_gap": 1.25,
     "onset_only_long_a_penalty": 3.8,
     "typed_aa_prefer_aa": 3.5,
     "typed_aa_demote_a": 4.0,
@@ -31,6 +31,11 @@
       "google_ime": 0.75,
       "native_freq": 0.6
     }
+  },
+  "neural_calibration": {
+    "model_version": "gu-transformer-ctc-v3",
+    "method": "held-out global final-s-fidelity margin",
+    "validation_constraint": "shared coefficient; no input-specific exceptions"
   },
   "menu": {
     "max_candidates": 6,
