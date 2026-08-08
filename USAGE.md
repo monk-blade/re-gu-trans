@@ -30,6 +30,12 @@ Typical order:
 
 So slot **#2** is the intentional Latin keep-as-typed option — not a ranking bug.
 
+When the optional model pack is active, Gujarati candidates show **🤖** in
+their comment; **↪** marks candidates produced by the deterministic core
+fallback. These are menu-only source indicators: neither symbol is committed,
+and a 🤖 marker indicates model support, not a guarantee that the candidate is
+correct.
+
 ## Preferred candidate (numbered selection)
 
 Press **1–9** to pick a Gujarati candidate from the menu. After you pick the

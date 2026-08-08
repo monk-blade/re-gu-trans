@@ -220,6 +220,11 @@ Toggle: `translator/emoji_enable` / `translator/max_emoji` in schema or `gujarat
 
 `translator/neural_mode: auto` uses `env.transliterateNBest()` when a separately validated model pack is installed and otherwise preserves the deterministic engine. `off` disables it; `required` blocks Gujarati menus with a deployment error when the pack is absent. Extract the platform model-pack ZIP as `gujarati-model` inside the Rime user directory (`~/Library/Rime`, the fcitx5/IBus Rime user directory, or `%APPDATA%\Rime`), then redeploy. Model packs are rejected if the model, native plugin, ONNX Runtime, licenses, measured metrics, or checksums are missing. No model or network service is required for normal typing.
 
+For transparent local testing, the menu comment uses **🤖** for a Gujarati
+candidate supported by the neural model and **↪** for deterministic fallback
+output. The marker is never part of committed text and does not change ranking
+or learning behavior.
+
 ### Phonetic grammar (Indic IME-style)
 
 Roman→script follows Apple / Google / Microsoft phonetic conventions (not Sanskrit-strict ITRANS):
