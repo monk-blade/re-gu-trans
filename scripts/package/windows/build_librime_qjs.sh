@@ -48,10 +48,10 @@ EOF
 # and only the cmd banner is emitted.  Disable conversion for these calls.
 MSYS_NO_PATHCONV=1 cmd.exe /D /C install-boost.bat
 # Boost 1.89 does not recognize the Visual Studio 18 environment as a named
-# toolset. Re-run its bootstrap with the compatible vc143 label before the
-# upstream build script consumes b2.
-MSYS_NO_PATHCONV=1 cmd.exe /D /C "call .\deps\boost-1.89.0\bootstrap.bat vc143"
-MSYS_NO_PATHCONV=1 cmd.exe /D /C "call .\deps\boost-1.89.0\b2.exe headers"
+# vcunk toolset. Bootstrap from the already-loaded MSVC developer shell using
+# Boost's generic msvc configuration, then populate its generated headers.
+BOOST_ROOT_WIN="$(native_path "$PWD/deps/boost-1.89.0")"
+MSYS_NO_PATHCONV=1 cmd.exe /D /C "cd /D \"$BOOST_ROOT_WIN\" && call bootstrap.bat msvc && b2.exe headers"
 MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat deps
 MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat librime
 
