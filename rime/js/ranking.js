@@ -992,6 +992,19 @@ export class GujaratiTranslator {
       // poshatu → poshatun → પોષતું; ketli → keTlii → (phonetic) કેટલી + unigram boost.
       const romanQueries = expandRomanQueries(input)
       const runtimePolicy = (RUNTIME && RUNTIME.policy) || {}
+      const modelIndicatorPolicy = runtimePolicy.model_indicator || {}
+      const modelIndicatorEnabled = modelIndicatorPolicy.enabled !== false
+      const modelIndicator = String(modelIndicatorPolicy.model || '🤖')
+      const fallbackIndicator = String(modelIndicatorPolicy.fallback || '↪')
+      function displayComment(item) {
+        const comment = String(item.comment || '').trim()
+        if (!modelIndicatorEnabled || item.candidateType !== 'gujarati') return comment
+        const modelSupported = item.neuralSeen === true || item.exactSource === 'neural'
+        const marker = modelSupported ? modelIndicator : fallbackIndicator
+        if (!comment) return marker
+        if (comment.includes(modelIndicator) || comment.includes(fallbackIndicator)) return comment
+        return `${marker} ${comment}`
+      }
       const altForms = generateAlternateForms(lower, runtimePolicy)
       const latticeCosts = new Map([[lower, 0]])
       try {
@@ -1693,7 +1706,9 @@ export class GujaratiTranslator {
         const descriptor = {
           candidateType: item.candidateType || 'gujarati',
           native: item.native,
-          comment: item.comment || '',
+          // The marker is comment-only: it is visible in Rime menus but can
+          // never enter committed text or the learning key/value path.
+          comment: displayComment(item),
           quality: (TIER_MAX - item.tier) * 200 + Math.max(0, 180 - rank),
         }
         if (getEnvBool(env, 'translator/debug_rank', false)) {

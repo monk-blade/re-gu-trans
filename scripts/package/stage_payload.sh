@@ -22,6 +22,7 @@ export COPYFILE_DISABLE=1
 
 REQUIRE_BINARY_TRIES="${REQUIRE_BINARY_TRIES:-1}"
 ALLOW_TEXT_FALLBACK="${ALLOW_TEXT_FALLBACK:-0}"
+PYTHON="${PYTHON:-python3}"
 if [[ "$ALLOW_TEXT_FALLBACK" == "1" ]]; then
   REQUIRE_BINARY_TRIES=0
 fi
@@ -35,10 +36,10 @@ require_file "$RIME_SRC/js/native_lm_meta.json"
 
 echo "== build Tries (REQUIRE_BINARY_TRIES=$REQUIRE_BINARY_TRIES ALLOW_TEXT_FALLBACK=$ALLOW_TEXT_FALLBACK) =="
 if [[ "$REQUIRE_BINARY_TRIES" == "1" ]]; then
-  python3 "$PACKAGE_ROOT/scripts/build_qjs_tries.py" --bin --exceptions
+  "$PYTHON" "$PACKAGE_ROOT/scripts/build_qjs_tries.py" --bin --exceptions
 else
-  python3 "$PACKAGE_ROOT/scripts/build_qjs_tries.py" --bin --exceptions || \
-    python3 "$PACKAGE_ROOT/scripts/build_qjs_tries.py" --exceptions
+  "$PYTHON" "$PACKAGE_ROOT/scripts/build_qjs_tries.py" --bin --exceptions || \
+    "$PYTHON" "$PACKAGE_ROOT/scripts/build_qjs_tries.py" --exceptions
 fi
 
 rm -rf "$OUT_DIR"

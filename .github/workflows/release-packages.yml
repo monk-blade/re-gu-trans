@@ -78,6 +78,8 @@ jobs:
           python3 eval/apple_integrity.py
           python3 eval/apple_class_reference.py
           node eval/neural_bridge_test.js
+          node eval/model_indicator_test.js
+          python3 eval/combined_bundle_test.py
           python3 eval/emoji_quality.py
           python3 eval/apple_class_benchmark.py --stress 250000 --require-full
           python3 eval/neural_model_benchmark.py
@@ -127,6 +129,9 @@ jobs:
           python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-linux
           (cd dist/gujarati-model-pack-linux && zip -qr \
             ../packages/re-gu-trans-${MODEL_PACK_ID}-linux-x64.zip .)
+          ./scripts/package/build_combined_bundle.sh linux \
+            dist/packages dist/gujarati-model-pack-linux \
+            dist/packages/re-gu-trans-${VERSION}-linux-x64-bundle.tar.gz "${VERSION}"
           ./scripts/package/validate_payload.sh dist/payload-linux
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build/librime \
@@ -156,6 +161,7 @@ jobs:
             dist/packages/*.deb
             dist/packages/*.rpm
             dist/packages/*gu-transformer-ctc-v3-linux-x64.zip
+            dist/packages/*linux-x64-bundle.tar.gz
             dist/reports/verification-linux.json
 
   macos:
@@ -188,6 +194,9 @@ jobs:
           python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-macos
           (cd dist/gujarati-model-pack-macos && zip -qr \
             ../packages/re-gu-trans-${MODEL_PACK_ID}-macos-arm64.zip .)
+          ./scripts/package/build_combined_bundle.sh macos \
+            dist/packages dist/gujarati-model-pack-macos \
+            dist/packages/re-gu-trans-${VERSION}-macos-arm64-bundle.zip "${VERSION}"
           ./scripts/package/validate_payload.sh dist/payload-macos
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build-macos/librime \
@@ -217,6 +226,7 @@ jobs:
             dist/packages/*macos-arm64.pkg
             dist/packages/*macos-arm64.zip
             dist/packages/*gu-transformer-ctc-v3-macos-arm64.zip
+            dist/packages/*macos-arm64-bundle.zip
             dist/reports/verification-macos.json
 
   windows:
@@ -256,6 +266,9 @@ jobs:
           python eval/native_model_plugin_test.py dist/gujarati-model-pack-windows
           (cd dist/gujarati-model-pack-windows && 7z a -tzip -y \
             ../packages/re-gu-trans-${MODEL_PACK_ID}-windows-x64.zip . >/dev/null)
+          ./scripts/package/build_combined_bundle.sh windows \
+            dist/windows-zip dist/gujarati-model-pack-windows \
+            dist/packages/re-gu-trans-${VERSION}-windows-x64-bundle.zip "${VERSION}"
           ./scripts/package/validate_payload.sh dist/payload-windows
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build-windows/librime \
@@ -283,6 +296,7 @@ jobs:
           path: |
             dist/packages/*windows-x64.zip
             dist/packages/*gu-transformer-ctc-v3-windows-x64.zip
+            dist/packages/*windows-x64-bundle.zip
             dist/reports/verification-windows.json
 
   release-gate:
@@ -315,7 +329,7 @@ jobs:
         id: assets
         run: |
           mkdir -p release-assets
-          find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.zip' \) \
+          find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.zip' -o -name '*.tar.gz' \) \
             -exec cp -f {} release-assets/ \;
           ls -la release-assets
           echo "count=$(find release-assets -type f | wc -l)" >> "$GITHUB_OUTPUT"
@@ -343,6 +357,9 @@ jobs:
           Optional offline Gujarati model packs are published as
           \`re-gu-trans-gu-transformer-ctc-v3-<platform>.zip\`. The deterministic core remains fully usable
           without a model pack; \`neural_mode: required\` intentionally blocks menus if its pack is absent.
+
+          Combined one-click bundles are published as \`*-<platform>-bundle.*\`; they install the core and
+          verified offline model together while retaining \`--core-only\` and rollback behavior.
 
           Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md) · Typing: [USAGE.md](https://github.com/monk-blade/re-gu-trans/blob/main/USAGE.md)
           EOF

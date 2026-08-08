@@ -47,6 +47,11 @@
     "latin_position": 2,
     "include_latin": true
   },
+  "model_indicator": {
+    "enabled": true,
+    "model": "🤖",
+    "fallback": "↪"
+  },
   "lattice": {
     "beam": 64,
     "passes": 2,

@@ -165,6 +165,12 @@ for (const row of rows) {
     (candidate) => Number.isFinite(Number(candidate.quality))
   )
   const result = { roman, top6, finite }
+  if (process.env.INSPECT_COMMENTS === '1') {
+    result.comments = candidates.slice(0, 6).map((candidate) => ({
+      text: String(candidate.text || ''),
+      comment: String(candidate.comment || ''),
+    }))
+  }
   if (process.env.DEBUG_RANK === '1') {
     result.debug = candidates.slice(0, 6).map((candidate) => ({
       text: String(candidate.text || ''),
