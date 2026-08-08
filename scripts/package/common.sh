@@ -172,6 +172,9 @@ zip_dir_contents() {
   local src_dir="$1"
   local archive_path="$2"
   mkdir -p "$(dirname "$archive_path")"
+  # The archiver runs after changing into src_dir. Resolve the destination
+  # first so relative output paths remain valid on every runner.
+  archive_path="$(cd "$(dirname "$archive_path")" && pwd)/$(basename "$archive_path")"
   rm -f "$archive_path"
   (
     cd "$src_dir"

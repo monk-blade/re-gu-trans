@@ -35,19 +35,26 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
 
 "$PACKAGE_ROOT/scripts/package/apply_qjs_writefile_atomic.sh" "$PWD/plugins/qjs"
 
-# Keep the generator/toolset explicit; the upstream template still defaults to
-# Visual Studio 2019/x86. install-boost.bat and build.bat consume this file.
+# Use Ninja with the MSVC environment supplied by ilammy/msvc-dev-cmd. This
+# avoids coupling the build to a particular Visual Studio generator name.
 cat > env.bat <<'EOF'
 set RIME_ROOT=%CD%
 set BOOST_ROOT=%RIME_ROOT%\deps\boost-1.89.0
-set ARCH=x64
-set CMAKE_GENERATOR="Visual Studio 17 2022"
-set PLATFORM_TOOLSET=v143
+set CMAKE_GENERATOR=Ninja
 EOF
 
-cmd.exe /d /c install-boost.bat
-cmd.exe /d /c build.bat deps
-cmd.exe /d /c build.bat librime
+# Git Bash/MSYS rewrites command arguments that look like POSIX paths.  That
+# turns cmd.exe's `/c` switch into a drive path, so the batch files never run
+# and only the cmd banner is emitted.  Disable conversion for these calls.
+MSYS_NO_PATHCONV=1 cmd.exe /D /C install-boost.bat
+# Boost 1.89 does not recognize the Visual Studio 18 environment as a named
+# vcunk toolset. Bootstrap from the already-loaded MSVC developer shell using
+# Boost's generic msvc configuration, then populate its generated headers.
+BOOST_ROOT_WIN="$(native_path "$PWD/deps/boost-1.89.0")"
+powershell.exe -NoProfile -NonInteractive -Command \
+  "& { Set-Location -LiteralPath '$BOOST_ROOT_WIN'; & .\\bootstrap.bat msvc; if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }; & .\\b2.exe headers; exit \$LASTEXITCODE }"
+MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat deps
+MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat librime
 
 FOUND="$(find dist build -type f -iname 'rime.dll' 2>/dev/null | head -1 || true)"
 if [[ -z "$FOUND" ]]; then
