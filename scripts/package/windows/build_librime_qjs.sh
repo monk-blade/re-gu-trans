@@ -35,20 +35,23 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
 
 "$PACKAGE_ROOT/scripts/package/apply_qjs_writefile_atomic.sh" "$PWD/plugins/qjs"
 
-# Keep the generator/toolset explicit; the upstream template still defaults to
-# Visual Studio 2019/x86. install-boost.bat and build.bat consume this file.
+# Use Ninja with the MSVC environment supplied by ilammy/msvc-dev-cmd. This
+# avoids coupling the build to a particular Visual Studio generator name.
 cat > env.bat <<'EOF'
 set RIME_ROOT=%CD%
 set BOOST_ROOT=%RIME_ROOT%\deps\boost-1.89.0
-set ARCH=x64
-set CMAKE_GENERATOR="Visual Studio 17 2022"
-set PLATFORM_TOOLSET=v143
+set CMAKE_GENERATOR=Ninja
 EOF
 
 # Git Bash/MSYS rewrites command arguments that look like POSIX paths.  That
 # turns cmd.exe's `/c` switch into a drive path, so the batch files never run
 # and only the cmd banner is emitted.  Disable conversion for these calls.
 MSYS_NO_PATHCONV=1 cmd.exe /D /C install-boost.bat
+# Boost 1.89 does not recognize the Visual Studio 18 environment as a named
+# toolset. Re-run its bootstrap with the compatible vc143 label before the
+# upstream build script consumes b2.
+MSYS_NO_PATHCONV=1 cmd.exe /D /C "call .\deps\boost-1.89.0\bootstrap.bat vc143"
+MSYS_NO_PATHCONV=1 cmd.exe /D /C "call .\deps\boost-1.89.0\b2.exe headers"
 MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat deps
 MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat librime
 
