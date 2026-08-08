@@ -7,6 +7,63 @@ SRC="${1:?path to librime-qjs checkout}"
 OVER="$ROOT/vendor/librime-qjs/src-overlay/types"
 
 test -d "$SRC/src/types" || { echo "not a librime-qjs tree: $SRC"; exit 1; }
+
+# The pinned loader uses GCC's constructor attribute for Windows too. MSVC
+# does not parse that attribute, so register the same initializer through the
+# CRT's XCU section while leaving MinGW/Clang builds on the upstream path.
+NODE_LOADER="$SRC/src/patch/quickjs/node_module_loader.c"
+python3 - "$NODE_LOADER" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+old = r'''#ifdef _WIN32
+#include <windows.h>
+__attribute__((constructor)) void initBaseFolder() {
+  char path[LOADER_PATH_MAX];
+  GetModuleFileNameA(NULL, path, LOADER_PATH_MAX);
+  char* last_slash = strrchr(path, '\\');
+  if (last_slash) {
+    *last_slash = '\0';
+    setQjsBaseFolder(path);
+  }
+}
+#endif'''
+new = r'''#ifdef _WIN32
+#include <windows.h>
+#ifdef _MSC_VER
+#pragma section(".CRT$XCU", read)
+static void __cdecl initBaseFolder(void) {
+  char path[LOADER_PATH_MAX];
+  GetModuleFileNameA(NULL, path, LOADER_PATH_MAX);
+  char* last_slash = strrchr(path, '\\');
+  if (last_slash) {
+    *last_slash = '\0';
+    setQjsBaseFolder(path);
+  }
+}
+__declspec(allocate(".CRT$XCU")) void (__cdecl *initBaseFolderInitializer)(void) = initBaseFolder;
+#else
+__attribute__((constructor)) void initBaseFolder(void) {
+  char path[LOADER_PATH_MAX];
+  GetModuleFileNameA(NULL, path, LOADER_PATH_MAX);
+  char* last_slash = strrchr(path, '\\');
+  if (last_slash) {
+    *last_slash = '\0';
+    setQjsBaseFolder(path);
+  }
+}
+#endif
+#endif'''
+if old not in text:
+    raise SystemExit(f"node loader constructor block not found: {path}")
+if "initBaseFolderInitializer" not in text:
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+    print("patched MSVC CRT initializer", path)
+else:
+    print("MSVC CRT initializer already patched", path)
+PY
 cp -f "$OVER/environment.h" "$SRC/src/types/environment.h"
 
 # Append implementation once
