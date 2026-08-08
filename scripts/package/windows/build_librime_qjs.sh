@@ -51,7 +51,8 @@ MSYS_NO_PATHCONV=1 cmd.exe /D /C install-boost.bat
 # vcunk toolset. Bootstrap from the already-loaded MSVC developer shell using
 # Boost's generic msvc configuration, then populate its generated headers.
 BOOST_ROOT_WIN="$(native_path "$PWD/deps/boost-1.89.0")"
-MSYS_NO_PATHCONV=1 cmd.exe /D /C "cd /D \"$BOOST_ROOT_WIN\" && call bootstrap.bat msvc && b2.exe headers"
+powershell.exe -NoProfile -NonInteractive -Command \
+  "& { Set-Location -LiteralPath '$BOOST_ROOT_WIN'; & .\\bootstrap.bat msvc; if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }; & .\\b2.exe headers; exit \$LASTEXITCODE }"
 MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat deps
 MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat librime
 
