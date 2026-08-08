@@ -45,9 +45,12 @@ set CMAKE_GENERATOR="Visual Studio 17 2022"
 set PLATFORM_TOOLSET=v143
 EOF
 
-cmd.exe /d /c install-boost.bat
-cmd.exe /d /c build.bat deps
-cmd.exe /d /c build.bat librime
+# Git Bash/MSYS rewrites command arguments that look like POSIX paths.  That
+# turns cmd.exe's `/c` switch into a drive path, so the batch files never run
+# and only the cmd banner is emitted.  Disable conversion for these calls.
+MSYS_NO_PATHCONV=1 cmd.exe /D /C install-boost.bat
+MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat deps
+MSYS_NO_PATHCONV=1 cmd.exe /D /C build.bat librime
 
 FOUND="$(find dist build -type f -iname 'rime.dll' 2>/dev/null | head -1 || true)"
 if [[ -z "$FOUND" ]]; then
