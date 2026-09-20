@@ -20,6 +20,12 @@ import torch.nn as nn
 from fairseq import checkpoint_utils
 
 RELEASE_DIR = ROOT / "data" / "external" / "indicxlit" / "release"
+# Not part of AI4Bharat's release zip (which ships only corpus-bin/ and
+# transformer/); this is the fixed, alphabetically-sorted list of the 21
+# target language codes from the checkpoint's own lang_pairs config, needed
+# to load its multilingual dictionaries. Committed here since data/external/
+# is gitignored.
+LANG_LIST = Path(__file__).resolve().parent / "indicxlit_lang_list.txt"
 OUT_DIR = ROOT / "models" / "artifacts" / "gu-indicxlit-v1"
 LANG = "gu"
 
@@ -62,7 +68,7 @@ def main() -> int:
         [str(RELEASE_DIR / "transformer" / "indicxlit.pt")],
         arg_overrides={
             "data": str(RELEASE_DIR / "corpus-bin"),
-            "lang_dict": str(RELEASE_DIR / "lang_list.txt"),
+            "lang_dict": str(LANG_LIST),
         },
     )
     model = models[0]

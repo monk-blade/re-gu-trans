@@ -23,6 +23,9 @@ class Candidate:
     log_prob: float
 
 
+LANG_LIST = Path(__file__).resolve().parent.parent / "scripts" / "export" / "indicxlit_lang_list.txt"
+
+
 class IndicXlitFairseq:
     def __init__(self, release_dir: str | Path, lang: str = "gu", beam_size: int = 8):
         root = Path(release_dir)
@@ -30,7 +33,7 @@ class IndicXlitFairseq:
             [str(root / "transformer" / "indicxlit.pt")],
             arg_overrides={
                 "data": str(root / "corpus-bin"),
-                "lang_dict": str(root / "lang_list.txt"),
+                "lang_dict": str(LANG_LIST),
             },
         )
         for model in models:

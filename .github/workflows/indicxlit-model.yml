@@ -38,9 +38,14 @@ jobs:
       - name: Download IndicXlit release checkpoint
         if: steps.cache-checkpoint.outputs.cache-hit != 'true'
         run: |
-          mkdir -p data/external/indicxlit
+          # The release zip's top-level entries are corpus-bin/ and
+          # transformer/ directly (no wrapping folder); extract under
+          # data/external/indicxlit/release/ to match what
+          # scripts/export/export_indicxlit_onnx.py expects.
+          mkdir -p data/external/indicxlit/release
           curl -fsSL -o data/external/indicxlit/indicxlit-en-indic-v1.0.zip "$INDICXLIT_RELEASE_URL"
-          unzip -q data/external/indicxlit/indicxlit-en-indic-v1.0.zip -d data/external/indicxlit
+          unzip -q data/external/indicxlit/indicxlit-en-indic-v1.0.zip -d data/external/indicxlit/release
+          test -f data/external/indicxlit/release/transformer/indicxlit.pt
       - name: Install export dependencies
         run: |
           # fairseq 0.12.2's omegaconf pin has invalid PEP 440 metadata
