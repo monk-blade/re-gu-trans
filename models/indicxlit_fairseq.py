@@ -67,9 +67,51 @@ class IndicXlitFairseq:
         self.generator.beam_size = beam_width
         with torch.no_grad():
             hypotheses = self.generator.generate(self.models, sample, prefix_tokens=None)
+        return self._collect_hypotheses(hypotheses[0], count)
+
+    def nbest_batch(
+        self, romans: list[str], count: int = 4, beam_width: int = 8
+    ) -> list[list[Candidate]]:
+        """Batched form of nbest(): one generator.generate() call for the
+        whole list instead of one call per roman. Left-pads to match
+        fairseq's TranslationTask convention (left_pad_source=True) so the
+        encoder's padding mask lines up the same way single-item encoding
+        (an unpadded, single-row batch) implicitly does.
+
+        Only throughput should differ from calling nbest() per item -- the
+        caller is expected to spot-check that (see
+        scripts/generate_indicxlit_pseudolabels_v5.py's startup check).
+        """
+        if not romans:
+            return []
+        count = max(1, min(8, int(count)))
+        beam_width = max(count, min(12, int(beam_width)))
+        left_pad = bool(getattr(self.task.cfg, "left_pad_source", True))
+        pad_idx = self.src_dict.pad()
+
+        encoded = [self._encode(roman) for roman in romans]
+        lengths = torch.tensor([t.numel() for t in encoded], dtype=torch.long)
+        max_len = int(lengths.max().item())
+        batch = torch.full((len(encoded), max_len), pad_idx, dtype=torch.long)
+        for row, tokens in enumerate(encoded):
+            n = tokens.numel()
+            if left_pad:
+                batch[row, max_len - n :] = tokens
+            else:
+                batch[row, :n] = tokens
+        batch = batch.to(self.device)
+        lengths = lengths.to(self.device)
+
+        sample = {"net_input": {"src_tokens": batch, "src_lengths": lengths}}
+        self.generator.beam_size = beam_width
+        with torch.no_grad():
+            hypotheses = self.generator.generate(self.models, sample, prefix_tokens=None)
+        return [self._collect_hypotheses(row_hypotheses, count) for row_hypotheses in hypotheses]
+
+    def _collect_hypotheses(self, hypotheses, count: int) -> list[Candidate]:
         results: list[Candidate] = []
         seen: set[str] = set()
-        for hypo in hypotheses[0]:
+        for hypo in hypotheses:
             text = self.tgt_dict.string(hypo["tokens"], bpe_symbol=None, escape_unk=True).replace(" ", "")
             if not text or text in seen:
                 continue

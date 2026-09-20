@@ -41,11 +41,11 @@ case "$MODEL_ARCH" in
     ;;
   ctc)
     PKG_NAME="${PKG_NAME:-re-gu-trans-ctc}"
-    MODEL_SOURCE_DEFAULT="$PACKAGE_ROOT/models/artifacts/gu-transformer-ctc-v4"
+    MODEL_SOURCE_DEFAULT="$PACKAGE_ROOT/models/artifacts/gu-transformer-ctc-v5"
     MODEL_PACK_DEFAULT="$DIST/gujarati-model-pack-linux-ctc"
     CONFLICT_PKG="re-gu-trans-xlit"
     PLUGIN_SOURCE_DEFAULT="$PACKAGE_ROOT/native/gujarati-ctc-model-plugin"
-    PKG_DESC="Gujarati roman-to-script transliteration for Rime (lexicon + QuickJS), with the compact gu-transformer-ctc-v4 neural model (sequence-level distilled from IndicXlit: 69.5% top-1 / 90.0% recall@6 held-out, ~2.3ms/query -- strictly faster and more accurate than v3), fcitx5, and the Ori theme + Noto Serif Gujarati candidate font all installed as part of this package. On a system with a desktop session, installing this package enables Gujarati typing directly; otherwise run re-gu-trans-enable once as your user. Conflicts with re-gu-trans-xlit (same schema, higher-accuracy IndicXlit model) -- install one or the other."
+    PKG_DESC="Gujarati roman-to-script transliteration for Rime (lexicon + QuickJS), with the compact gu-transformer-ctc-v5 neural model (sequence-level distilled from IndicXlit across the full training corpus, not just the long tail: 70.3% top-1 / 91.2% recall@6 held-out, ~2.5ms/query -- strictly more accurate than v4 at the same size and latency budget), fcitx5, and the Ori theme + Noto Serif Gujarati candidate font all installed as part of this package. On a system with a desktop session, installing this package enables Gujarati typing directly; otherwise run re-gu-trans-enable once as your user. Conflicts with re-gu-trans-xlit (same schema, higher-accuracy IndicXlit model) -- install one or the other."
     ;;
   *)
     echo "FAIL: MODEL_ARCH must be indicxlit or ctc (got: $MODEL_ARCH)" >&2
