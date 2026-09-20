@@ -43,7 +43,10 @@ jobs:
           unzip -q data/external/indicxlit/indicxlit-en-indic-v1.0.zip -d data/external/indicxlit
       - name: Install export dependencies
         run: |
-          python -m pip install --upgrade pip
+          # fairseq 0.12.2's omegaconf pin has invalid PEP 440 metadata
+          # ("PyYAML (>=5.1.*)"); pip >=24.1 enforces strict metadata parsing
+          # and refuses to resolve it, so pip must stay below that here.
+          python -m pip install --upgrade "pip<24.1"
           pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cpu
           pip install fairseq==0.12.2 "numpy<2" onnx onnxruntime
       - name: Patch fairseq for Python 3.11
