@@ -54,6 +54,14 @@ choco upgrade -y llvm --no-progress
 export PATH="/c/Program Files/LLVM/bin:$PATH"
 command -v clang++ >/dev/null || { echo "ERROR: clang++ not found after choco install" >&2; exit 1; }
 echo "Using $(command -v clang++)"
+# Persist for later steps/scripts in the same job (a plain `export` only
+# lives for this script's own process tree) -- eval/rime_harness.sh's test
+# driver must also be built with clang, or mixing it with a cl.exe-compiled
+# object linking against the same DLL (which exports C++ classes, not a
+# stable C ABI) risks an ABI mismatch and crashes at runtime.
+if [[ -n "${GITHUB_PATH:-}" ]]; then
+  echo "/c/Program Files/LLVM/bin" >> "$GITHUB_PATH"
+fi
 
 # Use Ninja with the MSVC environment supplied by ilammy/msvc-dev-cmd. This
 # avoids coupling the build to a particular Visual Studio generator name.

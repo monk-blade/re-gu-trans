@@ -96,20 +96,19 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
   RIME_LIB="$(find "$BUILD_ROOT/build" -type f -iname 'rime.lib' | head -1)"
   RIME_DLL="$(find "$BUILD_ROOT/build" -type f -iname 'rime.dll' | head -1)"
   test -n "$RIME_LIB" -a -n "$RIME_DLL"
-  # MSYS/Git-Bash auto-converts bare "/word" arguments that look like POSIX
-  # absolute paths into Windows paths (prefixing the Git install dir), which
-  # mangles cl.exe switches like /EHsc, /std:, and /OUT: into garbage (e.g.
-  # "C:/Program Files/Git/EHsc"). Same class of issue as the cmd.exe /D /C
-  # fix elsewhere in this repo; MSYS_NO_PATHCONV disables it for this call.
-  # But that also stops MSYS from converting genuine POSIX path *values*
-  # (STAGE lives under /tmp) into Windows form, which link.exe cannot
-  # resolve on its own -- so those must be pre-converted with cygpath first.
-  to_win() { cygpath -w "$1" 2>/dev/null || echo "$1"; }
-  INCLUDE_DIR_WIN="$(to_win "$BUILD_ROOT/src")"
-  LIBPATH_DIR_WIN="$(to_win "$(dirname "$RIME_LIB")")"
-  OUT_EXE_WIN="$(to_win "$DRIVER.exe")"
-  MSYS_NO_PATHCONV=1 cl /nologo /EHsc /std:c++17 /I"$INCLUDE_DIR_WIN" eval/rime_session_driver.cc \
-    /link /LIBPATH:"$LIBPATH_DIR_WIN" rime.lib /OUT:"$OUT_EXE_WIN"
+  # librime.dll exports C++ classes directly (rime::Context, rime::Config,
+  # etc.), not a stable C ABI, so this driver must be built with the same
+  # compiler as the DLL (clang, per build_librime_qjs.sh -- see the comment
+  # there) or the two disagree on STL/name-mangling ABI details and crash at
+  # runtime (observed: exit 139/SIGSEGV immediately on launch). Using
+  # clang++'s GNU-style flags here instead of cl.exe's /-prefixed switches
+  # also sidesteps Git-Bash/MSYS mangling bare "/word" arguments that look
+  # like POSIX absolute paths into garbage (e.g. "/EHsc" -> "C:/Program
+  # Files/Git/EHsc") -- GNU-style -I/-L/-o flags don't trigger that heuristic.
+  clang++ -std=c++17 eval/rime_session_driver.cc \
+    -I"$BUILD_ROOT/src" \
+    -L"$(dirname "$RIME_LIB")" \
+    -lrime -o "$DRIVER.exe"
   DRIVER="$DRIVER.exe"
   export PATH="$(dirname "$RIME_DLL"):$PATH"
 else
