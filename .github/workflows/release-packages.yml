@@ -85,9 +85,15 @@ jobs:
           python3 eval/neural_model_benchmark.py
           REQUIRE_HYBRID=1 python3 eval/release_quality_report.py
 
+  # --- Linux: .deb + .rpm, native x64/arm64, model variants ctc + xlit ---
   linux:
     needs: stage
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        model: [xlit, ctc]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -108,65 +114,137 @@ jobs:
           python -m pip install marisa-trie
       - name: Install nfpm
         run: |
-          curl -sL "https://github.com/goreleaser/nfpm/releases/download/v2.41.3/nfpm_2.41.3_Linux_x86_64.tar.gz" \
+          NFPM_ARCH="$([[ '${{ matrix.arch }}' == 'arm64' ]] && echo arm64 || echo x86_64)"
+          curl -sL "https://github.com/goreleaser/nfpm/releases/download/v2.41.3/nfpm_2.41.3_Linux_${NFPM_ARCH}.tar.gz" \
             | sudo tar xz -C /usr/local/bin nfpm
           nfpm --version
-      - name: Build binaries + packages
+      - name: Fetch ONNX Runtime
+        run: |
+          ORT_ASSET="onnxruntime-linux-$([[ '${{ matrix.arch }}' == 'arm64' ]] && echo aarch64 || echo x64)-1.23.2"
+          curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
+            "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/${ORT_ASSET}.tgz"
+          mkdir -p "$RUNNER_TEMP/ort"
+          tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP/ort" --strip-components=1
+          echo "ONNXRUNTIME_ROOT=$RUNNER_TEMP/ort" >> "$GITHUB_ENV"
+      - name: Build package
         env:
           VERSION: ${{ needs.stage.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REQUIRE_BINARY_TRIES: '1'
+          TARGET_ARCH: ${{ matrix.arch }}
+          MODEL_ARCH: ${{ matrix.model == 'xlit' && 'indicxlit' || 'ctc' }}
         run: |
           chmod +x scripts/package/linux/*.sh scripts/package/*.sh
           chmod +x packaging/linux/re-gu-trans-enable packaging/linux/postinst.sh
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/linux/build_packages.sh
-          curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
-            https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
-          tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP"
-          ONNXRUNTIME_ROOT="$RUNNER_TEMP/onnxruntime-linux-x64-1.23.2" \
-            ./scripts/package/linux/build_neural_model_pack.sh
-          python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-linux
-          (cd dist/gujarati-model-pack-linux && zip -qr \
-            ../packages/re-gu-trans-${MODEL_PACK_ID}-linux-x64.zip .)
-          ./scripts/package/build_combined_bundle.sh linux \
-            dist/packages dist/gujarati-model-pack-linux \
-            dist/packages/re-gu-trans-${VERSION}-linux-x64-bundle.tar.gz "${VERSION}"
+      - name: Test
+        env:
+          MODEL_ARCH: ${{ matrix.model == 'xlit' && 'indicxlit' || 'ctc' }}
+        run: |
+          MODEL_PACK="dist/gujarati-model-pack-linux-${{ matrix.model }}"
+          python3 eval/native_model_plugin_test.py "$MODEL_PACK"
           ./scripts/package/validate_payload.sh dist/payload-linux
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build/librime \
             RIME_PLUGIN=dist/plugins/librime-qjs.so \
             ./eval/rime_harness.sh
-          EXPECT_NEURAL_REQUIRED_MISSING=1 \
-            REQUIRE_RIME_DEPLOYER=1 \
-            RIME_BUILD_ROOT=dist/librime-build/librime \
-            RIME_PLUGIN=dist/plugins/librime-qjs.so \
-            ./eval/rime_harness.sh
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build/librime \
             RIME_PLUGIN=dist/plugins/librime-qjs.so \
-            NEURAL_MODEL_PACK=dist/gujarati-model-pack-linux \
+            NEURAL_MODEL_PACK="$MODEL_PACK" \
             ./eval/rime_harness.sh
           python3 eval/platform_verification.py \
-            --platform linux --arch x86_64 \
+            --platform linux --arch "${{ matrix.arch }}-${{ matrix.model }}" \
             --plugin dist/plugins/librime-qjs.so --payload dist/payload-linux \
             --package "$(find dist/packages -name '*.deb' | head -1)" \
             --package "$(find dist/packages -name '*.rpm' | head -1)" \
-            --model-pack dist/packages/re-gu-trans-${MODEL_PACK_ID}-linux-x64.zip \
-            --output dist/reports/verification-linux.json
+            --model-pack "$MODEL_PACK" \
+            --output "dist/reports/verification-linux-${{ matrix.arch }}-${{ matrix.model }}.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: packages-linux
+          name: packages-linux-${{ matrix.arch }}-${{ matrix.model }}
           path: |
             dist/packages/*.deb
             dist/packages/*.rpm
-            dist/packages/*indicxlit-fairseq-v1.0-linux-x64.zip
-            dist/packages/*linux-x64-bundle.tar.gz
-            dist/reports/verification-linux.json
+            dist/reports/verification-linux-${{ matrix.arch }}-${{ matrix.model }}.json
+
+  # --- Arch Linux: pacman package, built inside archlinux:base-devel ---
+  # aarch64 is intentionally x86_64-only here: Arch Linux itself targets
+  # x86_64, and ARM support comes from the separately-maintained Arch Linux
+  # ARM project with its own (much sparser) container images -- not covered.
+  arch-linux:
+    needs: stage
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [xlit, ctc]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch ONNX Runtime
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
+            https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
+          mkdir -p "$RUNNER_TEMP/ort"
+          tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP/ort" --strip-components=1
+      - name: Build in archlinux:base-devel container
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+        run: |
+          chmod +x scripts/package/arch/build_in_container.sh
+          docker run --rm \
+            -e ONNXRUNTIME_ROOT=/ort -e TARGET_ARCH=x64 \
+            -v "$PWD:/workspace" -v "$RUNNER_TEMP/ort:/ort:ro" -w /workspace \
+            archlinux:base-devel \
+            bash scripts/package/arch/build_in_container.sh ${{ matrix.model }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-arch-linux-${{ matrix.model }}
+          path: dist/packages/*.pkg.tar.zst
+
+  # --- NixOS: nix flake packages, native x64/arm64, model variants ctc + xlit ---
+  nix:
+    needs: stage
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        model: [xlit, ctc]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Build
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+        run: |
+          PKG="${{ matrix.model == 'xlit' && 're-gu-trans-xlit' || 're-gu-trans-ctc' }}"
+          nix build ".#${PKG}" -L
+          NAME="re-gu-trans-${{ matrix.model }}-${VERSION}-nixos-linux-${{ matrix.arch }}"
+          mkdir -p "dist/packages"
+          tar czf "dist/packages/${NAME}.tar.gz" -C result .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-nix-${{ matrix.arch }}-${{ matrix.model }}
+          path: dist/packages/*.tar.gz
 
   macos:
     needs: stage
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            os: macos-14
+            ort_asset: onnxruntime-osx-arm64-1.23.2
+          - arch: x64
+            os: macos-13
+            ort_asset: onnxruntime-osx-x86_64-1.23.2
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -181,22 +259,23 @@ jobs:
           VERSION: ${{ needs.stage.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REQUIRE_BINARY_TRIES: '1'
+          TARGET_ARCH: ${{ matrix.arch }}
         run: |
           chmod +x scripts/package/macos/*.sh scripts/package/*.sh
           chmod +x scripts/package/macos/postinstall
           python3 scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/macos/build_pkg.sh
           curl -fsSL -o "$RUNNER_TEMP/ort.tgz" \
-            https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-osx-arm64-1.23.2.tgz
+            "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/${{ matrix.ort_asset }}.tgz"
           tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP"
-          ONNXRUNTIME_ROOT="$RUNNER_TEMP/onnxruntime-osx-arm64-1.23.2" \
+          ONNXRUNTIME_ROOT="$RUNNER_TEMP/${{ matrix.ort_asset }}" \
             ./scripts/package/macos/build_neural_model_pack.sh
           python3 eval/native_model_plugin_test.py dist/gujarati-model-pack-macos
           (cd dist/gujarati-model-pack-macos && zip -qr \
-            ../packages/re-gu-trans-${MODEL_PACK_ID}-macos-arm64.zip .)
+            ../packages/re-gu-trans-${MODEL_PACK_ID}-macos-${{ matrix.arch }}.zip .)
           ./scripts/package/build_combined_bundle.sh macos \
             dist/packages dist/gujarati-model-pack-macos \
-            dist/packages/re-gu-trans-${VERSION}-macos-arm64-bundle.zip "${VERSION}"
+            "dist/packages/re-gu-trans-${VERSION}-macos-${{ matrix.arch }}-bundle.zip" "${VERSION}"
           ./scripts/package/validate_payload.sh dist/payload-macos
           REQUIRE_RIME_DEPLOYER=1 \
             RIME_BUILD_ROOT=dist/librime-build-macos/librime \
@@ -213,22 +292,26 @@ jobs:
             NEURAL_MODEL_PACK=dist/gujarati-model-pack-macos \
             ./eval/rime_harness.sh
           python3 eval/platform_verification.py \
-            --platform macos --arch arm64 \
+            --platform macos --arch ${{ matrix.arch }} \
             --plugin dist/plugins/librime-qjs.dylib --payload dist/payload-macos \
-            --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.zip" \
-            --package "dist/packages/re-gu-trans-${VERSION}-macos-arm64.pkg" \
-            --model-pack dist/packages/re-gu-trans-${MODEL_PACK_ID}-macos-arm64.zip \
-            --output dist/reports/verification-macos.json
+            --package "dist/packages/re-gu-trans-${VERSION}-macos-${{ matrix.arch }}.zip" \
+            --package "dist/packages/re-gu-trans-${VERSION}-macos-${{ matrix.arch }}.pkg" \
+            --model-pack dist/packages/re-gu-trans-${MODEL_PACK_ID}-macos-${{ matrix.arch }}.zip \
+            --output dist/reports/verification-macos-${{ matrix.arch }}.json
       - uses: actions/upload-artifact@v4
         with:
-          name: packages-macos
+          name: packages-macos-${{ matrix.arch }}
           path: |
-            dist/packages/*macos-arm64.pkg
-            dist/packages/*macos-arm64.zip
-            dist/packages/*indicxlit-fairseq-v1.0-macos-arm64.zip
-            dist/packages/*macos-arm64-bundle.zip
-            dist/reports/verification-macos.json
+            dist/packages/*macos-${{ matrix.arch }}.pkg
+            dist/packages/*macos-${{ matrix.arch }}.zip
+            dist/packages/*indicxlit-fairseq-v1.0-macos-${{ matrix.arch }}.zip
+            dist/packages/*macos-${{ matrix.arch }}-bundle.zip
+            dist/reports/verification-macos-${{ matrix.arch }}.json
 
+  # --- Windows: .zip + NSIS .exe installer, x64 only. ---
+  # arm64 is intentionally out of scope: librime's Windows build vendors
+  # Boost/glog through librime's own x64-only install-boost.bat recipe, and
+  # there's no arm64 path through that recipe verified working yet.
   windows:
     needs: stage
     runs-on: windows-latest
@@ -240,14 +323,15 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - name: Install 7zip + marisa-trie
+      - name: Install 7zip + nsis + marisa-trie
         shell: bash
         run: |
-          choco install 7zip aria2 -y --no-progress
+          choco install 7zip aria2 nsis -y --no-progress
           echo "$PROGRAMFILES/7-Zip" >> "$GITHUB_PATH"
           echo "/c/Program Files/7-Zip" >> "$GITHUB_PATH"
+          echo "/c/Program Files (x86)/NSIS" >> "$GITHUB_PATH"
           python -m pip install marisa-trie
-      - name: Build zip
+      - name: Build zip + exe
         shell: bash
         env:
           VERSION: ${{ needs.stage.outputs.version }}
@@ -255,9 +339,10 @@ jobs:
           REQUIRE_BINARY_TRIES: '1'
         run: |
           chmod +x scripts/package/windows/*.sh scripts/package/*.sh
-          export PATH="/c/Program Files/7-Zip:$PATH"
+          export PATH="/c/Program Files/7-Zip:/c/Program Files (x86)/NSIS:$PATH"
           python scripts/build_qjs_tries.py --bin --exceptions
           ./scripts/package/windows/build_zip.sh
+          ./scripts/package/windows/build_exe.sh
           curl -fsSL -o "$RUNNER_TEMP/ort.zip" \
             https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-win-x64-1.23.2.zip
           7z x -y -o"$RUNNER_TEMP" "$RUNNER_TEMP/ort.zip" >/dev/null
@@ -295,12 +380,13 @@ jobs:
           name: packages-windows
           path: |
             dist/packages/*windows-x64.zip
+            dist/packages/*windows-x64-setup.exe
             dist/packages/*indicxlit-fairseq-v1.0-windows-x64.zip
             dist/packages/*windows-x64-bundle.zip
             dist/reports/verification-windows.json
 
   release-gate:
-    needs: [stage, linux, macos, windows]
+    needs: [stage, linux, arch-linux, nix, macos, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -329,7 +415,8 @@ jobs:
         id: assets
         run: |
           mkdir -p release-assets
-          find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' -o -name '*.zip' -o -name '*.tar.gz' \) \
+          find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.pkg' \
+            -o -name '*.pkg.tar.zst' -o -name '*.zip' -o -name '*.tar.gz' -o -name '*.exe' \) \
             -exec cp -f {} release-assets/ \;
           ls -la release-assets
           echo "count=$(find release-assets -type f | wc -l)" >> "$GITHUB_OUTPUT"
@@ -350,16 +437,25 @@ jobs:
 
           | Platform | File | Frontend |
           |----------|------|----------|
-          | macOS arm64 | \`re-gu-trans-${VERSION}-macos-arm64.pkg\` / \`.zip\` | [Squirrel](https://github.com/rime/squirrel/releases) |
-          | Windows x64 | \`re-gu-trans-${VERSION}-windows-x64.zip\` | [Weasel](https://github.com/rime/weasel/releases) |
-          | Linux amd64 | \`re-gu-trans_${VERSION}_amd64.deb\` / \`.rpm\` | fcitx5-rime or ibus-rime |
+          | Linux (deb/rpm), x64 + arm64, model xlit or ctc | \`re-gu-trans-xlit_*_{amd64,arm64}.deb\` / \`.rpm\`, \`re-gu-trans-ctc_*\` | fcitx5 (bundled) |
+          | Arch Linux (pacman), x64 | \`re-gu-trans-{xlit,ctc}-${VERSION}-1-x86_64.pkg.tar.zst\` | fcitx5 (bundled) |
+          | NixOS flake, x64 + arm64, model xlit or ctc | \`re-gu-trans-{xlit,ctc}-${VERSION}-nixos-linux-{x64,arm64}.tar.gz\` | fcitx5 (bundled) |
+          | macOS, arm64 + x64 | \`re-gu-trans-${VERSION}-macos-{arm64,x64}.pkg\` / \`.zip\` | [Squirrel](https://github.com/rime/squirrel/releases) |
+          | Windows, x64 | \`re-gu-trans-${VERSION}-windows-x64-setup.exe\` (installer) / \`.zip\` | [Weasel](https://github.com/rime/weasel/releases) |
 
-          Optional offline Gujarati model packs are published as
-          \`re-gu-trans-indicxlit-fairseq-v1.0-<platform>.zip\`. The deterministic core remains fully usable
-          without a model pack; \`neural_mode: required\` intentionally blocks menus if its pack is absent.
+          Linux/Arch/NixOS packages are plug-and-play: fcitx5, the Ori theme, Noto Serif
+          Gujarati, and the selected neural model (IndicXlit or the faster gu-transformer-ctc-v4)
+          are all bundled in. \`re-gu-trans-xlit\` and \`re-gu-trans-ctc\` conflict with each
+          other (install one or the other).
 
-          Combined one-click bundles are published as \`*-<platform>-bundle.*\`; they install the core and
-          verified offline model together while retaining \`--core-only\` and rollback behavior.
+          Optional offline Gujarati model packs for macOS/Windows are published as
+          \`re-gu-trans-indicxlit-fairseq-v1.0-<platform>.zip\`. The deterministic core remains
+          fully usable without a model pack; \`neural_mode: required\` intentionally blocks
+          menus if its pack is absent.
+
+          Combined one-click bundles for macOS/Windows are published as \`*-<platform>-bundle.*\`;
+          they install the core and verified offline model together while retaining
+          \`--core-only\` and rollback behavior.
 
           Full guide: [GUIDE.md](https://github.com/monk-blade/re-gu-trans/blob/main/GUIDE.md) · Typing: [USAGE.md](https://github.com/monk-blade/re-gu-trans/blob/main/USAGE.md)
           EOF

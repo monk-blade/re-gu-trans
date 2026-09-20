@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Build macOS .pkg and .zip for re-gu-trans (Apple Silicon / ARM64).
+# Build macOS .pkg and .zip for re-gu-trans.
 #
-# Downloads librime-qjs macOS-ARM64 from HuangJian releases.
-# Requires: macOS host with pkgbuild/productbuild (CI: macos-14).
+# TARGET_ARCH selects arm64 (Apple Silicon, default) or x64 (Intel); builds
+# librime-qjs from source for whichever arch the host toolchain targets, so
+# this just needs to run natively on a matching runner (CI: macos-14 for
+# arm64, macos-13 for x64).
 #
 # Important: do NOT stage files under Squirrel.app in the pkg root — pkgbuild
 # would treat it as a bundle replace. Plugin is copied into Squirrel in postinstall.
@@ -14,6 +16,11 @@ source "$SCRIPT_DIR/../common.sh"
 
 VERSION="$(resolve_version)"
 export VERSION
+TARGET_ARCH="${TARGET_ARCH:-arm64}"
+case "$TARGET_ARCH" in
+  arm64|x64) ;;
+  *) echo "FAIL: TARGET_ARCH must be arm64 or x64 (got: $TARGET_ARCH)" >&2; exit 2 ;;
+esac
 DIST="$PACKAGE_ROOT/dist"
 PAYLOAD="$DIST/payload-macos"
 PKG_ROOT="$DIST/macos-pkgroot"
@@ -37,7 +44,7 @@ if [[ ! -f "$DYLIB" ]]; then
     chmod +x "$SCRIPT_DIR/build_librime_qjs.sh"
     "$SCRIPT_DIR/build_librime_qjs.sh"
   else
-    ASSET_URL="$(resolve_qjs_asset_url macos-arm64)"
+    ASSET_URL="$(resolve_qjs_asset_url "macos-${TARGET_ARCH}")"
     echo "WARN: downloading unpatched librime-qjs: $ASSET_URL" >&2
     ARCHIVE="$QJS_CACHE/$(basename "$ASSET_URL")"
     download_file "$ASSET_URL" "$ARCHIVE"
@@ -60,14 +67,13 @@ cp -f "$DYLIB" "$ZIP_DIR/plugin/librime-qjs.dylib"
 cp -f "$SCRIPT_DIR/install.sh" "$ZIP_DIR/install.sh"
 chmod +x "$ZIP_DIR/install.sh"
 cat > "$ZIP_DIR/README.txt" <<EOF
-re-gu-trans ${VERSION} (macOS arm64)
+re-gu-trans ${VERSION} (macOS ${TARGET_ARCH})
 1. Install Squirrel: https://github.com/rime/squirrel/releases
 2. Run: sudo ./install.sh
 3. System Settings → Keyboard → Input Sources → Squirrel → Gujarati
-Requires Apple Silicon. Intel Macs: build librime-qjs yourself (no official Intel release).
 Pinned librime-qjs: ${LIBRIME_QJS_TAG}
 EOF
-zip_dir_contents "$ZIP_DIR" "$OUT_DIR/re-gu-trans-${VERSION}-macos-arm64.zip"
+zip_dir_contents "$ZIP_DIR" "$OUT_DIR/re-gu-trans-${VERSION}-macos-${TARGET_ARCH}.zip"
 
 # --- pkg (files only under /usr/local/share/re-gu-trans) ---
 rm -rf "$PKG_ROOT" "$SCRIPTS_DIR"
@@ -82,8 +88,8 @@ cp -f "$DYLIB" "$PKG_ROOT/usr/local/share/re-gu-trans/plugin/librime-qjs.dylib"
 cp -f "$SCRIPT_DIR/postinstall" "$SCRIPTS_DIR/postinstall"
 chmod 755 "$SCRIPTS_DIR/postinstall"
 
-PKG_TMP="$OUT_DIR/re-gu-trans-${VERSION}-macos-arm64-component.pkg"
-PKG_OUT="$OUT_DIR/re-gu-trans-${VERSION}-macos-arm64.pkg"
+PKG_TMP="$OUT_DIR/re-gu-trans-${VERSION}-macos-${TARGET_ARCH}-component.pkg"
+PKG_OUT="$OUT_DIR/re-gu-trans-${VERSION}-macos-${TARGET_ARCH}.pkg"
 
 # --analyze can create a component plist; flat /usr/local tree needs no bundles
 pkgbuild \
@@ -101,6 +107,6 @@ rm -f "$PKG_TMP"
 codesign --force --sign - "$PKG_OUT" 2>/dev/null || true
 
 echo "macOS packages:"
-ls -la "$OUT_DIR"/re-gu-trans-"${VERSION}"-macos-arm64.*
-"$SCRIPT_DIR/../validate_archive.sh" "$OUT_DIR/re-gu-trans-${VERSION}-macos-arm64.zip"
+ls -la "$OUT_DIR"/re-gu-trans-"${VERSION}"-macos-"${TARGET_ARCH}".*
+"$SCRIPT_DIR/../validate_archive.sh" "$OUT_DIR/re-gu-trans-${VERSION}-macos-${TARGET_ARCH}.zip"
 "$SCRIPT_DIR/../validate_archive.sh" "$PKG_OUT"

@@ -25,8 +25,14 @@ rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-echo "Cloning librime @ $LIBRIME_TAG ..."
-git clone --depth 1 --branch "$LIBRIME_TAG" https://github.com/rime/librime.git
+if [[ -n "${LIBRIME_SRC_DIR:-}" ]]; then
+  echo "Using pre-fetched librime source at $LIBRIME_SRC_DIR ..."
+  cp -a "$LIBRIME_SRC_DIR" librime
+  chmod -R u+w librime
+else
+  echo "Cloning librime @ $LIBRIME_TAG ..."
+  git clone --depth 1 --branch "$LIBRIME_TAG" https://github.com/rime/librime.git
+fi
 cd librime
 
 # --- patch: Ubuntu 22.04 libglog lacks public google::IsGoogleLoggingInitialized ---
@@ -71,15 +77,21 @@ PY
 fi
 
 mkdir -p plugins
-echo "Cloning librime-qjs @ $LIBRIME_QJS_TAG into plugins/qjs ..."
-git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
-  https://github.com/HuangJian/librime-qjs.git plugins/qjs
+if [[ -n "${LIBRIME_QJS_SRC_DIR:-}" ]]; then
+  echo "Using pre-fetched librime-qjs source (with submodules) at $LIBRIME_QJS_SRC_DIR ..."
+  cp -a "$LIBRIME_QJS_SRC_DIR" plugins/qjs
+  chmod -R u+w plugins/qjs
+else
+  echo "Cloning librime-qjs @ $LIBRIME_QJS_TAG into plugins/qjs ..."
+  git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
+    https://github.com/HuangJian/librime-qjs.git plugins/qjs
 
-# Ensure QuickJS submodule is present (depth-1 clone can miss nested content)
-(
-  cd plugins/qjs
-  git submodule update --init --recursive
-)
+  # Ensure QuickJS submodule is present (depth-1 clone can miss nested content)
+  (
+    cd plugins/qjs
+    git submodule update --init --recursive
+  )
+fi
 
 # Atomic learning API
 "$PACKAGE_ROOT/scripts/package/apply_qjs_writefile_atomic.sh" "$PWD/plugins/qjs"

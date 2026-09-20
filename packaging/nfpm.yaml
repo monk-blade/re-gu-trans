@@ -1,7 +1,8 @@
-# nfpm config — placeholders __VERSION__/__PKGNAME__/__PKGDESC__/__CONFLICTS__
-# replaced at build time (see scripts/package/linux/build_packages.sh).
+# nfpm config — placeholders __VERSION__/__PKGNAME__/__PKGDESC__/__CONFLICTS__/
+# __ARCH__/__MULTIARCH_TUPLE__ replaced at build time (see
+# scripts/package/linux/build_packages.sh).
 name: __PKGNAME__
-arch: amd64
+arch: __ARCH__
 platform: linux
 version: __VERSION__
 section: utils
@@ -17,8 +18,8 @@ contents:
     dst: /usr/lib/rime-plugins/librime-qjs.so
     file_info:
       mode: 0755
-  - src: dist/linux-root/usr/lib/x86_64-linux-gnu/rime-plugins/librime-qjs.so
-    dst: /usr/lib/x86_64-linux-gnu/rime-plugins/librime-qjs.so
+  - src: dist/linux-root/usr/lib/__MULTIARCH_TUPLE__/rime-plugins/librime-qjs.so
+    dst: /usr/lib/__MULTIARCH_TUPLE__/rime-plugins/librime-qjs.so
     file_info:
       mode: 0755
   - src: dist/linux-root/usr/share/rime-data/

@@ -31,6 +31,9 @@ vendor/librime-qjs/qjs
 # Package build output
 dist/
 
+# Nix build result symlink
+/result
+
 # Regenerable external wordlist caches (rebuild via build_gu_word_freq.py)
 data/external/
 

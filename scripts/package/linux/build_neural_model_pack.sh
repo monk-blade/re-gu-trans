@@ -24,6 +24,7 @@ mkdir -p "$ASSEMBLY"
 cp -R "$SOURCE/." "$ASSEMBLY/"
 cp "$BUILD/librime-gujarati-model.so" "$ASSEMBLY/"
 cp -L "$ORT_ROOT/lib/libonnxruntime.so.1" "$ASSEMBLY/libonnxruntime.so.1"
+chmod u+w "$ASSEMBLY/libonnxruntime.so.1"
 strip "$ASSEMBLY/librime-gujarati-model.so" "$ASSEMBLY/libonnxruntime.so.1"
 NEURAL_PLUGIN="$ASSEMBLY/librime-gujarati-model.so" \
 ONNXRUNTIME_LIBRARY="$ASSEMBLY/libonnxruntime.so.1" \

@@ -54,6 +54,19 @@ case "$MODEL_ARCH" in
 esac
 MODEL_SOURCE="${MODEL_SOURCE:-$MODEL_SOURCE_DEFAULT}"
 PLUGIN_SOURCE="${PLUGIN_SOURCE:-$PLUGIN_SOURCE_DEFAULT}"
+
+# TARGET_ARCH selects the CPU architecture this package targets: "x64"
+# (default, nfpm arch amd64, Debian multiarch tuple x86_64-linux-gnu) or
+# "arm64" (nfpm arch arm64, tuple aarch64-linux-gnu). Native, not cross:
+# expects to run on a runner/host of that architecture, since it builds and
+# links librime-qjs.so and the model plugin for whatever `cc`/`cmake` here
+# actually target.
+TARGET_ARCH="${TARGET_ARCH:-x64}"
+case "$TARGET_ARCH" in
+  x64) NFPM_ARCH="amd64"; MULTIARCH_TUPLE="x86_64-linux-gnu" ;;
+  arm64) NFPM_ARCH="arm64"; MULTIARCH_TUPLE="aarch64-linux-gnu" ;;
+  *) echo "FAIL: TARGET_ARCH must be x64 or arm64 (got: $TARGET_ARCH)" >&2; exit 2 ;;
+esac
 # This package is meant to be plug-and-play: the neural model pack and the
 # fcitx5 theme/font default are always bundled in, not left as a separate
 # optional download.
@@ -92,7 +105,7 @@ fi
 rm -rf "$STAGE"
 mkdir -p \
   "$STAGE/usr/lib/rime-plugins" \
-  "$STAGE/usr/lib/x86_64-linux-gnu/rime-plugins" \
+  "$STAGE/usr/lib/$MULTIARCH_TUPLE/rime-plugins" \
   "$STAGE/usr/share/rime-data/js" \
   "$STAGE/usr/share/rime-data/gujarati-model" \
   "$STAGE/usr/share/fcitx5/themes" \
@@ -102,7 +115,7 @@ mkdir -p \
 
 # Plugin (both common search paths)
 cp -f "$PLUGIN_SO" "$STAGE/usr/lib/rime-plugins/librime-qjs.so"
-cp -f "$PLUGIN_SO" "$STAGE/usr/lib/x86_64-linux-gnu/rime-plugins/librime-qjs.so"
+cp -f "$PLUGIN_SO" "$STAGE/usr/lib/$MULTIARCH_TUPLE/rime-plugins/librime-qjs.so"
 
 # Shared Rime data (schemas + JS loadable via sharedDataDir) — binary Tries
 mkdir -p "$STAGE/usr/share/rime-data/js"
@@ -147,6 +160,15 @@ PerScreenDPI=False
 Vertical Candidate List=False
 EOF
 
+# STAGE_ONLY=1 stops here: used by the Arch PKGBUILD (packaging/arch/), which
+# only wants the staged $STAGE tree to repackage itself -- it doesn't need
+# nfpm's .deb/.rpm output, and validate_archive.sh's .rpm check requires
+# rpm2cpio, which isn't part of a stock Arch build environment.
+if [[ "${STAGE_ONLY:-0}" == "1" ]]; then
+  echo "STAGE_ONLY=1: staged tree ready at $STAGE, skipping nfpm/.deb/.rpm"
+  exit 0
+fi
+
 # Generate nfpm config with version/name/description/conflict substituted
 TMP_NFPM="$(mktemp)"
 sed \
@@ -154,6 +176,8 @@ sed \
   -e "s/__PKGNAME__/${PKG_NAME}/g" \
   -e "s#__PKGDESC__#${PKG_DESC}#g" \
   -e "s/__CONFLICTS__/${CONFLICT_PKG}/g" \
+  -e "s/__ARCH__/${NFPM_ARCH}/g" \
+  -e "s/__MULTIARCH_TUPLE__/${MULTIARCH_TUPLE}/g" \
   "$NFPM_CONFIG" > "$TMP_NFPM"
 
 if ! command -v nfpm >/dev/null 2>&1; then

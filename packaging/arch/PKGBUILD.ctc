@@ -1,0 +1,71 @@
+# Maintainer: re-gu-trans <noreply@users.noreply.github.com>
+# Builds against the repository checkout this file lives in (packaging/arch/),
+# reusing the same build scripts as the .deb/.rpm packages rather than
+# duplicating the librime-qjs/model-plugin build logic in shell a second time.
+pkgname=re-gu-trans-ctc
+pkgver=__VERSION__
+pkgrel=1
+pkgdesc="Gujarati roman-to-script transliteration for Rime, with the compact gu-transformer-ctc-v4 neural model (~2.3ms/query), fcitx5, and the Ori theme + Noto Serif Gujarati font"
+arch=('x86_64' 'aarch64')
+url="https://github.com/monk-blade/re-gu-trans"
+license=('MIT')
+depends=('librime' 'fcitx5' 'fcitx5-rime' 'noto-fonts')
+makedepends=('cmake' 'git' 'ninja' 'python' 'python-pip' 'nodejs' 'npm' 'boost'
+             'gflags' 'leveldb' 'marisa' 'opencc' 'yaml-cpp' 'google-glog' 'unzip' 'curl')
+conflicts=('re-gu-trans-xlit')
+options=('!strip')
+install=re-gu-trans.install
+source=()
+sha256sums=()
+
+_repo_root() {
+  cd "$startdir"
+  git -C . rev-parse --show-toplevel 2>/dev/null || (cd ../.. && pwd)
+}
+
+build() {
+  local root
+  root="$(_repo_root)"
+  cd "$root"
+
+  export REQUIRE_BINARY_TRIES=1
+  export MODEL_ARCH=ctc
+  case "$CARCH" in
+    x86_64) export TARGET_ARCH=x64 ;;
+    aarch64) export TARGET_ARCH=arm64 ;;
+  esac
+
+  python3 -m pip install --user --break-system-packages marisa-trie 2>/dev/null \
+    || python3 -m pip install --user marisa-trie
+  python3 scripts/build_qjs_tries.py --bin --exceptions
+
+  if [ ! -f "dist/plugins/librime-qjs.so" ]; then
+    chmod +x scripts/package/linux/*.sh scripts/package/*.sh
+    ./scripts/package/linux/build_librime_qjs.sh
+  fi
+
+  if [ -z "${ONNXRUNTIME_ROOT:-}" ]; then
+    local ort_asset ort_dir
+    case "$CARCH" in
+      x86_64) ort_asset="onnxruntime-linux-x64-1.23.2" ;;
+      aarch64) ort_asset="onnxruntime-linux-aarch64-1.23.2" ;;
+    esac
+    ort_dir="$srcdir/$ort_asset"
+    if [ ! -d "$ort_dir" ]; then
+      curl -fsSL -o "$srcdir/ort.tgz" \
+        "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/${ort_asset}.tgz"
+      tar xzf "$srcdir/ort.tgz" -C "$srcdir"
+    fi
+    export ONNXRUNTIME_ROOT="$ort_dir"
+  fi
+
+  STAGE_ONLY=1 ./scripts/package/linux/build_packages.sh
+}
+
+package() {
+  local root
+  root="$(_repo_root)"
+  cd "$root"
+  cp -a dist/linux-root/. "$pkgdir/"
+  install -Dm755 packaging/linux/postinst.sh "$pkgdir/usr/share/re-gu-trans/postinst.sh"
+}
