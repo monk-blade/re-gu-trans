@@ -39,7 +39,11 @@ known_versions = {
         # slower than the single-pass CTC model this replaces (~25ms vs ~2ms
         # warm p50, measured in eval/indicxlit_ab_summary.json); the budget
         # here reflects that accepted tradeoff, not an unoptimized regression.
-        'warm_p95_budget_ms': 60,
+        # Set generously (measured ~46ms warm p95 on a 28-core workstation,
+        # ~117ms on a shared 2-vCPU GitHub Actions runner) so it still catches
+        # a true regression (e.g. beam search failing to stop early,
+        # previously ~400ms) without flaking on cross-machine CPU variance.
+        'warm_p95_budget_ms': 150,
     },
 }
 version = manifest.get('model_version')
