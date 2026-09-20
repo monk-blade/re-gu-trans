@@ -48,7 +48,7 @@
     "include_latin": true
   },
   "model_indicator": {
-    "enabled": true,
+    "enabled": false,
     "model": "🤖",
     "fallback": "↪"
   },
