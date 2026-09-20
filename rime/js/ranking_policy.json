@@ -11,7 +11,7 @@
   },
   "weights": {
     "lexicon_strong": 100,
-    "user_learning_threshold": 3,
+    "user_learning_threshold": 2,
     "user_roman_boost_at_threshold": 80,
     "lm_unigram": 0.6,
     "lm_user": 0.6,

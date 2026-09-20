@@ -32,14 +32,12 @@ assertEqual(Object.keys(parseLearning('{broken').choices).length, 0, 'corrupt JS
 
 let direct = emptyLearning()
 recordExplicitSelection(direct, 'PADI', 'પડી', 1)
+assertEqual(preferredNative(direct, 'padi'), null, 'one selection does not promote')
 recordExplicitSelection(direct, 'padi', 'પડી', 2)
-assertEqual(preferredNative(direct, 'padi'), null, 'two selections do not promote')
-recordExplicitSelection(direct, 'padi', 'પડી', 3)
-assertEqual(preferredNative(direct, 'padi'), 'પડી', 'third selection promotes')
+assertEqual(preferredNative(direct, 'padi'), 'પડી', 'second selection promotes')
+recordExplicitSelection(direct, 'padi', 'પાડી', 3)
 recordExplicitSelection(direct, 'padi', 'પાડી', 4)
-recordExplicitSelection(direct, 'padi', 'પાડી', 5)
-recordExplicitSelection(direct, 'padi', 'પાડી', 6)
-assertEqual(preferredNative(direct, 'padi'), 'પાડી', 'new third selection replaces preference')
+assertEqual(preferredNative(direct, 'padi'), 'પાડી', 'new second selection replaces preference')
 
 function makeHarness(options) {
   const state = { file: options && options.file ? options.file : '', callback: null, disconnected: false }
@@ -106,13 +104,12 @@ harness.processor = new SelectionTrackerProcessor(harness.env)
 assert(harness.state.callback, 'commit notifier connected')
 
 selectAndCommit(harness, 3, 'પાડી')
-selectAndCommit(harness, 3, 'પાડી')
 let stored = JSON.parse(harness.state.file)
-assertEqual(stored.choices.padi.preferred_native, null, 'two numeric commits not preferred')
+assertEqual(stored.choices.padi.preferred_native, null, 'one numeric commit not preferred')
 selectAndCommit(harness, 3, 'પાડી')
 stored = JSON.parse(harness.state.file)
-assertEqual(stored.choices.padi.preferred_native, 'પાડી', 'third numeric commit preferred')
-assertEqual(stored.choices.padi.natives['પાડી'].explicit_count, 3, 'explicit count persisted')
+assertEqual(stored.choices.padi.preferred_native, 'પાડી', 'second numeric commit preferred')
+assertEqual(stored.choices.padi.natives['પાડી'].explicit_count, 2, 'explicit count persisted')
 
 // Page two: selectedIndex 2 with page size 2 means key 1 selects absolute index 2.
 harness.env.engine.schema.pageSize = 2
@@ -168,4 +165,4 @@ assertEqual(
   'disabled tracker must not break typing'
 )
 
-console.log(JSON.stringify({ ok: true, threshold: 3, production_js: true }))
+console.log(JSON.stringify({ ok: true, threshold: 2, production_js: true }))
