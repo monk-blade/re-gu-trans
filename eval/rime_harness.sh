@@ -101,8 +101,15 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
   # mangles cl.exe switches like /EHsc, /std:, and /OUT: into garbage (e.g.
   # "C:/Program Files/Git/EHsc"). Same class of issue as the cmd.exe /D /C
   # fix elsewhere in this repo; MSYS_NO_PATHCONV disables it for this call.
-  MSYS_NO_PATHCONV=1 cl /nologo /EHsc /std:c++17 /I"$BUILD_ROOT/src" eval/rime_session_driver.cc \
-    /link /LIBPATH:"$(dirname "$RIME_LIB")" rime.lib /OUT:"$DRIVER.exe"
+  # But that also stops MSYS from converting genuine POSIX path *values*
+  # (STAGE lives under /tmp) into Windows form, which link.exe cannot
+  # resolve on its own -- so those must be pre-converted with cygpath first.
+  to_win() { cygpath -w "$1" 2>/dev/null || echo "$1"; }
+  INCLUDE_DIR_WIN="$(to_win "$BUILD_ROOT/src")"
+  LIBPATH_DIR_WIN="$(to_win "$(dirname "$RIME_LIB")")"
+  OUT_EXE_WIN="$(to_win "$DRIVER.exe")"
+  MSYS_NO_PATHCONV=1 cl /nologo /EHsc /std:c++17 /I"$INCLUDE_DIR_WIN" eval/rime_session_driver.cc \
+    /link /LIBPATH:"$LIBPATH_DIR_WIN" rime.lib /OUT:"$OUT_EXE_WIN"
   DRIVER="$DRIVER.exe"
   export PATH="$(dirname "$RIME_DLL"):$PATH"
 else
