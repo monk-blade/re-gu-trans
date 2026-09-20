@@ -96,7 +96,12 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
   RIME_LIB="$(find "$BUILD_ROOT/build" -type f -iname 'rime.lib' | head -1)"
   RIME_DLL="$(find "$BUILD_ROOT/build" -type f -iname 'rime.dll' | head -1)"
   test -n "$RIME_LIB" -a -n "$RIME_DLL"
-  cl /nologo /EHsc /std:c++17 /I"$BUILD_ROOT/src" eval/rime_session_driver.cc \
+  # MSYS/Git-Bash auto-converts bare "/word" arguments that look like POSIX
+  # absolute paths into Windows paths (prefixing the Git install dir), which
+  # mangles cl.exe switches like /EHsc, /std:, and /OUT: into garbage (e.g.
+  # "C:/Program Files/Git/EHsc"). Same class of issue as the cmd.exe /D /C
+  # fix elsewhere in this repo; MSYS_NO_PATHCONV disables it for this call.
+  MSYS_NO_PATHCONV=1 cl /nologo /EHsc /std:c++17 /I"$BUILD_ROOT/src" eval/rime_session_driver.cc \
     /link /LIBPATH:"$(dirname "$RIME_LIB")" rime.lib /OUT:"$DRIVER.exe"
   DRIVER="$DRIVER.exe"
   export PATH="$(dirname "$RIME_DLL"):$PATH"
