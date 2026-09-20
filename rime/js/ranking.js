@@ -1259,7 +1259,7 @@ export class GujaratiTranslator {
           const validity = dictionaryValidity(result.native)
           pushCand(
             result.native,
-            'model',
+            input,
             650,
             validity.attested ? TIER_DICT : TIER_PHONETIC,
             false,

@@ -64,7 +64,7 @@ translator:
   max_prefix: 3
   max_phonetic: 4
   # Keyword emoji suggestions (English + Gujarati-roman); always below script
-  emoji_enable: false
+  emoji_enable: true
   max_emoji: 2
   # Optional offline model pack. auto is bit-for-bit core fallback when absent.
   neural_mode: auto  # auto | off | required

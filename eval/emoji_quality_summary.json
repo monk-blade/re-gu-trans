@@ -1,11 +1,11 @@
 {
   "report": "emoji_quality",
   "schema_version": 2,
-  "keywords": 8081,
+  "keywords": 8185,
   "positive_cases": 1000,
   "first_page_recall_pct": 99.6,
   "negative_cases": 5000,
-  "false_positive_pct": 0.42,
+  "false_positive_pct": 0.46,
   "invalid_sequences": [],
   "ok": true
 }
