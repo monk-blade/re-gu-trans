@@ -27,6 +27,15 @@ def tree_bytes(path: Path) -> int:
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
 
+def run_sh(script: Path, *args: str, **kwargs) -> None:
+    # The OS loader can exec a script directly via its shebang line on
+    # Linux/macOS, but Windows has no such mechanism -- CreateProcess just
+    # fails with WinError 193 ("not a valid Win32 application"). Every
+    # platform in this matrix ships bash (Git Bash on Windows runners), so
+    # invoke it explicitly instead of relying on shebang-based execution.
+    subprocess.run(["bash", str(script), *args], check=True, **kwargs)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--platform", required=True, choices=("macos", "linux", "windows"))
@@ -67,22 +76,13 @@ def main() -> int:
     if not native_model.get("passed") or native_model.get("p95_ms") is None:
         raise SystemExit("native model plugin report missing or failed")
 
-    subprocess.run(
-        [str(ROOT / "scripts" / "package" / "validate_payload.sh"), str(args.payload)],
-        cwd=ROOT,
-        check=True,
-    )
+    run_sh(ROOT / "scripts" / "package" / "validate_payload.sh", str(args.payload), cwd=ROOT)
     plugin_hash = digest(args.plugin)
     package_results = []
     for package in args.package:
         child_env = os.environ.copy()
         child_env["EXPECTED_PLUGIN_SHA256"] = plugin_hash
-        subprocess.run(
-            [str(ROOT / "scripts" / "package" / "validate_archive.sh"), str(package)],
-            cwd=ROOT,
-            check=True,
-            env=child_env,
-        )
+        run_sh(ROOT / "scripts" / "package" / "validate_archive.sh", str(package), cwd=ROOT, env=child_env)
         package_results.append(
             {"name": package.name, "sha256": digest(package), "bytes": package.stat().st_size, "valid": True}
         )
@@ -102,11 +102,7 @@ def main() -> int:
             with zipfile.ZipFile(args.model_pack) as archive:
                 archive.extractall(temp)
             extracted = Path(temp)
-        subprocess.run(
-            [str(ROOT / "scripts" / "package" / "validate_neural_model_pack.sh"), str(extracted)],
-            cwd=ROOT,
-            check=True,
-        )
+        run_sh(ROOT / "scripts" / "package" / "validate_neural_model_pack.sh", str(extracted), cwd=ROOT)
         manifest = json.loads((extracted / "training-manifest.json").read_text(encoding="utf-8"))
         model_version = manifest.get("model_version")
     if args.model_token and args.model_token != model_version:
