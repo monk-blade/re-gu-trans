@@ -1,0 +1,20 @@
+name: Debug windows clang install
+on:
+  workflow_dispatch: {}
+
+jobs:
+  debug:
+    runs-on: windows-latest
+    steps:
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Try choco upgrade llvm
+        shell: bash
+        run: |
+          set -x
+          choco --version
+          choco upgrade -y llvm --no-progress
+          echo "exit=$?"
+          export PATH="/c/Program Files/LLVM/bin:$PATH"
+          command -v clang++ && clang++ --version
