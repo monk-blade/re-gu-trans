@@ -122,8 +122,20 @@ fi
 DRIVER_LOG="$STAGE/rime-session.log"
 DRIVER_ARGS=("$SHARED" "$USER")
 if [[ "$REQUIRED_MISSING" == "1" ]]; then DRIVER_ARGS+=(required-missing); fi
+# Temporarily disable set -e: a crash (e.g. SIGSEGV, seen intermittently on
+# Windows when NEURAL_MODEL_PACK is set) must not abort before the partial
+# stdout/stderr captured so far gets printed -- that's the only diagnostic
+# available without a real debugger on the runner.
+set +e
 RESULT="$($DRIVER "${DRIVER_ARGS[@]}" 2>"$DRIVER_LOG")"
+DRIVER_STATUS=$?
+set -e
+echo "driver exit status: $DRIVER_STATUS" >&2
 cat "$DRIVER_LOG" >&2
+if [[ "$DRIVER_STATUS" -ge 128 ]]; then
+  echo "FAIL: driver terminated by signal $((DRIVER_STATUS - 128))" >&2
+  exit "$DRIVER_STATUS"
+fi
 NEURAL_OBSERVED=0
 if grep -E '\$qjs\$ runtime capabilities active=.*neural_model' "$DRIVER_LOG" >/dev/null; then
   NEURAL_OBSERVED=1
