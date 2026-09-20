@@ -91,8 +91,15 @@ def main() -> int:
     # generously (measured ~46ms warm p95 on a 28-core workstation, ~117ms on
     # a shared 2-vCPU GitHub Actions runner) so it still catches a true
     # regression (e.g. beam search failing to stop early, previously ~400ms)
-    # without flaking on ordinary cross-machine CPU variance.
-    payload["passed"] = payload["model_version"] == "indicxlit-fairseq-v1.0" and payload["p95_ms"] <= 150
+    # without flaking on ordinary cross-machine CPU variance. The single-pass
+    # CTC model (gu-transformer-ctc-v3) is inherently ~10-20x faster, so it
+    # gets a tight budget instead.
+    known_p95_budgets_ms = {
+        "indicxlit-fairseq-v1.0": 150,
+        "gu-transformer-ctc-v3": 10,
+    }
+    budget = known_p95_budgets_ms.get(payload["model_version"])
+    payload["passed"] = budget is not None and payload["p95_ms"] <= budget
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, indent=2))

@@ -21,10 +21,40 @@ PAYLOAD="$DIST/payload-linux"
 PLUGIN_SO="${PLUGIN_SO:-$DIST/plugins/librime-qjs.so}"
 OUT_DIR="$DIST/packages"
 NFPM_CONFIG="$PACKAGE_ROOT/packaging/nfpm.yaml"
+
+# MODEL_ARCH selects which neural backend this build bundles: "indicxlit"
+# (default, higher accuracy, ~20ms/query) or "ctc" (gu-transformer-ctc-v3,
+# lower accuracy, ~2ms/query). The native plugin auto-detects either
+# architecture's files at load time, so the same librime-qjs.so and plugin
+# binary work for both; only the packaged model files and package identity
+# differ. The two are named distinctly and marked conflicting since they
+# install to the same paths and are meant to be alternatives, not co-installed.
+MODEL_ARCH="${MODEL_ARCH:-indicxlit}"
+case "$MODEL_ARCH" in
+  indicxlit)
+    PKG_NAME="${PKG_NAME:-re-gu-trans-xlit}"
+    MODEL_SOURCE_DEFAULT="$PACKAGE_ROOT/models/artifacts/gu-indicxlit-v1"
+    MODEL_PACK_DEFAULT="$DIST/gujarati-model-pack-linux-xlit"
+    CONFLICT_PKG="re-gu-trans-ctc"
+    PKG_DESC="Gujarati roman-to-script transliteration for Rime (lexicon + QuickJS), with the IndicXlit neural model (higher accuracy, ~20ms/query), fcitx5, and the Ori theme + Noto Serif Gujarati candidate font all installed as part of this package. On a system with a desktop session, installing this package enables Gujarati typing directly; otherwise run re-gu-trans-enable once as your user. Conflicts with re-gu-trans-ctc (same schema, faster/lower-accuracy CTC model) -- install one or the other."
+    ;;
+  ctc)
+    PKG_NAME="${PKG_NAME:-re-gu-trans-ctc}"
+    MODEL_SOURCE_DEFAULT="$PACKAGE_ROOT/models/artifacts/gu-transformer-ctc-v3"
+    MODEL_PACK_DEFAULT="$DIST/gujarati-model-pack-linux-ctc"
+    CONFLICT_PKG="re-gu-trans-xlit"
+    PKG_DESC="Gujarati roman-to-script transliteration for Rime (lexicon + QuickJS), with the compact gu-transformer-ctc-v3 neural model (lower accuracy, ~2ms/query), fcitx5, and the Ori theme + Noto Serif Gujarati candidate font all installed as part of this package. On a system with a desktop session, installing this package enables Gujarati typing directly; otherwise run re-gu-trans-enable once as your user. Conflicts with re-gu-trans-xlit (same schema, higher-accuracy IndicXlit model) -- install one or the other."
+    ;;
+  *)
+    echo "FAIL: MODEL_ARCH must be indicxlit or ctc (got: $MODEL_ARCH)" >&2
+    exit 2
+    ;;
+esac
+MODEL_SOURCE="${MODEL_SOURCE:-$MODEL_SOURCE_DEFAULT}"
 # This package is meant to be plug-and-play: the neural model pack and the
 # fcitx5 theme/font default are always bundled in, not left as a separate
 # optional download.
-MODEL_PACK="${MODEL_PACK:-$DIST/gujarati-model-pack-linux}"
+MODEL_PACK="${MODEL_PACK:-$MODEL_PACK_DEFAULT}"
 THEME_CACHE="${THEME_CACHE:-$DIST/ori-fcitx5-theme}"
 
 mkdir -p "$OUT_DIR" "$DIST/plugins"
@@ -39,8 +69,11 @@ require_file "$PLUGIN_SO"
 "$SCRIPT_DIR/../stage_payload.sh" "$PAYLOAD" linux
 
 if [[ ! -d "$MODEL_PACK" ]]; then
-  echo "Building neural model pack (MODEL_PACK not found at $MODEL_PACK) ..."
+  echo "Building $MODEL_ARCH neural model pack (MODEL_PACK not found at $MODEL_PACK) ..."
   ONNXRUNTIME_ROOT="${ONNXRUNTIME_ROOT:?ONNXRUNTIME_ROOT must point to ONNX Runtime 1.23.2 to build the bundled model pack}" \
+  MODEL_SOURCE="$MODEL_SOURCE" \
+  BUILD_DIR="$DIST/gujarati-model-build-linux-$MODEL_ARCH" \
+  ASSEMBLY_DIR="$DIST/gujarati-model-assembly-linux-$MODEL_ARCH" \
   OUT_DIR="$MODEL_PACK" \
     "$SCRIPT_DIR/build_neural_model_pack.sh"
 fi
@@ -110,9 +143,14 @@ PerScreenDPI=False
 Vertical Candidate List=False
 EOF
 
-# Generate nfpm config with version substituted
+# Generate nfpm config with version/name/description/conflict substituted
 TMP_NFPM="$(mktemp)"
-sed "s/__VERSION__/${VERSION}/g" "$NFPM_CONFIG" > "$TMP_NFPM"
+sed \
+  -e "s/__VERSION__/${VERSION}/g" \
+  -e "s/__PKGNAME__/${PKG_NAME}/g" \
+  -e "s#__PKGDESC__#${PKG_DESC}#g" \
+  -e "s/__CONFLICTS__/${CONFLICT_PKG}/g" \
+  "$NFPM_CONFIG" > "$TMP_NFPM"
 
 if ! command -v nfpm >/dev/null 2>&1; then
   echo "Installing nfpm..."

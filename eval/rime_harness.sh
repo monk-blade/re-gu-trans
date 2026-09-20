@@ -33,7 +33,12 @@ cp -f "$PAYLOAD/rime/js/gujarati_translator.js" "$USER/"
 cp -f "$PAYLOAD/rime/js/commit_on_punct_processor.js" "$USER/"
 NEURAL_EXPECTED=0
 if [[ -n "${NEURAL_MODEL_PACK:-}" ]]; then
-  for model_file in indicxlit_encoder.onnx indicxlit_decoder_v2.onnx vocab.json; do
+  if [[ -f "$NEURAL_MODEL_PACK/indicxlit_encoder.onnx" ]]; then
+    required=(indicxlit_encoder.onnx indicxlit_decoder_v2.onnx vocab.json)
+  else
+    required=(gujarati_xlit.int8.onnx vocab.tsv)
+  fi
+  for model_file in "${required[@]}"; do
     test -f "$NEURAL_MODEL_PACK/$model_file" || {
       echo "FAIL: neural model pack lacks $model_file" >&2
       exit 1
