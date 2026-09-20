@@ -35,6 +35,15 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
 
 "$PACKAGE_ROOT/scripts/package/apply_qjs_writefile_atomic.sh" "$PWD/plugins/qjs"
 
+# librime and librime-qjs both pin CMAKE_CXX_STANDARD to 17, but
+# librime-qjs's own headers (qjs_candidate.h etc.) use C++20 designated
+# initializers for JSCFunctionListEntry tables. GCC/Clang accept this as an
+# extension even in C++17 mode (why the Linux/macOS builds are unaffected),
+# but MSVC enforces it strictly and fails with C7555/C2065/etc. Bump both to
+# the standard the code actually requires.
+sed -i 's/CMAKE_CXX_STANDARD 17/CMAKE_CXX_STANDARD 20/' CMakeLists.txt
+sed -i 's/CMAKE_CXX_STANDARD 17/CMAKE_CXX_STANDARD 20/' plugins/qjs/CMakeLists.txt
+
 # Use Ninja with the MSVC environment supplied by ilammy/msvc-dev-cmd. This
 # avoids coupling the build to a particular Visual Studio generator name.
 cat > env.bat <<'EOF'
@@ -42,6 +51,14 @@ set RIME_ROOT=%CD%
 set BOOST_ROOT=%RIME_ROOT%\deps\boost-1.89.0
 set CMAKE_GENERATOR=Ninja
 EOF
+
+# The windows-latest runner's current MSVC (14.35+) requires an explicit
+# opt-in to compile <stdatomic.h> (pulled in by quickjs-libc.c), or it fails
+# with "fatal error C1189: C atomic support is not enabled". CL is read by
+# cl.exe and prepended to every invocation, including the ones librime's own
+# build.bat generates internally, so this reaches the actual failing compile
+# without needing to patch quickjs's own build files.
+export CL="/experimental:c11atomics"
 
 # Git Bash/MSYS rewrites command arguments that look like POSIX paths.  That
 # turns cmd.exe's `/c` switch into a drive path, so the batch files never run

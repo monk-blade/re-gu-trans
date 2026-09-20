@@ -41,6 +41,13 @@ def main() -> int:
     )
     parser.add_argument("--package", action="append", default=[], type=Path)
     parser.add_argument("--model-pack", required=True, type=Path)
+    parser.add_argument(
+        "--model-token",
+        default=None,
+        help="Expected training-manifest.json model_version (e.g. indicxlit-fairseq-v1.0, "
+        "gu-transformer-ctc-v4). Cross-checked against the pack's actual manifest instead of "
+        "the pack filename, since a release now ships multiple model variants per platform.",
+    )
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
@@ -88,21 +95,29 @@ def main() -> int:
             f"package formats mismatch for {args.platform}: "
             f"expected={sorted(expected_suffixes)} actual={sorted(actual_suffixes)}"
         )
-    expected_model_token = "indicxlit-fairseq-v1.0"
-    if expected_model_token not in args.model_pack.name:
-        raise SystemExit(f"model pack filename does not identify {expected_model_token}")
     with tempfile.TemporaryDirectory(prefix="akshar-model-pack-") as temp:
-        with zipfile.ZipFile(args.model_pack) as archive:
-            archive.extractall(temp)
+        if args.model_pack.is_dir():
+            extracted = args.model_pack
+        else:
+            with zipfile.ZipFile(args.model_pack) as archive:
+                archive.extractall(temp)
+            extracted = Path(temp)
         subprocess.run(
-            [str(ROOT / "scripts" / "package" / "validate_neural_model_pack.sh"), temp],
+            [str(ROOT / "scripts" / "package" / "validate_neural_model_pack.sh"), str(extracted)],
             cwd=ROOT,
             check=True,
         )
+        manifest = json.loads((extracted / "training-manifest.json").read_text(encoding="utf-8"))
+        model_version = manifest.get("model_version")
+    if args.model_token and args.model_token != model_version:
+        raise SystemExit(
+            f"model pack version {model_version!r} does not match expected {args.model_token!r}"
+        )
     model_pack = {
         "name": args.model_pack.name,
-        "sha256": digest(args.model_pack),
-        "bytes": args.model_pack.stat().st_size,
+        "model_version": model_version,
+        "sha256": digest(args.model_pack) if args.model_pack.is_file() else None,
+        "bytes": args.model_pack.stat().st_size if args.model_pack.is_file() else tree_bytes(args.model_pack),
         "validated": True,
     }
 

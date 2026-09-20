@@ -141,6 +141,9 @@ jobs:
       - name: Test
         env:
           MODEL_ARCH: ${{ matrix.model == 'xlit' && 'indicxlit' || 'ctc' }}
+          # Independent of what the built manifest claims -- catches a stale
+          # or wrong model pack silently reused across matrix legs.
+          MODEL_TOKEN: ${{ matrix.model == 'xlit' && 'indicxlit-fairseq-v1.0' || 'gu-transformer-ctc-v4' }}
         run: |
           MODEL_PACK="dist/gujarati-model-pack-linux-${{ matrix.model }}"
           python3 eval/native_model_plugin_test.py "$MODEL_PACK"
@@ -160,6 +163,7 @@ jobs:
             --package "$(find dist/packages -name '*.deb' | head -1)" \
             --package "$(find dist/packages -name '*.rpm' | head -1)" \
             --model-pack "$MODEL_PACK" \
+            --model-token "$MODEL_TOKEN" \
             --output "dist/reports/verification-linux-${{ matrix.arch }}-${{ matrix.model }}.json"
       - uses: actions/upload-artifact@v4
         with:
