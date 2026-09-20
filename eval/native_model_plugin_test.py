@@ -84,7 +84,11 @@ def main() -> int:
         "invalid_input_rejected": True,
         "yas_in_nbest": True,
     }
-    payload["passed"] = payload["model_version"] == "gu-model-plugin-v2" and payload["p95_ms"] <= 10
+    # Autoregressive beam search over a seq2seq transformer is inherently
+    # slower than the single-pass CTC model this replaces (~25ms vs ~2ms warm
+    # p50, measured in eval/indicxlit_ab_summary.json); the budget here
+    # reflects that accepted tradeoff, not an unoptimized regression.
+    payload["passed"] = payload["model_version"] == "indicxlit-fairseq-v1.0" and payload["p95_ms"] <= 60
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, indent=2))

@@ -267,7 +267,7 @@ Release packaging requires binary Tries and pins librime-qjs `v1.3.0` with
 librime `1.16.1`. `scripts/package/validate_archive.sh` extracts a built
 `.zip`, `.deb`, `.rpm`, or `.pkg`, validates the binary-only payload, and
 checks the packaged plugin. Keep the staged payload under 70 MB. Release CI
-also builds and validates the optional `gu-transformer-ctc-v3` model pack,
+also builds and validates the optional `indicxlit-fairseq-v1.0` model pack,
 which must include the native plugin, ONNX Runtime, model/card/manifest,
 licenses, and checksums; the model pack is not required for core typing.
 

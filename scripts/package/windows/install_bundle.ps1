@@ -21,7 +21,7 @@ for ($i = 0; $i -lt $args.Count; $i++) {
 
 $ManifestPath = Join-Path $Root 'bundle-manifest.json'
 $Manifest = Get-Content -Raw $ManifestPath | ConvertFrom-Json
-if ($Manifest.platform -ne 'windows' -or $Manifest.model_version -ne 'gu-transformer-ctc-v3') {
+if ($Manifest.platform -ne 'windows' -or $Manifest.model_version -ne 'indicxlit-fairseq-v1.0') {
   throw 'Bundle platform/model version mismatch'
 }
 foreach ($entry in $Manifest.files.PSObject.Properties) {

@@ -17,8 +17,9 @@ AksharNBest aksharNBest = nullptr;
 std::string aksharModelRoot;
 
 bool aksharAssetsExist(const std::string& root) {
-  return Environment::fileExists(root + "/gujarati_xlit.int8.onnx") &&
-         Environment::fileExists(root + "/vocab.tsv");
+  return Environment::fileExists(root + "/indicxlit_encoder.onnx") &&
+         Environment::fileExists(root + "/indicxlit_decoder_v2.onnx") &&
+         Environment::fileExists(root + "/vocab.json");
 }
 
 void aksharLoadModelBridge() {
