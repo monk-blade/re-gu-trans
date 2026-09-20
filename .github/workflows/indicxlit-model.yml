@@ -58,6 +58,8 @@ jobs:
         run: python3 scripts/export/patch_fairseq_py311.py
       - name: Export + quantize ONNX model
         run: python3 scripts/export/export_indicxlit_onnx.py
+      - name: Refresh manifest checksums for this build
+        run: python3 scripts/export/refresh_manifest_checksums.py
       - name: Upload exported model
         uses: actions/upload-artifact@v4
         with:
