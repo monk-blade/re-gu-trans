@@ -46,7 +46,7 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
 # reliable than trying to coerce cl.exe into accepting this. clang here
 # still uses the MSVC toolchain's headers/libs/ABI via the environment
 # ilammy/msvc-dev-cmd set up -- it's not a MinGW or clang-cl cross build.
-choco upgrade -y llvm
+choco upgrade -y llvm --no-progress
 # choco updates the machine PATH in the registry, which a fresh process
 # picks up -- but this script keeps running in the same bash process that
 # started before the install, so export it explicitly for the cmd.exe
