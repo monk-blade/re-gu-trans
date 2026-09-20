@@ -49,7 +49,7 @@ translator:
   # qjs knobs (no Rime table dictionary)
   enable_user_learning: true
   # Third explicit numbered selection → preferred Gujarati on next composition
-  user_learning_threshold: 3
+  user_learning_threshold: 2
   # Dev-only: allow JSON/TSV when binary Tries absent (never for release packages)
   allow_text_fallback: false
   # Prefer attested lexicon; drop unknown phonetic inventions when exact hits exist
