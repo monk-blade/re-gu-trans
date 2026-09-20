@@ -14,7 +14,7 @@ on:
       - 'native/gujarati-model-plugin/**'
       - 'eval/_fairseq_py311_compat.py'
       - 'eval/native_model_plugin_test.py'
-      - 'scripts/package/*neural_model_pack*'
+      - 'scripts/package/**neural_model_pack*'
       - '.github/workflows/indicxlit-model.yml'
 
 env:
