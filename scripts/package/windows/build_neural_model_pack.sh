@@ -12,10 +12,22 @@ test "$(tr -d '\r\n' < "$ORT_ROOT/VERSION_NUMBER")" = "1.23.2" || {
   echo "FAIL: ONNX Runtime 1.23.2 is required" >&2
   exit 1
 }
-# Ninja + the MSVC env vars set up by ilammy/msvc-dev-cmd (INCLUDE/LIB/PATH
-# pointing at cl.exe) avoids pinning to a specific Visual Studio generator
-# version, which breaks whenever a GitHub-hosted windows-latest image ships
-# a newer VS release than "17 2022".
+# Ninja + the MSVC env vars set up by ilammy/msvc-dev-cmd (INCLUDE/LIB/PATH)
+# avoids pinning to a specific Visual Studio generator version, which breaks
+# whenever a GitHub-hosted windows-latest image ships a newer VS release
+# than "17 2022". Compiler is clang (see build_librime_qjs.sh for why) so
+# this DLL is built by the same toolchain as librime-qjs.dll that loads it
+# -- belt-and-suspenders: the two only interact through a plain extern "C"
+# function returning a read-only char*, which should be compiler-agnostic,
+# but matching toolchains has been the reliable fix for every other
+# cross-DLL issue found on this platform so far.
+if [[ "${OS:-}" == "Windows_NT" ]]; then
+  export PATH="/c/Program Files/LLVM/bin:$PATH"
+fi
+if command -v clang++ >/dev/null 2>&1; then
+  export CC=clang
+  export CXX=clang++
+fi
 cmake -S "$ROOT/native/gujarati-model-plugin" -B "$BUILD" \
   -G Ninja -DCMAKE_BUILD_TYPE=Release -DONNXRUNTIME_ROOT="$ORT_ROOT"
 cmake --build "$BUILD" --parallel 2
