@@ -1,10 +1,10 @@
 /**
- * User learning v2 — explicit numbered selections only; prefer at count ≥ 3.
+ * User learning v2 — explicit numbered selections only; prefer at count ≥ 2.
  * Persistence requires Environment.writeFileAtomic.
  */
 export const LEARNING_FILE = 'gujarati.user-learning.json'
 export const LEARNING_VERSION = 2
-export const EXPLICIT_PROMOTION_THRESHOLD = 3
+export const EXPLICIT_PROMOTION_THRESHOLD = 2
 export const MAX_ROMANS = 10000
 export const MAX_NATIVES_PER_ROMAN = 8
 export const MAX_COUNT = 255
@@ -113,7 +113,7 @@ function pruneStore(store) {
 
 /**
  * Record an explicit numbered Gujarati selection (not Space/punct/Latin/emoji).
- * On the third explicit selection of the same pair, set preferred_native.
+ * On the second explicit selection of the same pair, set preferred_native.
  * Promotion applies on the *next* composition (caller must not reorder current commit).
  */
 export function recordExplicitSelection(store, roman, native, nowMs) {

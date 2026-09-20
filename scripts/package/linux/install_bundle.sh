@@ -25,7 +25,7 @@ from pathlib import Path
 import json, sys
 root = Path(sys.argv[1])
 manifest = json.loads((root / 'bundle-manifest.json').read_text(encoding='utf-8'))
-if manifest.get('platform') != 'linux' or manifest.get('model_version') != 'gu-transformer-ctc-v3':
+if manifest.get('platform') != 'linux' or manifest.get('model_version') != 'indicxlit-fairseq-v1.0':
     raise SystemExit('bundle platform/model version mismatch')
 for name, expected in (manifest.get('files') or {}).items():
     path = root / name

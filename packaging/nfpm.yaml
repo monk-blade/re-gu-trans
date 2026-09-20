@@ -7,9 +7,11 @@ section: utils
 priority: optional
 maintainer: re-gu-trans <noreply@users.noreply.github.com>
 description: |
-  Gujarati roman→script transliteration for Rime (lexicon + QuickJS).
-  Installs schema/data into /usr/share/rime-data and librime-qjs plugin.
-  Requires a Rime frontend (fcitx5-rime or ibus-rime). Run re-gu-trans-enable once.
+  Gujarati roman→script transliteration for Rime (lexicon + QuickJS), with the
+  IndicXlit neural model, fcitx5, and the Ori theme + Noto Serif Gujarati
+  candidate font all installed as part of this package. On a system with a
+  desktop session, installing this package enables Gujarati typing directly;
+  otherwise run re-gu-trans-enable once as your user.
 vendor: re-gu-trans
 homepage: https://github.com/monk-blade/re-gu-trans
 license: MIT
@@ -32,16 +34,24 @@ contents:
     dst: /usr/bin/re-gu-trans-enable
     file_info:
       mode: 0755
+  - src: dist/linux-root/usr/share/fcitx5/themes/
+    dst: /usr/share/fcitx5/themes/
+    type: tree
+  - src: dist/linux-root/etc/xdg/fcitx5/conf/classicui.conf
+    dst: /etc/xdg/fcitx5/conf/classicui.conf
+    type: config|noreplace
 scripts:
   postinstall: packaging/linux/postinst.sh
 overrides:
   deb:
     depends:
       - librime1 | librime
-    recommends:
-      - fcitx5-rime | ibus-rime
+      - fcitx5
+      - fcitx5-rime
+      - fonts-noto-core
   rpm:
     depends:
       - librime
-    recommends:
+      - fcitx5
       - fcitx5-rime
+      - google-noto-serif-gujarati-vf-fonts

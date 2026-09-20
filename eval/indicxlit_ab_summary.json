@@ -1,0 +1,35 @@
+{
+  "report": "indicxlit_ab_benchmark",
+  "held_out_size": 2500,
+  "gu_transformer_ctc_v3": {
+    "accuracy": {
+      "n": 2500,
+      "top1_pct": 67.28,
+      "top3_pct": 86.96,
+      "recall_at_6_pct": 92.36
+    },
+    "runtime": {
+      "queries": 2500,
+      "warm_p50_ms": 2.237,
+      "warm_p95_ms": 3.44,
+      "mean_ms": 2.302
+    }
+  },
+  "indicxlit_fairseq": {
+    "accuracy": {
+      "n": 2500,
+      "top1_pct": 76.72,
+      "top3_pct": 94.2,
+      "recall_at_6_pct": 97.24
+    },
+    "runtime": {
+      "queries": 2500,
+      "warm_p50_ms": 24.785,
+      "warm_p95_ms": 37.238,
+      "mean_ms": 25.454
+    },
+    "sampled_n": 2500,
+    "note": "sampled subset of held_out_gold; beam search is CPU-bound and much slower per query"
+  },
+  "speedup_ctc_over_indicxlit_p50": 11.1
+}

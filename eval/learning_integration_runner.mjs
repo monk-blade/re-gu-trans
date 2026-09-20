@@ -91,7 +91,7 @@ const preferred = learned.choices.padi.preferred_native
 const count = learned.choices.padi.natives[target].explicit_count
 const ok =
   snapshots[0].top !== target &&
-  snapshots[1].top !== target &&
+  snapshots[1].top === target &&
   snapshots[2].top === target &&
   snapshots[2].menu[1] === 'padi' &&
   preferred === target &&

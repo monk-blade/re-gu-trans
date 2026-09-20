@@ -18,7 +18,7 @@ def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> int:
-    model = ROOT / "models" / "artifacts" / "gu-transformer-ctc-v3"
+    model = ROOT / "models" / "artifacts" / "gu-indicxlit-v1"
     stage_script = ROOT / "scripts" / "package" / "stage_combined_bundle.sh"
     installer = "install_bundle.sh"
     with tempfile.TemporaryDirectory(prefix="re-gu-trans-bundle-") as temp_name:
@@ -39,7 +39,7 @@ def main() -> int:
         )
         assert "COMBINED_BUNDLE_STAGED" in result.stdout
         manifest = json.loads((stage / "bundle-manifest.json").read_text())
-        assert manifest["model_version"] == "gu-transformer-ctc-v3"
+        assert manifest["model_version"] == "indicxlit-fairseq-v1.0"
         verified = run(str(stage / installer), "--verify-only")
         assert "BUNDLE_VERIFY_OK" in verified.stdout
 

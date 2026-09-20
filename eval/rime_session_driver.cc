@@ -168,8 +168,11 @@ int main(int argc, char** argv) {
     if (next.empty()) return 6;
     tops.push_back(next[0]);
   }
+  // Field name kept as "three_selection_observed" (external contract read by
+  // eval/rime_harness.sh) even though promotion now happens on the second
+  // explicit selection (EXPLICIT_PROMOTION_THRESHOLD=2 in rime/js/learning.js).
   const bool three_selection_observed =
-      tops[0] != target && tops[1] != target && tops[2] == target;
+      tops[0] != target && tops[1] == target && tops[2] == target;
   if (!three_selection_observed) return 7;
   const std::filesystem::path learning_path =
       std::filesystem::path(argv[2]) / "gujarati.user-learning.json";

@@ -5,7 +5,7 @@
 schema:
   schema_id: gujarati
   name: Gujarati Transliteration
-  version: '2.9'
+  version: '3.0'
   author:
     - OpenCode
     - re-gu-trans
@@ -49,7 +49,7 @@ translator:
   # qjs knobs (no Rime table dictionary)
   enable_user_learning: true
   # Third explicit numbered selection → preferred Gujarati on next composition
-  user_learning_threshold: 3
+  user_learning_threshold: 2
   # Dev-only: allow JSON/TSV when binary Tries absent (never for release packages)
   allow_text_fallback: false
   # Prefer attested lexicon; drop unknown phonetic inventions when exact hits exist
@@ -64,7 +64,7 @@ translator:
   max_prefix: 3
   max_phonetic: 4
   # Keyword emoji suggestions (English + Gujarati-roman); always below script
-  emoji_enable: true
+  emoji_enable: false
   max_emoji: 2
   # Optional offline model pack. auto is bit-for-bit core fallback when absent.
   neural_mode: auto  # auto | off | required

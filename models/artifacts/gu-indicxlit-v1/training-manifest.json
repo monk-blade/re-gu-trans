@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "model_version": "indicxlit-fairseq-v1.0",
+  "architecture": "transformer-seq2seq-beam-search",
+  "quantization": "dynamic-int8",
+  "benchmark_family_exclusion": true,
+  "source_checkpoint": "AI4Bharat IndicXlit v1.0 (transformer, en->gu), MIT License",
+  "export_script": "scripts/export/export_indicxlit_onnx.py",
+  "model_config": {
+    "dimension": 256,
+    "encoder_layers": 6,
+    "decoder_layers": 6,
+    "attention_heads": 4,
+    "feedforward": 1024,
+    "max_decode_steps": 32
+  },
+  "sources": [
+    {
+      "name": "AI4Bharat IndicXlit released checkpoint",
+      "license": "MIT",
+      "url": "https://github.com/AI4Bharat/IndicXlit"
+    }
+  ],
+  "excluded_eval": {
+    "held_out_gold_sha256": "f5efe81a9e518ca4811f15bbf837e57d6f4dacbf97e035351229b7079ef50ae9"
+  },
+  "model_sha256": {
+    "indicxlit_encoder.onnx": "6d8a176b297f99c57a11a0f15b95cb3bc279694697cad6409a152c60d6fb4509",
+    "indicxlit_decoder_v2.onnx": "3fdbe2a3e468270946520908c85b57203bae35e65cc75d27e217daa3ce3995a5"
+  },
+  "metrics": {
+    "top1_pct": 76.84,
+    "top3_pct": 94.08,
+    "recall_at_6_pct": 97.64
+  },
+  "runtime": {
+    "warm_p50_ms": 21.351,
+    "warm_p95_ms": 46.116,
+    "mean_ms": 24.068,
+    "queries": 2500,
+    "measured_by": "native/gujarati-model-plugin (int8, ONNX Runtime 1.23.2, single intra-op thread)",
+    "note": "Autoregressive beam search over a seq2seq transformer is inherently slower per query than the single-pass gu-transformer-ctc-v3 CTC model this replaces (~2-5ms warm p95); see eval/indicxlit_ab_summary.json for the accuracy/latency tradeoff."
+  },
+  "reference": {
+    "yas": { "expected": "યસ", "menu": ["યાસ", "યસ", "યેસ", "યશ", "યાંસ", "યોસ"], "passed": false },
+    "bagicho": { "expected": "બગીચો", "menu": ["બગીચો", "બગિચો", "બાગીચો", "બાગિચો", "બેજીચો", "બેગિચો"], "passed": true },
+    "namaste": { "expected": "નમસ્તે", "menu": ["નમસ્તે", "નામસ્તે", "નમાસ્તે", "નમસતે", "નમસ્તેએ", "નામાસ્તે"], "passed": true },
+    "aacharpalan": { "expected": "આચારપાલન", "menu": ["આચારપાલન", "આચરપાલન", "આચારપલન", "આચારપાળન", "આચારપાલનના", "આચારપાલનનું"], "passed": true },
+    "to": { "expected": "તો", "menu": ["ટીઓ", "ટો", "તો", "ટિઓ", "ટીઓએ", "ટૉ"], "passed": false }
+  }
+}

@@ -25,8 +25,8 @@ MODEL_VERSION="$(python3 - "$MODEL_DIR/training-manifest.json" <<'PY'
 import json, sys
 manifest = json.load(open(sys.argv[1], encoding='utf-8'))
 version = manifest.get('model_version')
-if version != 'gu-transformer-ctc-v3':
-    raise SystemExit('FAIL: combined bundle model version is not gu-transformer-ctc-v3')
+if version != 'indicxlit-fairseq-v1.0':
+    raise SystemExit('FAIL: combined bundle model version is not indicxlit-fairseq-v1.0')
 print(version)
 PY
 )"

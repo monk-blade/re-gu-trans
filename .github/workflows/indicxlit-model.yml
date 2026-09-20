@@ -1,0 +1,146 @@
+name: IndicXlit model build
+
+# Builds and validates the IndicXlit neural model pack (ONNX export + native
+# plugin) independently of the full IME release pipeline in
+# release-packages.yml, across every platform/arch that ships a model pack.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ['**']
+    paths:
+      - 'scripts/export/**'
+      - 'models/indicxlit_fairseq.py'
+      - 'models/indicxlit_onnx.py'
+      - 'native/gujarati-model-plugin/**'
+      - 'eval/_fairseq_py311_compat.py'
+      - 'eval/native_model_plugin_test.py'
+      - 'scripts/package/**neural_model_pack*'
+      - '.github/workflows/indicxlit-model.yml'
+
+env:
+  ONNXRUNTIME_VERSION: '1.23.2'
+  INDICXLIT_RELEASE_URL: 'https://github.com/AI4Bharat/IndicXlit/releases/download/v1.0/indicxlit-en-indic-v1.0.zip'
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cache IndicXlit checkpoint
+        id: cache-checkpoint
+        uses: actions/cache@v4
+        with:
+          path: data/external/indicxlit
+          key: indicxlit-checkpoint-v1.0
+      - name: Download IndicXlit release checkpoint
+        if: steps.cache-checkpoint.outputs.cache-hit != 'true'
+        run: |
+          # The release zip's top-level entries are corpus-bin/ and
+          # transformer/ directly (no wrapping folder); extract under
+          # data/external/indicxlit/release/ to match what
+          # scripts/export/export_indicxlit_onnx.py expects.
+          mkdir -p data/external/indicxlit/release
+          curl -fsSL -o data/external/indicxlit/indicxlit-en-indic-v1.0.zip "$INDICXLIT_RELEASE_URL"
+          unzip -q data/external/indicxlit/indicxlit-en-indic-v1.0.zip -d data/external/indicxlit/release
+          test -f data/external/indicxlit/release/transformer/indicxlit.pt
+      - name: Install export dependencies
+        run: |
+          # fairseq 0.12.2's omegaconf pin has invalid PEP 440 metadata
+          # ("PyYAML (>=5.1.*)"); pip >=24.1 enforces strict metadata parsing
+          # and refuses to resolve it, so pip must stay below that here.
+          python -m pip install --upgrade "pip<24.1"
+          pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install fairseq==0.12.2 "numpy<2" onnx onnxruntime
+      - name: Patch fairseq for Python 3.11
+        run: python3 scripts/export/patch_fairseq_py311.py
+      - name: Export + quantize ONNX model
+        run: python3 scripts/export/export_indicxlit_onnx.py
+      - name: Refresh manifest checksums for this build
+        run: python3 scripts/export/refresh_manifest_checksums.py
+      - name: Upload exported model
+        uses: actions/upload-artifact@v4
+        with:
+          name: indicxlit-onnx-model
+          path: |
+            models/artifacts/gu-indicxlit-v1/indicxlit_encoder.onnx
+            models/artifacts/gu-indicxlit-v1/indicxlit_decoder_v2.onnx
+            models/artifacts/gu-indicxlit-v1/vocab.json
+            models/artifacts/gu-indicxlit-v1/model-card.md
+            models/artifacts/gu-indicxlit-v1/training-manifest.json
+            models/artifacts/gu-indicxlit-v1/LICENSES/NOTICE.md
+
+  build-plugin:
+    needs: export
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-x64
+            os: ubuntu-22.04
+            ort_asset: onnxruntime-linux-x64
+            ort_ext: tgz
+          - id: linux-arm64
+            os: ubuntu-24.04-arm
+            ort_asset: onnxruntime-linux-aarch64
+            ort_ext: tgz
+          - id: macos-arm64
+            os: macos-14
+            ort_asset: onnxruntime-osx-arm64
+            ort_ext: tgz
+          - id: windows-x64
+            os: windows-latest
+            ort_asset: onnxruntime-win-x64
+            ort_ext: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: indicxlit-onnx-model
+          path: models/artifacts/gu-indicxlit-v1
+      - if: matrix.id == 'windows-x64'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Download ONNX Runtime (${{ matrix.id }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="${{ matrix.ort_asset }}-${ONNXRUNTIME_VERSION}.${{ matrix.ort_ext }}"
+          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
+          curl -fsSL -o "$RUNNER_TEMP/ort.${{ matrix.ort_ext }}" "$url"
+          if [[ "${{ matrix.ort_ext }}" == "zip" ]]; then
+            unzip -q "$RUNNER_TEMP/ort.zip" -d "$RUNNER_TEMP"
+          else
+            tar xzf "$RUNNER_TEMP/ort.tgz" -C "$RUNNER_TEMP"
+          fi
+          echo "ONNXRUNTIME_ROOT=$RUNNER_TEMP/${{ matrix.ort_asset }}-${ONNXRUNTIME_VERSION}" >> "$GITHUB_ENV"
+      - name: Build + stage + validate model pack (linux)
+        if: startsWith(matrix.id, 'linux')
+        run: ./scripts/package/linux/build_neural_model_pack.sh
+      - name: Build + stage + validate model pack (macos)
+        if: matrix.id == 'macos-arm64'
+        run: ./scripts/package/macos/build_neural_model_pack.sh
+      - name: Build + stage + validate model pack (windows)
+        if: matrix.id == 'windows-x64'
+        shell: bash
+        run: ./scripts/package/windows/build_neural_model_pack.sh
+      - name: Native plugin inference smoke test
+        shell: bash
+        run: |
+          case "${{ matrix.id }}" in
+            linux-x64) PACK=dist/gujarati-model-pack-linux ;;
+            linux-arm64) PACK=dist/gujarati-model-pack-linux ;;
+            macos-arm64) PACK=dist/gujarati-model-pack-macos ;;
+            windows-x64) PACK=dist/gujarati-model-pack-windows ;;
+          esac
+          echo "PACK=$PACK" >> "$GITHUB_ENV"
+          python3 eval/native_model_plugin_test.py "$PACK"
+      - name: Upload validated model pack (${{ matrix.id }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: indicxlit-model-pack-${{ matrix.id }}
+          path: ${{ env.PACK }}
