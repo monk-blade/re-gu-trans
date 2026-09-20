@@ -39,7 +39,7 @@ correct.
 ## Preferred candidate (numbered selection)
 
 Press **1–9** to pick a Gujarati candidate from the menu. After you pick the
-**same** Gujarati word for the **same** roman spelling **three times** with
+**same** Gujarati word for the **same** roman spelling **twice** with
 number keys, that word becomes the preferred Gujarati candidate (**menu #1**)
 the next time you type that roman.
 
