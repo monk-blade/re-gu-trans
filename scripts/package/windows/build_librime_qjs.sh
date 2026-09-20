@@ -35,30 +35,37 @@ git clone --recursive --depth 1 --branch "$LIBRIME_QJS_TAG" \
 
 "$PACKAGE_ROOT/scripts/package/apply_qjs_writefile_atomic.sh" "$PWD/plugins/qjs"
 
-# librime and librime-qjs both pin CMAKE_CXX_STANDARD to 17, but
-# librime-qjs's own headers (qjs_candidate.h etc.) use C++20 designated
-# initializers for JSCFunctionListEntry tables. GCC/Clang accept this as an
-# extension even in C++17 mode (why the Linux/macOS builds are unaffected),
-# but MSVC enforces it strictly and fails with C7555/C2065/etc. Bump both to
-# the standard the code actually requires.
-sed -i 's/CMAKE_CXX_STANDARD 17/CMAKE_CXX_STANDARD 20/' CMakeLists.txt
-sed -i 's/CMAKE_CXX_STANDARD 17/CMAKE_CXX_STANDARD 20/' plugins/qjs/CMakeLists.txt
+# librime-qjs's own upstream CI (.github/workflows/windows-build.yml) builds
+# Windows with clang, not MSVC's cl.exe -- and for good reason: its headers
+# (qjs_candidate.h etc.) use C++20 designated initializers for
+# JSCFunctionListEntry tables that GCC/Clang accept as a permitted extension
+# even under C++17 (why the Linux/macOS builds using GCC are unaffected),
+# but that MSVC's strict conformance mode rejects outright (C7555/C2065/
+# C2679/etc, including inside librime's own headers, e.g. vocabulary.h's
+# ShortDictEntry). Matching upstream's actual tested configuration is more
+# reliable than trying to coerce cl.exe into accepting this. clang here
+# still uses the MSVC toolchain's headers/libs/ABI via the environment
+# ilammy/msvc-dev-cmd set up -- it's not a MinGW or clang-cl cross build.
+choco upgrade -y llvm >/dev/null
+# choco updates the machine PATH in the registry, which a fresh process
+# picks up -- but this script keeps running in the same bash process that
+# started before the install, so export it explicitly for the cmd.exe
+# subprocesses spawned below.
+export PATH="/c/Program Files/LLVM/bin:$PATH"
+command -v clang++ >/dev/null || { echo "ERROR: clang++ not found after choco install" >&2; exit 1; }
+echo "Using $(command -v clang++)"
 
 # Use Ninja with the MSVC environment supplied by ilammy/msvc-dev-cmd. This
 # avoids coupling the build to a particular Visual Studio generator name.
-cat > env.bat <<'EOF'
+# librime's build.bat sources env.bat itself (`if exist env.bat call
+# .\env.bat`), so CXX/CC set here reach every cmake configure it runs.
+cat > env.bat <<EOF
 set RIME_ROOT=%CD%
 set BOOST_ROOT=%RIME_ROOT%\deps\boost-1.89.0
 set CMAKE_GENERATOR=Ninja
+set CXX=clang++
+set CC=clang
 EOF
-
-# The windows-latest runner's current MSVC (14.35+) requires an explicit
-# opt-in to compile <stdatomic.h> (pulled in by quickjs-libc.c), or it fails
-# with "fatal error C1189: C atomic support is not enabled". CL is read by
-# cl.exe and prepended to every invocation, including the ones librime's own
-# build.bat generates internally, so this reaches the actual failing compile
-# without needing to patch quickjs's own build files.
-export CL="/experimental:c11atomics"
 
 # Git Bash/MSYS rewrites command arguments that look like POSIX paths.  That
 # turns cmd.exe's `/c` switch into a drive path, so the batch files never run
