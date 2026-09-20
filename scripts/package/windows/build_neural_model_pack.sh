@@ -12,9 +12,13 @@ test "$(tr -d '\r\n' < "$ORT_ROOT/VERSION_NUMBER")" = "1.23.2" || {
   echo "FAIL: ONNX Runtime 1.23.2 is required" >&2
   exit 1
 }
+# Ninja + the MSVC env vars set up by ilammy/msvc-dev-cmd (INCLUDE/LIB/PATH
+# pointing at cl.exe) avoids pinning to a specific Visual Studio generator
+# version, which breaks whenever a GitHub-hosted windows-latest image ships
+# a newer VS release than "17 2022".
 cmake -S "$ROOT/native/gujarati-model-plugin" -B "$BUILD" \
-  -G "Visual Studio 17 2022" -A x64 -DONNXRUNTIME_ROOT="$ORT_ROOT"
-cmake --build "$BUILD" --config Release --parallel 2
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DONNXRUNTIME_ROOT="$ORT_ROOT"
+cmake --build "$BUILD" --parallel 2
 PLUGIN="$(find "$BUILD" -type f -name 'rime-gujarati-model.dll' | head -1)"
 test -n "$PLUGIN"
 rm -rf "$ASSEMBLY"
