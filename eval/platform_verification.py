@@ -6,7 +6,9 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
@@ -17,6 +19,14 @@ EXPECTED_PACKAGE_SUFFIXES = {
     "macos": {".pkg", ".zip"},
     "windows": {".zip"},
 }
+# Windows ships its own C:\Windows\System32\bash.exe, a WSL launcher stub
+# that shadows Git Bash on PATH and fails outright when no WSL distro is
+# installed (the case on GitHub's windows-latest runners). Git for Windows
+# is preinstalled at this fixed path on those runners (it's what actually
+# runs every other "shell: bash" step in this workflow), so prefer it
+# explicitly over whatever a plain PATH lookup for "bash" would find.
+GIT_BASH = Path(r"C:\Program Files\Git\bin\bash.exe")
+BASH = str(GIT_BASH) if sys.platform == "win32" and GIT_BASH.exists() else (shutil.which("bash") or "bash")
 
 
 def digest(path: Path) -> str:
@@ -33,7 +43,7 @@ def run_sh(script: Path, *args: str, **kwargs) -> None:
     # fails with WinError 193 ("not a valid Win32 application"). Every
     # platform in this matrix ships bash (Git Bash on Windows runners), so
     # invoke it explicitly instead of relying on shebang-based execution.
-    subprocess.run(["bash", str(script), *args], check=True, **kwargs)
+    subprocess.run([BASH, str(script), *args], check=True, **kwargs)
 
 
 def main() -> int:
