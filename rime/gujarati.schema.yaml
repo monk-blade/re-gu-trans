@@ -5,7 +5,7 @@
 schema:
   schema_id: gujarati
   name: Gujarati Transliteration
-  version: '3.0'
+  version: '4.0'
   author:
     - OpenCode
     - re-gu-trans
@@ -68,7 +68,7 @@ translator:
   max_emoji: 2
   # Optional offline model pack. auto is bit-for-bit core fallback when absent.
   neural_mode: auto  # auto | off | required
-  max_neural_candidates: 4
+  max_neural_candidates: 8
   lm_unigram_weight: 0.6
   lm_user_weight: 0.6
 

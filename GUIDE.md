@@ -282,9 +282,9 @@ GitHub Actions (`.github/workflows/release-packages.yml`) builds on tags `v*`:
 Local:
 
 ```bash
-VERSION=3.0.0 ./scripts/package/macos/build_pkg.sh      # macOS only
-VERSION=3.0.0 ./scripts/package/windows/build_zip.sh    # needs 7z
-VERSION=3.0.0 ./scripts/package/linux/build_packages.sh # needs build deps + nfpm
+VERSION=4.0.0 ./scripts/package/macos/build_pkg.sh      # macOS only
+VERSION=4.0.0 ./scripts/package/windows/build_zip.sh    # needs 7z
+VERSION=4.0.0 ./scripts/package/linux/build_packages.sh # needs build deps + nfpm
 ```
 
 See [packaging/README.md](./packaging/README.md).

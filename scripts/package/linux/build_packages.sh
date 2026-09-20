@@ -36,14 +36,16 @@ case "$MODEL_ARCH" in
     MODEL_SOURCE_DEFAULT="$PACKAGE_ROOT/models/artifacts/gu-indicxlit-v1"
     MODEL_PACK_DEFAULT="$DIST/gujarati-model-pack-linux-xlit"
     CONFLICT_PKG="re-gu-trans-ctc"
+    PLUGIN_SOURCE_DEFAULT="$PACKAGE_ROOT/native/gujarati-model-plugin"
     PKG_DESC="Gujarati roman-to-script transliteration for Rime (lexicon + QuickJS), with the IndicXlit neural model (higher accuracy, ~20ms/query), fcitx5, and the Ori theme + Noto Serif Gujarati candidate font all installed as part of this package. On a system with a desktop session, installing this package enables Gujarati typing directly; otherwise run re-gu-trans-enable once as your user. Conflicts with re-gu-trans-ctc (same schema, faster/lower-accuracy CTC model) -- install one or the other."
     ;;
   ctc)
     PKG_NAME="${PKG_NAME:-re-gu-trans-ctc}"
-    MODEL_SOURCE_DEFAULT="$PACKAGE_ROOT/models/artifacts/gu-transformer-ctc-v3"
+    MODEL_SOURCE_DEFAULT="$PACKAGE_ROOT/models/artifacts/gu-transformer-ctc-v4"
     MODEL_PACK_DEFAULT="$DIST/gujarati-model-pack-linux-ctc"
     CONFLICT_PKG="re-gu-trans-xlit"
-    PKG_DESC="Gujarati roman-to-script transliteration for Rime (lexicon + QuickJS), with the compact gu-transformer-ctc-v3 neural model (lower accuracy, ~2ms/query), fcitx5, and the Ori theme + Noto Serif Gujarati candidate font all installed as part of this package. On a system with a desktop session, installing this package enables Gujarati typing directly; otherwise run re-gu-trans-enable once as your user. Conflicts with re-gu-trans-xlit (same schema, higher-accuracy IndicXlit model) -- install one or the other."
+    PLUGIN_SOURCE_DEFAULT="$PACKAGE_ROOT/native/gujarati-ctc-model-plugin"
+    PKG_DESC="Gujarati roman-to-script transliteration for Rime (lexicon + QuickJS), with the compact gu-transformer-ctc-v4 neural model (sequence-level distilled from IndicXlit: 69.5% top-1 / 90.0% recall@6 held-out, ~2.3ms/query -- strictly faster and more accurate than v3), fcitx5, and the Ori theme + Noto Serif Gujarati candidate font all installed as part of this package. On a system with a desktop session, installing this package enables Gujarati typing directly; otherwise run re-gu-trans-enable once as your user. Conflicts with re-gu-trans-xlit (same schema, higher-accuracy IndicXlit model) -- install one or the other."
     ;;
   *)
     echo "FAIL: MODEL_ARCH must be indicxlit or ctc (got: $MODEL_ARCH)" >&2
@@ -51,6 +53,7 @@ case "$MODEL_ARCH" in
     ;;
 esac
 MODEL_SOURCE="${MODEL_SOURCE:-$MODEL_SOURCE_DEFAULT}"
+PLUGIN_SOURCE="${PLUGIN_SOURCE:-$PLUGIN_SOURCE_DEFAULT}"
 # This package is meant to be plug-and-play: the neural model pack and the
 # fcitx5 theme/font default are always bundled in, not left as a separate
 # optional download.
@@ -72,6 +75,7 @@ if [[ ! -d "$MODEL_PACK" ]]; then
   echo "Building $MODEL_ARCH neural model pack (MODEL_PACK not found at $MODEL_PACK) ..."
   ONNXRUNTIME_ROOT="${ONNXRUNTIME_ROOT:?ONNXRUNTIME_ROOT must point to ONNX Runtime 1.23.2 to build the bundled model pack}" \
   MODEL_SOURCE="$MODEL_SOURCE" \
+  PLUGIN_SOURCE="$PLUGIN_SOURCE" \
   BUILD_DIR="$DIST/gujarati-model-build-linux-$MODEL_ARCH" \
   ASSEMBLY_DIR="$DIST/gujarati-model-assembly-linux-$MODEL_ARCH" \
   OUT_DIR="$MODEL_PACK" \

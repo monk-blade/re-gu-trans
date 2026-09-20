@@ -7,12 +7,16 @@ SOURCE="${MODEL_SOURCE:-$ROOT/models/artifacts/gu-indicxlit-v1}"
 BUILD="${BUILD_DIR:-$ROOT/dist/gujarati-model-build-linux}"
 ASSEMBLY="${ASSEMBLY_DIR:-$ROOT/dist/gujarati-model-assembly-linux}"
 OUT="${OUT_DIR:-$ROOT/dist/gujarati-model-pack-linux}"
+# native/gujarati-model-plugin is the IndicXlit (seq2seq) inference plugin;
+# native/gujarati-ctc-model-plugin is the single-pass CTC one. Each package
+# variant bundles only the plugin matching its own model pack.
+PLUGIN_SOURCE="${PLUGIN_SOURCE:-$ROOT/native/gujarati-model-plugin}"
 
 test "$(cat "$ORT_ROOT/VERSION_NUMBER")" = "1.23.2" || {
   echo "FAIL: ONNX Runtime 1.23.2 is required" >&2
   exit 1
 }
-cmake -S "$ROOT/native/gujarati-model-plugin" -B "$BUILD" \
+cmake -S "$PLUGIN_SOURCE" -B "$BUILD" \
   -DONNXRUNTIME_ROOT="$ORT_ROOT" -DCMAKE_BUILD_TYPE=Release
 cmake --build "$BUILD" --config Release --parallel 2
 rm -rf "$ASSEMBLY"

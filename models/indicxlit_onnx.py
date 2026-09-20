@@ -22,6 +22,14 @@ class IndicXlitOnnx:
         root = Path(model_dir)
         options = ort.SessionOptions()
         options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        # Without this, each session claims all-CPU intra-op thread pools by
+        # default; running multiple IndicXlitOnnx instances in parallel
+        # (e.g. multiprocessed pseudo-labeling) then oversubscribes the
+        # machine catastrophically (28 cores, 24 worker processes each
+        # spawning ~24 threads -> load average in the hundreds). The native
+        # C++ plugin already pins this to 1 for the same reason.
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
         self.encoder = ort.InferenceSession(
             str(root / "indicxlit_encoder.onnx"), options, providers=["CPUExecutionProvider"]
         )
@@ -88,6 +96,20 @@ class IndicXlitOnnx:
                         expanded.append(candidate)
             expanded.sort(key=lambda item: item[0], reverse=True)
             beams = expanded[:beam_width]
+
+            # Every appended token adds a non-positive log-probability, so a
+            # raw (pre length-penalty) beam score can only get worse as
+            # decoding continues. Once beam_width candidates have already
+            # finished with a raw score no live beam can still reach, further
+            # steps cannot change the eventual top set: stop. Without this,
+            # every call ran the full max_len steps regardless of word
+            # length (~15x unnecessary decoder calls for short words) --
+            # mirrors the fix already applied to the native C++ plugin
+            # (native/gujarati-model-plugin/src/plugin.cc).
+            if beams and len(finished) >= beam_width:
+                threshold = sorted((s for s, _t in finished), reverse=True)[beam_width - 1]
+                if beams[0][0] < threshold:
+                    break
 
         finished.extend(beams)
         scored = []

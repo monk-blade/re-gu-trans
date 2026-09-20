@@ -33,6 +33,7 @@ root = Path(sys.argv[1])
 manifest = json.loads((root / 'training-manifest.json').read_text(encoding='utf-8'))
 known_versions = {
     'gu-transformer-ctc-v3': {'model_files': ['gujarati_xlit.int8.onnx'], 'warm_p95_budget_ms': 10},
+    'gu-transformer-ctc-v4': {'model_files': ['gujarati_xlit.int8.onnx'], 'warm_p95_budget_ms': 10},
     'indicxlit-fairseq-v1.0': {
         'model_files': ['indicxlit_encoder.onnx', 'indicxlit_decoder_v2.onnx'],
         # Autoregressive beam search over a seq2seq transformer is inherently

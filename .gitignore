@@ -1,5 +1,6 @@
 .venv/
 .venv-indicxlit/
+.venv-train-gpu/
 __pycache__/
 *.pyc
 .DS_Store

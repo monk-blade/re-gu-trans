@@ -27,7 +27,7 @@ LANG_LIST = Path(__file__).resolve().parent.parent / "scripts" / "export" / "ind
 
 
 class IndicXlitFairseq:
-    def __init__(self, release_dir: str | Path, lang: str = "gu", beam_size: int = 8):
+    def __init__(self, release_dir: str | Path, lang: str = "gu", beam_size: int = 8, device: str = "cpu"):
         root = Path(release_dir)
         models, cfg, task = checkpoint_utils.load_model_ensemble_and_task(
             [str(root / "transformer" / "indicxlit.pt")],
@@ -36,8 +36,10 @@ class IndicXlitFairseq:
                 "lang_dict": str(LANG_LIST),
             },
         )
+        self.device = torch.device(device)
         for model in models:
             model.eval()
+            model.to(self.device)
         self.models = models
         self.task = task
         self.src_dict = task.source_dictionary
@@ -55,11 +57,11 @@ class IndicXlitFairseq:
     def nbest(self, roman: str, count: int = 4, beam_width: int = 8) -> list[Candidate]:
         count = max(1, min(8, int(count)))
         beam_width = max(count, min(12, int(beam_width)))
-        src = self._encode(roman)
+        src = self._encode(roman).to(self.device)
         sample = {
             "net_input": {
                 "src_tokens": src.unsqueeze(0),
-                "src_lengths": torch.tensor([src.numel()]),
+                "src_lengths": torch.tensor([src.numel()], device=self.device),
             }
         }
         self.generator.beam_size = beam_width

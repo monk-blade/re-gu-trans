@@ -2,7 +2,7 @@
 # postinst for re-gu-trans (deb/rpm via nfpm)
 set -e
 
-echo "re-gu-trans: installed schema, IndicXlit model, librime-qjs plugin,"
+echo "re-gu-trans: installed schema, neural model, librime-qjs plugin,"
 echo "             and the Ori fcitx5 theme + Noto Serif Gujarati candidate font."
 
 TARGET_USER=""
