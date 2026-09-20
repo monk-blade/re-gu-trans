@@ -143,7 +143,7 @@ jobs:
           MODEL_ARCH: ${{ matrix.model == 'xlit' && 'indicxlit' || 'ctc' }}
           # Independent of what the built manifest claims -- catches a stale
           # or wrong model pack silently reused across matrix legs.
-          MODEL_TOKEN: ${{ matrix.model == 'xlit' && 'indicxlit-fairseq-v1.0' || 'gu-transformer-ctc-v4' }}
+          MODEL_TOKEN: ${{ matrix.model == 'xlit' && 'indicxlit-fairseq-v1.0' || 'gu-transformer-ctc-v5' }}
         run: |
           MODEL_PACK="dist/gujarati-model-pack-linux-${{ matrix.model }}"
           python3 eval/native_model_plugin_test.py "$MODEL_PACK"
