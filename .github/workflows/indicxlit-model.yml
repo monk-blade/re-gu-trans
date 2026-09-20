@@ -101,6 +101,10 @@ jobs:
         with:
           name: indicxlit-onnx-model
           path: models/artifacts/gu-indicxlit-v1
+      - if: matrix.id == 'windows-x64'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
       - name: Download ONNX Runtime (${{ matrix.id }})
         shell: bash
         run: |
