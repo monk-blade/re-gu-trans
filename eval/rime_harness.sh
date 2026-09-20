@@ -111,6 +111,22 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
     -lrime -o "$DRIVER.exe"
   DRIVER="$DRIVER.exe"
   export PATH="$(dirname "$RIME_DLL"):$PATH"
+  # A plain LoadLibraryA(full_path) call (used to load rime-gujarati-model.dll
+  # from $USER/gujarati-model) does NOT search that DLL's own directory for
+  # its own dependencies -- Windows instead resolves an implicit/static
+  # dependency like onnxruntime.dll via the *application's* (this driver's)
+  # own directory first, then system directories/PATH. If some other,
+  # unrelated onnxruntime.dll happens to be discoverable there (observed:
+  # a stale v1.17.1 vs. our bundled v1.23.2), that wrong copy wins silently,
+  # and the plugin's compiled-in ORT_API_VERSION request fails against it --
+  # seen as "The requested API version [23] is not available, only API
+  # versions [1, 17] are supported... Current ORT Version is: 1.17.1"
+  # immediately before a SIGSEGV on first neural inference. Fix: place a copy
+  # of the correct onnxruntime.dll directly beside the driver executable, so
+  # the application-directory search rule finds ours first.
+  if [[ -f "$USER/gujarati-model/onnxruntime.dll" ]]; then
+    cp -f "$USER/gujarati-model/onnxruntime.dll" "$(dirname "$DRIVER")/"
+  fi
 else
   "${CXX:-c++}" -std=c++17 eval/rime_session_driver.cc \
     -I"$BUILD_ROOT/src" \

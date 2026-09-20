@@ -1,18 +1,15 @@
 name: Debug windows neural crash
 on:
   workflow_dispatch: {}
-
 jobs:
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: {python-version: '3.12'}
       - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+        with: {arch: x64}
       - name: Install 7zip + nsis + marisa-trie
         shell: bash
         run: |
