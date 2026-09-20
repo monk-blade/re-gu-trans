@@ -6,8 +6,8 @@ Instructions for coding agents and maintainers working in this repository.
 
 Akshar GU is a Gujarati roman-to-script input method for Squirrel, Weasel,
 Fcitx5-Rime, and ibus-rime. The package id is `re-gu-trans`; the Rime schema
-id is `gujarati`. The current repository version is in `VERSION` (`2.9.0`),
-while the schema and Plum recipe use the compatible `2.9` major/minor form.
+id is `gujarati`. The current repository version is in `VERSION` (`3.0.0`),
+while the schema and Plum recipe use the compatible `3.0` major/minor form.
 
 The production engine is a librime-qjs translator and two qjs processors. It
 combines an Apple-derived roman lexicon, weighted phonetic generation, native
@@ -130,7 +130,7 @@ override a strong lexicon candidate only under the explicit policy margins in
 `ranking_policy.json`.
 
 Learning is deliberately narrow: numbered selections are observed by the
-selection tracker, and the third explicit selection for a roman input promotes
+selection tracker, and the second explicit selection for a roman input promotes
 the preferred native. Space/punctuation commits do not themselves create a
 learning event. Persistence requires qjs `env.writeFileAtomic`; there is no
 `saveFile` or unrestricted global-write fallback. The user file is

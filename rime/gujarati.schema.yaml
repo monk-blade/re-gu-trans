@@ -5,7 +5,7 @@
 schema:
   schema_id: gujarati
   name: Gujarati Transliteration
-  version: '2.9'
+  version: '3.0'
   author:
     - OpenCode
     - re-gu-trans
